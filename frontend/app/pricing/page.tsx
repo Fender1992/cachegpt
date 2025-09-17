@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Check, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 const pricingTiers = [
   {
@@ -102,12 +101,13 @@ export default function PricingPage() {
   const [annual, setAnnual] = useState(false)
   const [currentPlan, setCurrentPlan] = useState('free')
   const router = useRouter()
-  const supabase = createClientComponentClient()
 
   const handleUpgrade = async (planId: string) => {
     if (planId === 'enterprise') {
       // Redirect to contact form or email
-      window.location.href = 'mailto:sales@llmcacheproxy.com?subject=Enterprise Plan Inquiry'
+      if (typeof window !== 'undefined') {
+        window.location.href = 'mailto:sales@llmcacheproxy.com?subject=Enterprise Plan Inquiry'
+      }
       return
     }
 
