@@ -120,11 +120,7 @@ export async function POST(req: Request) {
           .eq('stripe_customer_id', invoice.customer)
           .single();
 
-        if (user && invoice.subscription) {
-          const subscription = await stripe.subscriptions.retrieve(
-            invoice.subscription as string
-          );
-
+        if (user) {
           const { error } = await supabase
             .from('users')
             .update({
