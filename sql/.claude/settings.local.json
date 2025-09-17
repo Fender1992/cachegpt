@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Read(//mnt/d/CacheGPT/**)"
-    ],
-    "deny": [],
-    "ask": []
-  }
-}

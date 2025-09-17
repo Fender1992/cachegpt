@@ -1,25 +1,41 @@
 {
-  "name": "llm-cache-proxy",
-  "version": "1.0.0",
-  "description": "LLM Cache Proxy with intelligent caching using semantic similarity",
+  "name": "llm-cache-dashboard",
+  "version": "0.1.0",
+  "private": true,
   "scripts": {
-    "install-cli": "cd cli && npm install --no-bin-links && npm run build",
-    "build-cli": "cd cli && npm run build",
-    "cli": "cd cli && ./bin/llm-cache",
-    "dev": "cd frontend && yarn dev",
-    "build": "cd frontend && yarn build",
-    "start": "cd frontend && yarn start",
-    "install": "cd frontend && yarn install"
+    "dev": "npx next dev",
+    "build": "npx next build",
+    "start": "npx next start",
+    "lint": "npx next lint"
   },
   "dependencies": {
-    "next": "14.0.4",
+    "@radix-ui/react-progress": "^1.1.7",
+    "@radix-ui/react-slot": "^1.0.2",
+    "@stripe/stripe-js": "^7.9.0",
+    "@supabase/auth-helpers-nextjs": "^0.8.0",
+    "@supabase/supabase-js": "^2.38.0",
+    "@tanstack/react-query": "^5.0.0",
+    "axios": "^1.5.0",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.0.0",
+    "date-fns": "^2.30.0",
+    "lucide-react": "^0.290.0",
+    "next": "^15.5.3",
     "react": "^18",
-    "react-dom": "^18"
+    "react-dom": "^18",
+    "recharts": "^2.8.0",
+    "stripe": "^18.5.0",
+    "tailwind-merge": "^2.0.0",
+    "tailwindcss": "^3.4.17"
   },
   "devDependencies": {
-    "@types/node": "^24.5.0",
-    "@types/react": "^19.1.13",
-    "typescript": "^5.9.2"
-  },
-  "license": "MIT"
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^8",
+    "eslint-config-next": "14.0.0",
+    "postcss": "^8.5.6",
+    "typescript": "5.9.2"
+  }
 }

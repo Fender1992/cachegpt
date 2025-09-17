@@ -1,25 +1,8 @@
 # Ignore Python backend
-app/
-requirements.txt
-*.py
+backend/
 
 # Ignore CLI
 cli/
 
-# Ignore SQL
-sql/
-
 # Ignore docs
 docs/
-
-# Ignore tests
-tests/
-
-# Ignore middleware
-middleware/
-
-# Ignore API files
-api/
-
-# Only deploy frontend
-!frontend/
