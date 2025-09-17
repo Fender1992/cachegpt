@@ -11,6 +11,11 @@
     "start": "cd frontend && yarn start",
     "install": "cd frontend && yarn install"
   },
+  "dependencies": {
+    "next": "14.0.4",
+    "react": "^18",
+    "react-dom": "^18"
+  },
   "devDependencies": {
     "@types/node": "^24.5.0",
     "@types/react": "^19.1.13",
