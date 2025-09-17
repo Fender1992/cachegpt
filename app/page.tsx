@@ -99,8 +99,8 @@ export default function Home() {
 
           <div className={`flex items-center space-x-6 transition-all duration-500 delay-100 ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-5'}`}>
             <Link href="#features" className="text-gray-600 hover:text-purple-600 transition">Features</Link>
-            <Link href="#pricing" className="text-gray-600 hover:text-purple-600 transition">Pricing</Link>
-            <Link href="#docs" className="text-gray-600 hover:text-purple-600 transition">Docs</Link>
+            <Link href="/pricing" className="text-gray-600 hover:text-purple-600 transition">Pricing</Link>
+            <Link href="/docs" className="text-gray-600 hover:text-purple-600 transition">Docs</Link>
             <Link href="/dashboard" className="btn-glow">
               Get Started
               <ArrowRight className="w-4 h-4 ml-2 inline" />
@@ -136,13 +136,16 @@ export default function Home() {
                 onClick={() => router.push('/dashboard')}
                 className="group relative px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200"
               >
-                <span className="relative z-10">Start Free Trial</span>
+                <span className="relative z-10">Start Free Forever</span>
                 <ArrowRight className="w-5 h-5 inline ml-2 group-hover:translate-x-1 transition-transform" />
               </button>
 
-              <button className="group px-8 py-4 border-2 border-gray-300 dark:border-gray-600 rounded-xl font-semibold text-lg hover:border-purple-500 transition-all duration-200">
+              <button
+                onClick={() => router.push('/docs')}
+                className="group px-8 py-4 border-2 border-gray-300 dark:border-gray-600 rounded-xl font-semibold text-lg hover:border-purple-500 transition-all duration-200"
+              >
                 <Terminal className="w-5 h-5 inline mr-2" />
-                View CLI Docs
+                View Documentation
               </button>
             </div>
 
@@ -256,18 +259,21 @@ export default function Home() {
                 Ready to <span className="text-purple-600">Optimize</span>?
               </h2>
               <p className="text-xl text-gray-600 dark:text-gray-400 mb-8">
-                Join thousands of developers saving millions on API costs
+                Join thousands of developers saving millions on API costs - completely free!
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <button
                   onClick={() => router.push('/dashboard')}
                   className="btn-glow"
                 >
-                  Start Free Trial
+                  Start Free Forever
                   <ArrowRight className="w-4 h-4 ml-2 inline" />
                 </button>
-                <button className="px-8 py-3 font-semibold border-2 border-gray-300 dark:border-gray-600 rounded-xl hover:border-purple-500 transition">
-                  Schedule Demo
+                <button
+                  onClick={() => window.open('https://github.com/cachegpt/cachegpt', '_blank')}
+                  className="px-8 py-3 font-semibold border-2 border-gray-300 dark:border-gray-600 rounded-xl hover:border-purple-500 transition"
+                >
+                  View on GitHub
                 </button>
               </div>
             </div>
@@ -287,8 +293,8 @@ export default function Home() {
           <div className="flex items-center space-x-6 text-sm text-gray-600 dark:text-gray-400">
             <Link href="/docs" className="hover:text-purple-600 transition">Documentation</Link>
             <Link href="/pricing" className="hover:text-purple-600 transition">Pricing</Link>
-            <Link href="/blog" className="hover:text-purple-600 transition">Blog</Link>
-            <Link href="/support" className="hover:text-purple-600 transition">Support</Link>
+            <a href="https://github.com/cachegpt/cachegpt" target="_blank" rel="noopener noreferrer" className="hover:text-purple-600 transition">GitHub</a>
+            <Link href="/dashboard" className="hover:text-purple-600 transition">Get Started</Link>
           </div>
         </div>
       </footer>
