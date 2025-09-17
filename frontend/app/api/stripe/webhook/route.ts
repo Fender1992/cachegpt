@@ -72,7 +72,6 @@ export async function POST(req: Request) {
             .update({
               subscription_status: subscription.status,
               subscription_id: subscription.id,
-              current_period_end: subscription.current_period_end ? new Date(subscription.current_period_end * 1000).toISOString() : null,
               updated_at: new Date().toISOString(),
             })
             .eq('id', user.id);
@@ -129,7 +128,6 @@ export async function POST(req: Request) {
           const { error } = await supabase
             .from('users')
             .update({
-              current_period_end: subscription.current_period_end ? new Date(subscription.current_period_end * 1000).toISOString() : null,
               updated_at: new Date().toISOString(),
             })
             .eq('id', user.id);
