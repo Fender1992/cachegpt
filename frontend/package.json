@@ -9,7 +9,7 @@
     "lint": "npx next lint"
   },
   "dependencies": {
-    "@radix-ui/react-progress": "^1.0.3",
+    "@radix-ui/react-progress": "^1.1.7",
     "@radix-ui/react-slot": "^1.0.2",
     "@stripe/stripe-js": "^7.9.0",
     "@supabase/auth-helpers-nextjs": "^0.8.0",
@@ -19,7 +19,6 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
     "date-fns": "^2.30.0",
-    "framer-motion": "^10.16.4",
     "lucide-react": "^0.290.0",
     "next": "^15.5.3",
     "react": "^18",
