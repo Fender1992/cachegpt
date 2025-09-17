@@ -1,0 +1,84 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+*.lcov
+.nyc_output
+
+# Next.js
+frontend/.next/
+frontend/out/
+frontend/build
+frontend/dist
+
+# Production
+build/
+dist/
+
+# Misc
+.DS_Store
+*.pem
+.vscode/
+.idea/
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# CLI build
+cli/dist/
+cli/build/
+app/static/llm-cache.exe
+app/static/llm-cache-*
+
+# Vercel
+.vercel/
+
+# Logs
+logs/
+*.log
+
+# OS
+Thumbs.db
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+temp/
+tmp/

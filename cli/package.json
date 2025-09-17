@@ -1,0 +1,46 @@
+{
+  "name": "llm-cache-cli",
+  "version": "1.0.0",
+  "description": "CLI tool for LLM Cache Proxy",
+  "main": "dist/index.js",
+  "bin": {
+    "llm-cache": "bin/llm-cache"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "NODE_ENV=development ts-node src/index.ts",
+    "start": "node dist/index.js",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build",
+    "link": "npm link",
+    "test": "echo \"Run 'npm run build && ./bin/llm-cache --help' to test\"",
+    "build:exe": "tsc && pkg dist/index.js --targets node18-win-x64 --output ../app/static/llm-cache.exe",
+    "build:all": "tsc && pkg dist/index.js --targets node18-win-x64,node18-linux-x64,node18-macos-x64 --out-path ../app/static/"
+  },
+  "keywords": [
+    "llm",
+    "cache",
+    "proxy",
+    "openai",
+    "anthropic",
+    "cli"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.5.0",
+    "chalk": "^4.1.2",
+    "commander": "^11.0.0",
+    "dotenv": "^16.3.1",
+    "inquirer": "^8.2.5",
+    "ora": "^5.4.1",
+    "table": "^6.8.1"
+  },
+  "devDependencies": {
+    "@types/inquirer": "^9.0.0",
+    "@types/node": "^20.0.0",
+    "pkg": "^5.8.1",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  }
+}

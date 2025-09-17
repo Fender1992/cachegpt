@@ -1,0 +1,16 @@
+{
+  "name": "llm-cache-proxy",
+  "version": "1.0.0",
+  "description": "LLM Cache Proxy with intelligent caching using semantic similarity",
+  "scripts": {
+    "install-cli": "cd cli && npm install --no-bin-links && npm run build",
+    "build-cli": "cd cli && npm run build",
+    "cli": "cd cli && ./bin/llm-cache"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.0",
+    "@types/react": "^19.1.13",
+    "typescript": "^5.9.2"
+  },
+  "license": "MIT"
+}
