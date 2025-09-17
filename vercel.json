@@ -1,9 +1,9 @@
 {
   "version": 2,
   "framework": "nextjs",
-  "buildCommand": "cd frontend && yarn build",
+  "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/.next",
-  "installCommand": "cd frontend && yarn install",
+  "installCommand": "cd frontend && npm install",
   "functions": {
     "frontend/app/api/**/*.ts": {
       "runtime": "nodejs18.x"
