@@ -46,8 +46,13 @@ export class ApiClient {
     );
   }
 
+  async chat(request: any): Promise<any> {
+    const response = await this.client.post('/api/chat', request);
+    return response.data;
+  }
+
   async healthCheck(): Promise<any> {
-    const response = await this.client.get('/health');
+    const response = await this.client.get('/api/health');
     return response.data;
   }
 
@@ -63,7 +68,7 @@ export class ApiClient {
   }
 
   async getStats(days: number = 7): Promise<StatsResponse> {
-    const response = await this.client.get(`/admin/stats?days=${days}`);
+    const response = await this.client.get(`/api/stats?days=${days}`);
     return response.data;
   }
 

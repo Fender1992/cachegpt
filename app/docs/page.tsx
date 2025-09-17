@@ -54,9 +54,9 @@ export default function DocsPage() {
             <p className="text-gray-600 text-sm mb-4">
               Use the command-line interface for testing and management
             </p>
-            <div className="text-gray-400 text-sm">
-              Coming soon →
-            </div>
+            <a href="#cli-installation" className="text-blue-600 hover:text-blue-700 text-sm font-medium">
+              Install CLI →
+            </a>
           </div>
 
           <div className="bg-white rounded-lg p-6 shadow-sm border hover:shadow-md transition">
@@ -83,6 +83,7 @@ export default function DocsPage() {
                 <li><Link href="#overview" className="text-gray-600 hover:text-purple-600">Overview</Link></li>
                 <li><Link href="#setup" className="text-gray-600 hover:text-purple-600">Setup</Link></li>
                 <li><Link href="#configuration" className="text-gray-600 hover:text-purple-600">Configuration</Link></li>
+                <li><Link href="#cli-installation" className="text-gray-600 hover:text-purple-600">CLI Installation</Link></li>
               </ul>
 
               <h3 className="font-semibold mb-4 mt-6">Features</h3>
@@ -132,6 +133,63 @@ export default function DocsPage() {
                     # Use: https://your-cache-endpoint.com/v1/chat/completions
                   </code>
                 </div>
+              </div>
+
+              <div id="cli-installation" className="mb-8">
+                <h2 className="text-2xl font-bold mb-4">CLI Installation</h2>
+                <p className="text-gray-600 mb-4">
+                  Install the CacheGPT CLI tool to manage and test your cache from the command line.
+                </p>
+
+                <h3 className="text-lg font-semibold mb-3">Install from Source</h3>
+                <div className="bg-gray-100 rounded-lg p-4 mb-4">
+                  <code className="text-sm">
+                    # Clone the repository<br/>
+                    git clone https://github.com/Fender1992/cachegpt.git<br/>
+                    cd cachegpt/cli<br/><br/>
+                    # Install dependencies<br/>
+                    npm install<br/><br/>
+                    # Build and link globally<br/>
+                    npm run build<br/>
+                    npm link
+                  </code>
+                </div>
+
+                <h3 className="text-lg font-semibold mb-3">Alternative: NPM Package (Coming Soon)</h3>
+                <div className="bg-gray-100 rounded-lg p-4 mb-4">
+                  <code className="text-sm">
+                    # Will be available soon via NPM<br/>
+                    npm install -g cachegpt-cli
+                  </code>
+                </div>
+
+                <h3 className="text-lg font-semibold mb-3">Quick Start</h3>
+                <div className="bg-gray-100 rounded-lg p-4 mb-4">
+                  <code className="text-sm">
+                    # Initialize configuration (interactive setup)<br/>
+                    cachegpt init<br/><br/>
+                    # Test the connection<br/>
+                    cachegpt test<br/><br/>
+                    # View cache statistics<br/>
+                    cachegpt stats
+                  </code>
+                </div>
+
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+                  <p className="text-purple-800 text-sm">
+                    <strong>✨ New:</strong> The CLI now includes an interactive setup wizard that helps you:
+                  </p>
+                  <ul className="list-disc list-inside text-purple-700 text-sm mt-2">
+                    <li>Choose your LLM provider (OpenAI, Anthropic, Google, or custom)</li>
+                    <li>Get guided to the right page to obtain API keys</li>
+                    <li>Select your preferred model</li>
+                    <li>Test your connection automatically</li>
+                  </ul>
+                </div>
+
+                <p className="text-gray-600 text-sm">
+                  For detailed CLI documentation, see the <a href="https://github.com/cachegpt/cachegpt/tree/main/cli" target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline">CLI README</a>.
+                </p>
               </div>
 
               <div className="border-t pt-8">

@@ -1,9 +1,10 @@
 {
-  "name": "llm-cache-cli",
+  "name": "cachegpt-cli",
   "version": "1.0.0",
-  "description": "CLI tool for LLM Cache Proxy",
+  "description": "CLI tool for CacheGPT - Intelligent LLM caching proxy",
   "main": "dist/index.js",
   "bin": {
+    "cachegpt": "bin/llm-cache",
     "llm-cache": "bin/llm-cache"
   },
   "scripts": {
@@ -33,6 +34,7 @@
     "commander": "^11.0.0",
     "dotenv": "^16.3.1",
     "inquirer": "^8.2.5",
+    "open": "^10.2.0",
     "ora": "^5.4.1",
     "table": "^6.8.1"
   },

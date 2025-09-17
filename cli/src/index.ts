@@ -7,6 +7,7 @@ import { testCommand } from './commands/test';
 import { statsCommand } from './commands/stats';
 import { clearCommand } from './commands/clear';
 import { configCommand } from './commands/config';
+import { chatCommand } from './commands/chat';
 
 const program = new Command();
 
@@ -57,6 +58,11 @@ program
   .option('--show', 'Show current configuration')
   .option('--set <key=value>', 'Set configuration value')
   .action(configCommand);
+
+program
+  .command('chat')
+  .description('Start interactive chat with your LLM')
+  .action(chatCommand);
 
 // Parse CLI arguments
 program.parse();
