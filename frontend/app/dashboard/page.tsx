@@ -43,9 +43,9 @@ export default function Dashboard() {
     uptime: 99.9
   })
 
-  const [chartData, setChartData] = useState([])
-  const [apiKeys, setApiKeys] = useState([])
-  const [recentActivity, setRecentActivity] = useState([])
+  const [chartData, setChartData] = useState<any[]>([])
+  const [apiKeys, setApiKeys] = useState<any[]>([])
+  const [recentActivity, setRecentActivity] = useState<any[]>([])
 
   useEffect(() => {
     if (!user && !loading) {
