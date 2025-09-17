@@ -2,16 +2,5 @@
   "buildCommand": "cd frontend && yarn install && yarn build",
   "outputDirectory": "frontend/.next",
   "framework": "nextjs",
-  "installCommand": "yarn install",
-  "functions": {
-    "api/app.py": {
-      "runtime": "python3.9"
-    }
-  },
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/app"
-    }
-  ]
+  "installCommand": "cd frontend && yarn install"
 }
