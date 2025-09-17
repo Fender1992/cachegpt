@@ -11,6 +11,12 @@ export function useAuth() {
   useEffect(() => {
     const checkUser = async () => {
       try {
+        // Skip auth check during static generation
+        if (typeof window === 'undefined') {
+          setLoading(false)
+          return
+        }
+
         const { data: { user } } = await supabase.auth.getUser()
         setUser(user)
       } catch (error) {
@@ -21,6 +27,11 @@ export function useAuth() {
     }
 
     checkUser()
+
+    // Skip auth listener during static generation
+    if (typeof window === 'undefined') {
+      return
+    }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)

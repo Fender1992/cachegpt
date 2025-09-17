@@ -60,6 +60,11 @@ export default function Dashboard() {
   }, [user, timeRange])
 
   const fetchDashboardData = async () => {
+    // Skip data fetching during static generation
+    if (typeof window === 'undefined') {
+      return
+    }
+
     setRefreshing(true)
     try {
       // Fetch usage statistics
@@ -128,11 +133,21 @@ export default function Dashboard() {
   }
 
   const handleSignOut = async () => {
+    // Skip sign out during static generation
+    if (typeof window === 'undefined') {
+      return
+    }
+
     await supabase.auth.signOut()
     router.push('/')
   }
 
   const copyApiKey = (key: string) => {
+    // Skip clipboard access during static generation
+    if (typeof window === 'undefined' || !navigator.clipboard) {
+      return
+    }
+
     navigator.clipboard.writeText(key)
     // Show toast notification
   }
