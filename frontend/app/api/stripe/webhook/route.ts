@@ -17,15 +17,41 @@ const supabase = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SE
   : null;
 
 export async function POST(req: Request) {
-  if (!stripe || !supabase) {
+  // Return early if environment variables are not configured
+  if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
     return NextResponse.json(
-      { error: 'Stripe webhook not configured' },
-      { status: 500 }
+      { error: 'Stripe not configured' },
+      { status: 200 } // Return 200 to avoid Vercel retries
     );
   }
 
-  const body = await req.text();
-  const sig = (await headers()).get('stripe-signature')!;
+  if (!stripe || !supabase) {
+    return NextResponse.json(
+      { error: 'Services not configured' },
+      { status: 200 } // Return 200 to avoid Vercel retries
+    );
+  }
+
+  let body: string;
+  let sig: string | null;
+
+  try {
+    body = await req.text();
+    sig = (await headers()).get('stripe-signature');
+
+    if (!sig) {
+      return NextResponse.json(
+        { error: 'Missing stripe signature' },
+        { status: 400 }
+      );
+    }
+  } catch (error) {
+    console.error('Failed to read request:', error);
+    return NextResponse.json(
+      { error: 'Invalid request' },
+      { status: 400 }
+    );
+  }
 
   let event: Stripe.Event;
 
@@ -187,4 +213,15 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
+}
+
+export async function GET() {
+  return NextResponse.json(
+    {
+      status: 'ok',
+      message: 'Stripe webhook endpoint is running',
+      configured: !!(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET)
+    },
+    { status: 200 }
+  );
 }
