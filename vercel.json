@@ -4,7 +4,6 @@
   "buildCommand": "cd frontend && yarn build",
   "outputDirectory": "frontend/.next",
   "installCommand": "cd frontend && yarn install",
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD ./frontend/",
   "functions": {
     "frontend/app/api/**/*.ts": {
       "runtime": "nodejs18.x"
