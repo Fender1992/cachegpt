@@ -561,7 +561,7 @@ export default function DocsPage() {
                       <ol className="list-decimal list-inside space-y-2 text-gray-600">
                         <li>Request received with user query</li>
                         <li>Generate embedding vector for query</li>
-                        <li>Search cache for similar responses (>85% similarity)</li>
+                        <li>Search cache for similar responses (&gt;85% similarity)</li>
                         <li>If hit: Adapt cached response to current context</li>
                         <li>If miss: Forward to LLM provider and cache response</li>
                         <li>Return response with cache metadata</li>

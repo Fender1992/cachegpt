@@ -25,45 +25,72 @@ export function AuthForm() {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            data: {
+              full_name: email.split('@')[0], // Default name from email
+            }
+          }
         })
         if (error) throw error
 
-        // Create user profile after successful signup
-        if (data.user) {
-          const { error: profileError } = await supabase
-            .from('user_profiles')
-            .insert({
-              id: data.user.id,
-              email: data.user.email,
-              plan_type: 'free',
-            })
-            .select()
-
-          if (profileError) {
-            console.error('Error creating user profile:', profileError)
-            if (profileError.code === '42501') {
-              console.error('Permission denied. Please run setup_rls_policies.sql in Supabase SQL Editor')
-            } else if (profileError.code === '23505') {
-              console.log('User profile already exists, skipping creation')
-            } else {
-              console.error('Profile error details:', JSON.stringify(profileError, null, 2))
-            }
-          } else {
-            console.log('User profile created successfully')
-          }
-        }
-
+        // Profile is created automatically via database trigger
         setMessage({ type: 'success', text: 'Check your email to confirm your account!' })
+
+        // Store signup event
+        if (data.user) {
+          await supabase.from('user_usage').insert({
+            user_id: data.user.id,
+            endpoint: '/auth/signup',
+            method: 'email',
+            metadata: { provider: 'email' }
+          })
+        }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         })
         if (error) throw error
+
+        // Update last login
+        if (data.user) {
+          await supabase
+            .from('user_profiles')
+            .update({ last_login_at: new Date().toISOString() })
+            .eq('id', data.user.id)
+        }
+
+        // Redirect to dashboard
+        window.location.href = '/dashboard'
       }
     } catch (error: any) {
       setMessage({ type: 'error', text: error.message })
     } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleOAuthLogin = async (provider: 'google' | 'github') => {
+    setIsLoading(true)
+    setMessage(null)
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      })
+
+      if (error) throw error
+
+      // The user will be redirected to the OAuth provider
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message })
       setIsLoading(false)
     }
   }
@@ -202,6 +229,7 @@ export function AuthForm() {
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
+              onClick={() => handleOAuthLogin('google')}
               className="flex items-center justify-center space-x-2 px-4 py-2 border-2 border-gray-300 dark:border-gray-700 rounded-xl hover:border-purple-500 transition"
               disabled={isLoading}
             >
@@ -215,6 +243,7 @@ export function AuthForm() {
             </button>
             <button
               type="button"
+              onClick={() => handleOAuthLogin('github')}
               className="flex items-center justify-center space-x-2 px-4 py-2 border-2 border-gray-300 dark:border-gray-700 rounded-xl hover:border-purple-500 transition"
               disabled={isLoading}
             >

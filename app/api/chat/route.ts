@@ -159,7 +159,7 @@ async function generateEmbedding(text: string): Promise<number[]> {
       model: EMBEDDING_MODEL,
       inputs: text,
     });
-    return Array.from(response as Float32Array);
+    return Array.from(response as unknown as Float32Array);
   } catch (error) {
     console.error('Embedding generation failed:', error);
     // Fallback to a simple hash-based embedding if HF fails

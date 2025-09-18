@@ -1,13 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase-client'
 import {
   Zap, Shield, BarChart3, Code, ArrowRight, Check,
   Cpu, Globe, Lock, Gauge, Cloud, Sparkles,
-  ChevronDown, Terminal, Database, Layers
+  ChevronDown, Terminal, Database, Layers,
+  User, LogOut, Settings, CreditCard
 } from 'lucide-react'
 
 export default function Home() {
@@ -15,13 +17,29 @@ export default function Home() {
   const router = useRouter()
   const [isVisible, setIsVisible] = useState(false)
   const [activeFeature, setActiveFeature] = useState(0)
+  const [showUserMenu, setShowUserMenu] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (user && !loading) {
-      router.push('/dashboard')
-    }
     setIsVisible(true)
   }, [user, loading, router])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.refresh()
+  }
 
   const features = [
     {
@@ -101,10 +119,65 @@ export default function Home() {
             <Link href="#features" className="text-gray-600 hover:text-purple-600 transition">Features</Link>
             <Link href="/pricing" className="text-gray-600 hover:text-purple-600 transition">Pricing</Link>
             <Link href="/docs" className="text-gray-600 hover:text-purple-600 transition">Docs</Link>
-            <Link href="/dashboard" className="btn-glow">
-              Get Started
-              <ArrowRight className="w-4 h-4 ml-2 inline" />
-            </Link>
+
+            {loading ? (
+              <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse"></div>
+            ) : user ? (
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                >
+                  <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+                    <User className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {user.email?.split('@')[0]}
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-gray-500" />
+                </button>
+
+                {showUserMenu && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
+                    <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">{user.email}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Free Plan</p>
+                    </div>
+
+                    <Link
+                      href="/settings"
+                      className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                      <Settings className="w-4 h-4" />
+                      <span>Settings</span>
+                    </Link>
+
+                    <Link
+                      href="/billing"
+                      className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                      <CreditCard className="w-4 h-4" />
+                      <span>Billing</span>
+                    </Link>
+
+                    <div className="border-t border-gray-200 dark:border-gray-700 mt-1 pt-1">
+                      <button
+                        onClick={handleLogout}
+                        className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 w-full text-left"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Logout</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link href="/login" className="btn-glow">
+                Login
+                <ArrowRight className="w-4 h-4 ml-2 inline" />
+              </Link>
+            )}
           </div>
         </div>
       </nav>
@@ -132,21 +205,43 @@ export default function Home() {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="group relative px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200"
-              >
-                <span className="relative z-10">Get Started</span>
-                <ArrowRight className="w-5 h-5 inline ml-2 group-hover:translate-x-1 transition-transform" />
-              </button>
+              {user ? (
+                <>
+                  <button
+                    onClick={() => router.push('/docs')}
+                    className="group relative px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200"
+                  >
+                    <Terminal className="w-5 h-5 inline mr-2" />
+                    <span className="relative z-10">View Documentation</span>
+                  </button>
 
-              <button
-                onClick={() => router.push('/docs')}
-                className="group px-8 py-4 border-2 border-gray-300 dark:border-gray-600 rounded-xl font-semibold text-lg hover:border-purple-500 transition-all duration-200"
-              >
-                <Terminal className="w-5 h-5 inline mr-2" />
-                View Documentation
-              </button>
+                  <button
+                    onClick={() => router.push('/pricing')}
+                    className="group px-8 py-4 border-2 border-gray-300 dark:border-gray-600 rounded-xl font-semibold text-lg hover:border-purple-500 transition-all duration-200"
+                  >
+                    <CreditCard className="w-5 h-5 inline mr-2" />
+                    Upgrade Plan
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => router.push('/login')}
+                    className="group relative px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200"
+                  >
+                    <span className="relative z-10">Get Started</span>
+                    <ArrowRight className="w-5 h-5 inline ml-2 group-hover:translate-x-1 transition-transform" />
+                  </button>
+
+                  <button
+                    onClick={() => router.push('/docs')}
+                    className="group px-8 py-4 border-2 border-gray-300 dark:border-gray-600 rounded-xl font-semibold text-lg hover:border-purple-500 transition-all duration-200"
+                  >
+                    <Terminal className="w-5 h-5 inline mr-2" />
+                    View Documentation
+                  </button>
+                </>
+              )}
             </div>
 
             {/* Live Stats */}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { rateLimit } from './middleware/rateLimit'
+import { rateLimit } from './middleware/rateLimit-simple'
 import { getApiVersion, addVersionHeaders } from './middleware/api-version'
 
 export async function middleware(request: NextRequest) {

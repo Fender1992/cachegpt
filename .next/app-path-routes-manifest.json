@@ -1,8 +1,0 @@
-{
-  "/_not-found/page": "/_not-found",
-  "/api/health/route": "/api/health",
-  "/api/stripe/webhook/route": "/api/stripe/webhook",
-  "/dashboard/page": "/dashboard",
-  "/page": "/",
-  "/pricing/page": "/pricing"
-}
