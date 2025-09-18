@@ -42,15 +42,47 @@ const LLM_PROVIDERS = {
 
 export async function initCommand(): Promise<void> {
   console.clear();
-  console.log(chalk.cyan('╔══════════════════════════════════════════════╗'));
-  console.log(chalk.cyan('║      Welcome to CacheGPT CLI Setup! 🚀      ║'));
-  console.log(chalk.cyan('╚══════════════════════════════════════════════╝'));
-  console.log();
-  console.log(chalk.white('This wizard will help you connect CacheGPT to your LLM provider.'));
-  console.log(chalk.gray('CacheGPT acts as a caching proxy to reduce API costs by up to 80%.\n'));
+  console.log(chalk.cyan.bold('\n🚀 Welcome to CacheGPT CLI Setup!\n'));
+  console.log(chalk.white('CacheGPT intelligently caches LLM responses to save costs and improve speed.'));
+  console.log(chalk.gray('Works with OpenAI, Anthropic, Google, and other LLM providers.\n'));
 
   try {
-    // Step 1: Choose deployment type
+    // Step 1: Choose mode - direct API keys or proxy server
+    const modeAnswer = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'mode',
+        message: 'How would you like to use CacheGPT?',
+        choices: [
+          {
+            name: '🌐 Browser Mode - Use ChatGPT/Claude through your browser (No API keys!)',
+            value: 'browser'
+          },
+          {
+            name: '🔑 API Key Mode - Use your own API keys directly',
+            value: 'direct'
+          },
+          {
+            name: '🖥️  Proxy Mode - Connect to CacheGPT server',
+            value: 'proxy'
+          }
+        ]
+      }
+    ]);
+
+    if (modeAnswer.mode === 'browser') {
+      // Browser mode - use browser login
+      const { initBrowserCommand } = await import('./init-browser');
+      return await initBrowserCommand();
+    }
+
+    if (modeAnswer.mode === 'direct') {
+      // Direct mode - use API keys directly
+      const { initDirectCommand } = await import('./init-direct');
+      return await initDirectCommand();
+    }
+
+    // Proxy mode - connect to CacheGPT server
     const deploymentAnswer = await inquirer.prompt([
       {
         type: 'list',

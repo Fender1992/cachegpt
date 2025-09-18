@@ -5,6 +5,7 @@ import { loadConfig, validateConfig } from '../lib/config';
 import { createApiClient } from '../lib/api';
 import { logError, logSuccess, formatNumber, formatPercent, formatCost, formatTime } from '../lib/utils';
 import { ApiError } from '../types';
+import { LocalCache } from '../lib/cache';
 
 interface StatsOptions {
   days: string;
@@ -13,7 +14,88 @@ interface StatsOptions {
 export async function statsCommand(options: StatsOptions): Promise<void> {
   const config = loadConfig();
 
-  // Validate configuration
+  // Show local cache stats if in browser mode
+  if (config && config.mode === 'browser') {
+    const cache = new LocalCache(config.cacheLocation);
+    const localStats = cache.getStats();
+    const entries = cache.export();
+
+    console.log('\n' + chalk.bold('📊 Local Cache Statistics'));
+    console.log('═'.repeat(60));
+
+    const localData = [
+      [chalk.bold('Metric'), chalk.bold('Value')],
+      ['Total Entries', formatNumber(localStats.entries)],
+      ['Cache Hits', formatNumber(localStats.totalHits)],
+      ['Cache Misses', formatNumber(localStats.totalMisses)],
+      ['Hit Rate', chalk.green(formatPercent(localStats.hitRate / 100))],
+      ['Exact Matches', formatNumber(localStats.exactHits || 0)],
+      ['Semantic Matches', formatNumber(localStats.semanticHits || 0)],
+      ['Total Saved', chalk.green(formatCost(localStats.totalSaved))],
+      ['Avg Response Time', chalk.cyan(formatTime(localStats.avgResponseTimeMs || 0))]
+    ];
+
+    console.log('\n' + table(localData, {
+      border: {
+        topBody: '─',
+        topJoin: '┬',
+        topLeft: '┌',
+        topRight: '┐',
+        bottomBody: '─',
+        bottomJoin: '┴',
+        bottomLeft: '└',
+        bottomRight: '┘',
+        bodyLeft: '│',
+        bodyRight: '│',
+        bodyJoin: '│',
+        joinBody: '─',
+        joinLeft: '├',
+        joinRight: '┤',
+        joinJoin: '┼'
+      }
+    }));
+
+    // Show hot cache entries
+    const hotEntries = entries
+      .sort((a, b) => (b.accessCount || 0) - (a.accessCount || 0))
+      .slice(0, 5);
+
+    if (hotEntries.length > 0) {
+      console.log('\n' + chalk.bold('🔥 Hot Cache (Top 5 Most Accessed):'));
+      const hotData = [
+        [chalk.bold('Query'), chalk.bold('Model'), chalk.bold('Hits'), chalk.bold('Last Used')],
+        ...hotEntries.map(entry => [
+          entry.query.substring(0, 40) + (entry.query.length > 40 ? '...' : ''),
+          entry.model,
+          formatNumber(entry.accessCount || 0),
+          new Date(entry.lastAccessed || entry.timestamp).toLocaleDateString()
+        ])
+      ];
+      console.log(table(hotData));
+    }
+
+    // Performance insights
+    console.log('\n' + chalk.bold('💡 Performance Insights:'));
+    if (localStats.hitRate > 50) {
+      console.log(`   ${chalk.green('✅')} Excellent cache performance (${localStats.hitRate.toFixed(1)}% hit rate)`);
+      console.log(`   ${chalk.green('⚡')} Hash-based lookups ensuring O(1) exact matches`);
+    } else if (localStats.hitRate > 30) {
+      console.log(`   ${chalk.yellow('⚠️ ')} Good cache performance (${localStats.hitRate.toFixed(1)}% hit rate)`);
+    } else {
+      console.log(`   ${chalk.red('❌')} Low cache hit rate (${localStats.hitRate.toFixed(1)}%)`);
+      console.log('       Consider using more consistent query patterns');
+    }
+
+    if ((localStats.exactHits || 0) > (localStats.semanticHits || 0)) {
+      console.log(`   ${chalk.green('🎯')} Exact matches dominating (good for performance)`);
+    } else if ((localStats.semanticHits || 0) > 0) {
+      console.log(`   ${chalk.blue('🔍')} Semantic search finding similar queries`);
+    }
+
+    return;
+  }
+
+  // Validate configuration for API mode
   const validationErrors = validateConfig(config);
   if (validationErrors.length > 0) {
     logError('Configuration is invalid. Run `llm-cache init` first.');

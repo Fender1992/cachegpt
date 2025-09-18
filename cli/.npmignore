@@ -1,0 +1,54 @@
+# Source files
+src/
+*.ts
+!dist/**/*.d.ts
+
+# Development files
+.env
+.env.local
+.env.*
+*.log
+*.pid
+*.seed
+
+# Test files
+test/
+tests/
+__tests__/
+*.test.*
+*.spec.*
+test-install.sh
+
+# Build files
+tsconfig.json
+.eslintrc.*
+.prettierrc
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# CI/CD
+.github/
+.travis.yml
+.circleci/
+
+# Package managers
+yarn.lock
+package-lock.json
+!npm-shrinkwrap.json

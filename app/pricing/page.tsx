@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -9,10 +8,10 @@ import { useRouter } from 'next/navigation'
 
 const pricingTiers = [
   {
-    name: 'Free Forever',
+    name: 'Free',
     id: 'free',
     price: 0,
-    period: 'forever',
+    period: '',
     description: 'All features included - no limits',
     features: [
       'Unlimited requests',
@@ -36,46 +35,7 @@ const pricingTiers = [
 ]
 
 export default function PricingPage() {
-  const [annual, setAnnual] = useState(false)
-  const [currentPlan, setCurrentPlan] = useState('free')
   const router = useRouter()
-
-  const handleUpgrade = async (planId: string) => {
-    if (planId === 'enterprise') {
-      // Redirect to contact form or email
-      if (typeof window !== 'undefined') {
-        window.location.href = 'mailto:sales@llmcacheproxy.com?subject=Enterprise Plan Inquiry'
-      }
-      return
-    }
-
-    if (planId === currentPlan) {
-      return
-    }
-
-    // Call API to upgrade plan
-    try {
-      const response = await fetch('/api/subscription/upgrade', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ plan_name: planId }),
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        alert(`Successfully upgraded to ${planId} plan!`)
-        setCurrentPlan(planId)
-        router.push('/dashboard')
-      } else {
-        const error = await response.json()
-        alert(`Upgrade failed: ${error.detail}`)
-      }
-    } catch (error) {
-      alert('Failed to upgrade plan. Please try again.')
-    }
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
@@ -95,17 +55,11 @@ export default function PricingPage() {
                 key={tier.name}
                 className="relative border-purple-500 border-2 shadow-xl"
               >
-                <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-purple-500">
-                  Open Source & Free
-                </Badge>
                 <CardHeader className="text-center">
                   <CardTitle className="text-3xl">{tier.name}</CardTitle>
                   <div className="mt-4">
                     <div className="text-5xl font-bold text-purple-600">
-                      $0
-                      <span className="text-lg font-normal text-gray-500">
-                        /{tier.period}
-                      </span>
+                      Free
                     </div>
                     <p className="text-gray-600 mt-2 text-lg">{tier.description}</p>
                   </div>
@@ -146,10 +100,10 @@ export default function PricingPage() {
               </p>
             </div>
             <div>
-              <h3 className="font-semibold mb-2">Why is it completely free?</h3>
+              <h3 className="font-semibold mb-2">Why is it free?</h3>
               <p className="text-gray-600 text-sm">
-                We believe in open source and want to help developers save on AI costs.
-                The entire codebase is available for self-hosting and customization.
+                We believe in making AI accessible and want to help developers save on costs.
+                No hidden fees, no upsells - just powerful caching technology.
               </p>
             </div>
             <div>
@@ -160,10 +114,10 @@ export default function PricingPage() {
               </p>
             </div>
             <div>
-              <h3 className="font-semibold mb-2">Can I self-host this?</h3>
+              <h3 className="font-semibold mb-2">How do I get started?</h3>
               <p className="text-gray-600 text-sm">
-                Absolutely! The complete source code is available on GitHub.
-                Deploy on your own infrastructure for full control and privacy.
+                Simply sign up for a free account, generate your API key, and
+                start using our proxy endpoints. No credit card required.
               </p>
             </div>
           </div>

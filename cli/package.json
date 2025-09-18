@@ -1,11 +1,22 @@
 {
   "name": "cachegpt-cli",
-  "version": "1.0.0",
-  "description": "CLI tool for CacheGPT - Intelligent LLM caching proxy",
+  "version": "6.3.0",
+  "description": "Clean, minimal CLI for CacheGPT with intelligent cloud caching. Seamless LLM experience with Supabase-powered response caching and AI adaptation.",
   "main": "dist/index.js",
   "bin": {
     "cachegpt": "bin/llm-cache",
     "llm-cache": "bin/llm-cache"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cachegpt/cachegpt-cli.git"
+  },
+  "homepage": "https://cachegpt.io",
+  "bugs": {
+    "url": "https://github.com/cachegpt/cachegpt-cli/issues"
+  },
+  "engines": {
+    "node": ">=16.0.0"
   },
   "scripts": {
     "build": "tsc",
@@ -13,6 +24,7 @@
     "start": "node dist/index.js",
     "clean": "rm -rf dist",
     "prepublishOnly": "npm run clean && npm run build",
+    "postinstall": "node scripts/postinstall.js || true",
     "link": "npm link",
     "test": "echo \"Run 'npm run build && ./bin/llm-cache --help' to test\"",
     "build:exe": "tsc && pkg dist/index.js --targets node18-win-x64 --output ../app/static/llm-cache.exe",
@@ -26,21 +38,31 @@
     "anthropic",
     "cli"
   ],
-  "author": "",
+  "author": "CacheGPT Team <support@cachegpt.io>",
   "license": "MIT",
   "dependencies": {
+    "@huggingface/inference": "^4.8.0",
+    "@sentry/nextjs": "^10.12.0",
+    "@supabase/supabase-js": "^2.57.4",
     "axios": "^1.5.0",
     "chalk": "^4.1.2",
     "commander": "^11.0.0",
-    "dotenv": "^16.3.1",
+    "dotenv": "^16.6.1",
+    "express": "^4.18.0",
+    "express-rate-limit": "^8.1.0",
     "inquirer": "^8.2.5",
+    "node-fetch": "^2.6.7",
     "open": "^10.2.0",
     "ora": "^5.4.1",
+    "playwright": "^1.40.0",
+    "rate-limiter-flexible": "^7.3.1",
     "table": "^6.8.1"
   },
   "devDependencies": {
+    "@types/express": "^5.0.3",
     "@types/inquirer": "^9.0.0",
     "@types/node": "^20.0.0",
+    "@types/node-fetch": "^2.6.4",
     "pkg": "^5.8.1",
     "ts-node": "^10.9.0",
     "typescript": "^5.0.0"

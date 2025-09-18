@@ -8,6 +8,8 @@ import { statsCommand } from './commands/stats';
 import { clearCommand } from './commands/clear';
 import { configCommand } from './commands/config';
 import { chatCommand } from './commands/chat';
+import { statusCommand } from './commands/status';
+import { logoutCommand } from './commands/logout';
 
 const program = new Command();
 
@@ -63,6 +65,16 @@ program
   .command('chat')
   .description('Start interactive chat with your LLM')
   .action(chatCommand);
+
+program
+  .command('status')
+  .description('Check authentication status and active accounts')
+  .action(statusCommand);
+
+program
+  .command('logout')
+  .description('Log out from authenticated accounts')
+  .action(logoutCommand);
 
 // Parse CLI arguments
 program.parse();

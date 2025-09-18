@@ -50,7 +50,14 @@
       "Bash(git config:*)",
       "Bash(git checkout:*)",
       "Bash(npm run build:*)",
-      "Bash(./test-install.sh:*)"
+      "Bash(./test-install.sh:*)",
+      "Bash(npm whoami:*)",
+      "Bash(npm pack)",
+      "Bash(npx:*)",
+      "Bash(npm publish:*)",
+      "Read(//mnt/c/Users/ADMIN/Pictures/Screenshots/**)",
+      "Bash(npm view:*)",
+      "Bash(npm uninstall:*)"
     ],
     "deny": [],
     "ask": []

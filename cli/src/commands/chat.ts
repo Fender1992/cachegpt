@@ -6,9 +6,28 @@ import { logError, logInfo } from '../lib/utils';
 import readline from 'readline';
 
 export async function chatCommand(): Promise<void> {
-  const config = loadConfig();
-  if (!config || !config.baseUrl || !config.apiKey || !config.defaultModel) {
+  const config: any = loadConfig();
+  if (!config) {
     logError('Configuration not found. Please run "cachegpt init" first.');
+    return;
+  }
+
+
+  // Check if using browser mode
+  if (config.mode === 'browser') {
+    const { chatBrowserCommand } = await import('./chat-browser');
+    return await chatBrowserCommand();
+  }
+
+  // Check if using direct mode
+  if (config.mode === 'direct') {
+    const { chatDirectCommand } = await import('./chat-direct');
+    return await chatDirectCommand();
+  }
+
+  // Proxy mode
+  if (!config.baseUrl || !config.apiKey || !config.defaultModel) {
+    logError('Configuration incomplete. Please run "cachegpt init" again.');
     return;
   }
 

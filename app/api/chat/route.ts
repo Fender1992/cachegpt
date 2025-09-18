@@ -34,6 +34,26 @@ interface CachedResponse {
 
 export async function POST(req: NextRequest) {
   try {
+    // Get API key from header for authentication
+    const apiKey = req.headers.get('authorization')?.replace('Bearer ', '');
+    if (!apiKey) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Validate API key and get user
+    const { data: keyData, error: keyError } = await supabase
+      .from('api_keys')
+      .select('user_id')
+      .eq('key', apiKey)
+      .single();
+
+    if (keyError || !keyData) {
+      return NextResponse.json({ error: 'Invalid API key' }, { status: 401 });
+    }
+
+    const userId = keyData.user_id;
+    const startTime = Date.now();
+
     const body: ChatRequest = await req.json();
     const { messages, model = 'gpt-3.5-turbo', temperature = 0.7 } = body;
 
@@ -58,13 +78,34 @@ export async function POST(req: NextRequest) {
         messages
       );
 
+      const responseTime = Date.now() - startTime;
+      const tokensUsed = estimateTokens(adaptedResponse);
+      const costSaved = calculateCostSaved(model, tokensUsed);
+
+      // Track usage for cache hit
+      await trackUsage({
+        user_id: userId,
+        model,
+        tokens_used: tokensUsed,
+        cache_hit: true,
+        response_time_ms: responseTime,
+        endpoint: '/api/chat',
+        cost: 0,
+        cost_saved: costSaved
+      });
+
       return NextResponse.json({
         content: adaptedResponse,
         cached: true,
         similarity: Math.round(cachedResponse.similarity! * 100),
-        costSaved: calculateCostSaved(model),
+        costSaved,
         originalQuery: cachedResponse.query,
-        adapted: true
+        adapted: true,
+        usage: {
+          prompt_tokens: estimateTokens(userMessage),
+          completion_tokens: tokensUsed,
+          total_tokens: estimateTokens(userMessage) + tokensUsed
+        }
       });
     }
 
@@ -74,11 +115,32 @@ export async function POST(req: NextRequest) {
     // Step 5: Cache the new response with embedding
     await cacheResponse(userMessage, freshResponse, queryEmbedding, model);
 
+    const responseTime = Date.now() - startTime;
+    const tokensUsed = estimateTokens(freshResponse);
+    const cost = calculateCost(model, tokensUsed);
+
+    // Track usage for cache miss
+    await trackUsage({
+      user_id: userId,
+      model,
+      tokens_used: tokensUsed,
+      cache_hit: false,
+      response_time_ms: responseTime,
+      endpoint: '/api/chat',
+      cost,
+      cost_saved: 0
+    });
+
     return NextResponse.json({
       content: freshResponse,
       cached: false,
       similarity: 0,
-      costSaved: 0
+      costSaved: 0,
+      usage: {
+        prompt_tokens: estimateTokens(userMessage),
+        completion_tokens: tokensUsed,
+        total_tokens: estimateTokens(userMessage) + tokensUsed
+      }
     });
 
   } catch (error: any) {
@@ -296,8 +358,8 @@ async function cacheResponse(
   }
 }
 
-// Calculate cost saved based on model
-function calculateCostSaved(model: string): number {
+// Calculate cost saved based on model and tokens
+function calculateCostSaved(model: string, tokens: number): number {
   const costPerToken = {
     'gpt-3.5-turbo': 0.000002,
     'gpt-4': 0.00006,
@@ -306,9 +368,41 @@ function calculateCostSaved(model: string): number {
   };
 
   const baseCost = costPerToken[model as keyof typeof costPerToken] || 0.000002;
-  const averageTokens = 500;
+  return baseCost * tokens;
+}
 
-  return baseCost * averageTokens;
+// Calculate actual cost for API calls
+function calculateCost(model: string, tokens: number): number {
+  return calculateCostSaved(model, tokens); // Same calculation
+}
+
+// Estimate token count (rough approximation)
+function estimateTokens(text: string): number {
+  // Rough estimate: 1 token ≈ 4 characters
+  return Math.ceil(text.length / 4);
+}
+
+// Track usage in the database
+async function trackUsage(data: {
+  user_id: string;
+  model: string;
+  tokens_used: number;
+  cache_hit: boolean;
+  response_time_ms: number;
+  endpoint: string;
+  cost: number;
+  cost_saved: number;
+}): Promise<void> {
+  try {
+    await supabase
+      .from('usage_tracking')
+      .insert({
+        ...data,
+        created_at: new Date().toISOString()
+      });
+  } catch (error) {
+    console.error('Failed to track usage:', error);
+  }
 }
 
 // Simple fallback embedding generation

@@ -3,6 +3,11 @@ export interface Config {
   apiKey: string;
   defaultModel: string;
   timeout: number;
+  mode?: 'api' | 'browser' | 'direct';
+  provider?: string;
+  session?: any;
+  cacheLocation?: string;
+  userId?: string;
 }
 
 export interface ChatMessage {
