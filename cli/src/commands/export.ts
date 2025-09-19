@@ -217,7 +217,7 @@ function generateJSON(chats: any[], filters: any): string {
       exportDate: new Date().toISOString(),
       totalChats: chats.length,
       filters: filters,
-      version: '7.1.0'
+      version: '7.2.0'
     },
     chats: chats.map(chat => ({
       timestamp: chat.timestamp,

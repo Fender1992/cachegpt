@@ -181,7 +181,7 @@ export default function Home() {
           <div className={`text-center max-w-4xl mx-auto transition-all duration-700 delay-200 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}>
             <div className="inline-flex items-center space-x-2 px-4 py-2 bg-purple-100 dark:bg-purple-900/30 rounded-full mb-6">
               <Sparkles className="w-4 h-4 text-purple-600" />
-              <span className="text-sm font-medium text-purple-700 dark:text-purple-300">v7.1 Now Available</span>
+              <span className="text-sm font-medium text-purple-700 dark:text-purple-300">v7.2 Now Available</span>
             </div>
 
             <h1 className="text-6xl md:text-7xl font-bold mb-6 leading-tight">
