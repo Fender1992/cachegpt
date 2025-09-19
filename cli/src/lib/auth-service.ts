@@ -4,6 +4,22 @@ import * as path from 'path';
 import * as os from 'os';
 import * as crypto from 'crypto';
 
+// Load default environment variables if not already set
+function loadDefaults() {
+  const defaultsPath = path.join(__dirname, '../../.env.defaults');
+  if (fs.existsSync(defaultsPath) && (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)) {
+    const envContent = fs.readFileSync(defaultsPath, 'utf-8');
+    envContent.split('\n').forEach(line => {
+      const [key, value] = line.split('=');
+      if (key && value && !process.env[key.trim()]) {
+        process.env[key.trim()] = value.trim().replace(/["']/g, '');
+      }
+    });
+  }
+}
+
+loadDefaults();
+
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
