@@ -102,7 +102,11 @@ export class CacheGPT {
         // Handle other errors
         if (!response.ok) {
           const error = await response.json().catch(() => ({ error: response.statusText }));
-          throw new APIError(`API error (${response.status}): ${error.error || error.message}`);
+          throw new APIError(
+            `API error (${response.status}): ${error.error || error.message}`,
+            response.status,
+            error
+          );
         }
 
         return await response.json();
@@ -219,12 +223,12 @@ export class CacheGPT {
     });
 
     if (!response.ok) {
-      throw new APIError(`Stream error: ${response.statusText}`);
+      throw new APIError(`Stream error: ${response.statusText}`, response.status);
     }
 
     const reader = response.body?.getReader();
     if (!reader) {
-      throw new APIError('No response body');
+      throw new APIError('No response body', 500);
     }
 
     const decoder = new TextDecoder();

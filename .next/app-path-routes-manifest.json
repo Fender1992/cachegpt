@@ -1,0 +1,21 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/api/cache-warm/route": "/api/cache-warm",
+  "/api/chat/route": "/api/chat",
+  "/api/health/route": "/api/health",
+  "/api/stats/route": "/api/stats",
+  "/api/stripe/webhook/route": "/api/stripe/webhook",
+  "/api/support/route": "/api/support",
+  "/api/v1/usage/route": "/api/v1/usage",
+  "/api/v2/chat/route": "/api/v2/chat",
+  "/auth/callback/page": "/auth/callback",
+  "/dashboard/page": "/dashboard",
+  "/docs/page": "/docs",
+  "/login/page": "/login",
+  "/page": "/",
+  "/pricing/page": "/pricing",
+  "/privacy/page": "/privacy",
+  "/status/page": "/status",
+  "/support/page": "/support",
+  "/terms/page": "/terms"
+}

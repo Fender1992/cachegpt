@@ -57,7 +57,8 @@
       "Bash(npm publish:*)",
       "Read(//mnt/c/Users/ADMIN/Pictures/Screenshots/**)",
       "Bash(npm view:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(awk:*)"
     ],
     "deny": [],
     "ask": []

@@ -72,18 +72,19 @@ export default function AuthCallback() {
           }
 
           // Log the login event
-          await supabase.from('user_usage').insert({
+          await supabase.from('usage').insert({
             user_id: user.id,
             endpoint: '/auth/callback',
-            method: user.app_metadata?.provider || 'email',
+            method: 'POST',
+            model: user.app_metadata?.provider || 'email',
             metadata: {
               provider: user.app_metadata?.provider || 'email',
               event: 'login'
             }
           })
 
-          // Redirect to dashboard
-          router.push('/dashboard')
+          // Redirect to home page
+          router.push('/')
         } else {
           // No session, redirect to login
           router.push('/login')

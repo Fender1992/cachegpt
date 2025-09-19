@@ -27,7 +27,7 @@ Sentry.init({
   beforeSend(event, hint) {
     // Filter out sensitive data
     if (event.request?.cookies) {
-      event.request.cookies = '[Filtered]';
+      event.request.cookies = { filtered: '[Filtered]' };
     }
 
     // Don't send events in development unless explicitly enabled

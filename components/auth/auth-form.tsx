@@ -31,20 +31,36 @@ export function AuthForm() {
             }
           }
         })
+
+        console.log('Signup response:', { data, error })
         if (error) throw error
 
-        // Profile is created automatically via database trigger
-        setMessage({ type: 'success', text: 'Check your email to confirm your account!' })
-
-        // Store signup event
+        // Create user profile manually to ensure it exists
         if (data.user) {
-          await supabase.from('user_usage').insert({
+          const { error: profileError } = await supabase
+            .from('user_profiles')
+            .insert({
+              id: data.user.id,
+              email: data.user.email!,
+              provider: 'email',
+              email_verified: false
+            })
+            .select()
+
+          if (profileError && profileError.code !== '23505') {
+            console.error('Error creating user profile:', profileError)
+          }
+
+          // Store signup event
+          await supabase.from('usage').insert({
             user_id: data.user.id,
             endpoint: '/auth/signup',
-            method: 'email',
-            metadata: { provider: 'email' }
+            method: 'POST',
+            metadata: { provider: 'email', event: 'signup' }
           })
         }
+
+        setMessage({ type: 'success', text: 'Check your email to confirm your account!' })
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
@@ -60,8 +76,8 @@ export function AuthForm() {
             .eq('id', data.user.id)
         }
 
-        // Redirect to dashboard
-        window.location.href = '/dashboard'
+        // Redirect to home page (since we don't have a dashboard)
+        window.location.href = '/'
       }
     } catch (error: any) {
       setMessage({ type: 'error', text: error.message })
