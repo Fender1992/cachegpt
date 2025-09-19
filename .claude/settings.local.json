@@ -63,7 +63,8 @@
       "Bash(export GIT_CURL_VERBOSE=1)",
       "Bash(export GIT_TRACE=1)",
       "Bash(git remote set-url:*)",
-      "Bash(GIT_CURL_VERBOSE=1 git push origin main)"
+      "Bash(GIT_CURL_VERBOSE=1 git push origin main)",
+      "Bash(npm link:*)"
     ],
     "deny": [],
     "ask": []

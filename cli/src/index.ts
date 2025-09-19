@@ -10,6 +10,10 @@ import { configCommand } from './commands/config';
 import { chatCommand } from './commands/chat';
 import { statusCommand } from './commands/status';
 import { logoutCommand } from './commands/logout';
+import { syncClaude } from './commands/sync-claude';
+import { registerCommand } from './commands/register';
+import { loginCommand } from './commands/login';
+import { authStatusCommand } from './commands/auth-status';
 
 const program = new Command();
 
@@ -75,6 +79,34 @@ program
   .command('logout')
   .description('Log out from authenticated accounts')
   .action(logoutCommand);
+
+program
+  .command('register')
+  .description('Create a new CacheGPT account')
+  .action(registerCommand);
+
+program
+  .command('login')
+  .description('Login to your CacheGPT account')
+  .action(loginCommand);
+
+program
+  .command('auth-status')
+  .description('Check current authentication status')
+  .action(authStatusCommand);
+
+program
+  .command('sync-claude')
+  .description('Sync Claude Code conversations to Supabase database')
+  .option('--all', 'Sync all conversation files')
+  .option('--recent', 'Sync conversations from last 24 hours')
+  .option('--api-url <url>', 'API URL for syncing', process.env.CACHEGPT_API_URL || 'http://localhost:3000')
+  .action((options) => {
+    syncClaude(options).catch((error) => {
+      console.error(chalk.red('Sync failed:'), error.message);
+      process.exit(1);
+    });
+  });
 
 // Parse CLI arguments
 program.parse();
