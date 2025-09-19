@@ -36,7 +36,7 @@ export async function initBrowserCommand(): Promise<void> {
 
   try {
     // Step 1: Choose provider
-    const { provider } = await inquirer.prompt([{
+    const { provider } = await inquirer.prompt({
       type: 'list',
       name: 'provider',
       message: 'Which service would you like to use?',
@@ -47,12 +47,12 @@ export async function initBrowserCommand(): Promise<void> {
         { name: '🔍 Perplexity AI', value: 'perplexity' },
         { name: '🎭 Poe (Multiple Models)', value: 'poe' }
       ]
-    }]);
+    });
 
     const providerUrl = PROVIDER_URLS[provider as keyof typeof PROVIDER_URLS];
 
     // Step 2: Choose authentication method
-    const { authMethod } = await inquirer.prompt([{
+    const { authMethod } = await inquirer.prompt({
       type: 'list',
       name: 'authMethod',
       message: 'How would you like to authenticate?',
@@ -61,7 +61,7 @@ export async function initBrowserCommand(): Promise<void> {
         { name: '🌐 Browser Session Token', value: 'token' },
         { name: '🔗 OAuth (Local Callback)', value: 'oauth' }
       ]
-    }]);
+    });
 
     if (authMethod === 'api') {
       await handleAPIAuth(provider);
@@ -93,13 +93,13 @@ async function handleAPIAuth(provider: string): Promise<void> {
   console.log(chalk.gray(providerInstructions[provider] || 'Get your API key from the provider\'s dashboard'));
   console.log();
 
-  const { apiKey } = await inquirer.prompt([{
+  const { apiKey } = await inquirer.prompt({
     type: 'password',
     name: 'apiKey',
     message: 'Enter your API key:',
     mask: '*',
     validate: (input) => input.length > 0 || 'API key is required'
-  }]);
+  });
 
   // Save configuration
   const config: BrowserConfig = {
@@ -129,13 +129,13 @@ async function handleTokenAuth(provider: string, providerUrl: string): Promise<v
   // Open browser
   await open(providerUrl);
 
-  const { token } = await inquirer.prompt([{
+  const { token } = await inquirer.prompt({
     type: 'password',
     name: 'token',
     message: 'Paste your session token here:',
     mask: '*',
     validate: (input) => input.length > 0 || 'Session token is required'
-  }]);
+  });
 
   // Save configuration
   const config: BrowserConfig = {

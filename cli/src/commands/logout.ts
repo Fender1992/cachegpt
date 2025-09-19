@@ -24,7 +24,7 @@ export async function logoutCommand(): Promise<void> {
   console.log();
 
   // Ask what to do
-  const { action } = await inquirer.prompt([{
+  const { action } = await inquirer.prompt({
     type: 'list',
     name: 'action',
     message: 'What would you like to do?',
@@ -33,7 +33,7 @@ export async function logoutCommand(): Promise<void> {
       { name: 'Logout from specific account', value: 'specific' },
       { name: 'Cancel', value: 'cancel' }
     ]
-  }]);
+  });
 
   if (action === 'cancel') {
     console.log(chalk.gray('\nCancelled.\n'));
@@ -42,12 +42,12 @@ export async function logoutCommand(): Promise<void> {
 
   if (action === 'all') {
     // Confirm deletion of all accounts
-    const { confirm } = await inquirer.prompt([{
+    const { confirm } = await inquirer.prompt({
       type: 'confirm',
       name: 'confirm',
       message: 'Are you sure you want to logout from all accounts?',
       default: false
-    }]);
+    });
 
     if (!confirm) {
       console.log(chalk.gray('\nCancelled.\n'));
@@ -82,25 +82,25 @@ export async function logoutCommand(): Promise<void> {
 
   } else if (action === 'specific') {
     // Select specific account to remove
-    const { selectedAccount } = await inquirer.prompt([{
+    const { selectedAccount } = await inquirer.prompt({
       type: 'list',
       name: 'selectedAccount',
       message: 'Select account to logout:',
-      choices: [...accounts, { name: 'Cancel', value: null }]
-    }]);
+      choices: [...accounts, 'Cancel']
+    });
 
-    if (!selectedAccount) {
+    if (selectedAccount === 'Cancel') {
       console.log(chalk.gray('\nCancelled.\n'));
       return;
     }
 
     // Confirm deletion
-    const { confirm } = await inquirer.prompt([{
+    const { confirm } = await inquirer.prompt({
       type: 'confirm',
       name: 'confirm',
       message: `Are you sure you want to logout from ${selectedAccount}?`,
       default: false
-    }]);
+    });
 
     if (!confirm) {
       console.log(chalk.gray('\nCancelled.\n'));

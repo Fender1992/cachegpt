@@ -55,12 +55,12 @@ export async function chatBrowserCommand(): Promise<void> {
       selectedAccount = accounts[0];
     } else {
       // Let user select account
-      const { account } = await inquirer.prompt([{
+      const { account } = await inquirer.prompt({
         type: 'list',
         name: 'account',
         message: 'Select account to use:',
         choices: accounts
-      }]);
+      });
       selectedAccount = account;
     }
 
@@ -119,12 +119,11 @@ export async function chatBrowserCommand(): Promise<void> {
 
   // Chat loop
   while (true) {
-    const { input } = await inquirer.prompt([{
+    const { input } = await inquirer.prompt({
       type: 'input',
       name: 'input',
-      message: chalk.green('You:'),
-      prefix: ''
-    }]);
+      message: chalk.green('You:')
+    });
 
     if (input.toLowerCase() === 'exit') {
       console.log(chalk.gray('\nGoodbye! 👋'));

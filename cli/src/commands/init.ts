@@ -247,8 +247,8 @@ export async function initCommand(): Promise<void> {
           name: 'timeout',
           message: 'Request timeout (seconds):',
           default: 30,
-          validate: (input: number) => {
-            if (input < 1 || input > 300) {
+          validate: (input: number | undefined) => {
+            if (!input || input < 1 || input > 300) {
               return 'Timeout must be between 1 and 300 seconds';
             }
             return true;

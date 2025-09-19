@@ -35,12 +35,11 @@ export async function chatDirectCommand(): Promise<void> {
   const messages: Array<{ role: string; content: string }> = [];
 
   while (true) {
-    const { input } = await inquirer.prompt([{
+    const { input } = await inquirer.prompt({
       type: 'input',
       name: 'input',
-      message: chalk.green('You:'),
-      prefix: ''
-    }]);
+      message: chalk.green('You:')
+    });
 
     if (input.toLowerCase() === 'exit') {
       console.log(chalk.gray('\nGoodbye! 👋'));

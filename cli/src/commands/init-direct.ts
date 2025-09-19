@@ -63,12 +63,12 @@ export async function initDirectCommand(): Promise<void> {
 
     // Check for existing config
     if (fs.existsSync(configPath)) {
-      const { overwrite } = await inquirer.prompt([{
+      const { overwrite } = await inquirer.prompt({
         type: 'confirm',
         name: 'overwrite',
         message: chalk.yellow('⚠️  Configuration already exists. Overwrite?'),
         default: false
-      }]);
+      });
 
       if (!overwrite) {
         console.log(chalk.gray('Setup cancelled.'));
@@ -89,7 +89,7 @@ export async function initDirectCommand(): Promise<void> {
         console.log(chalk.gray(`Get your key at: ${chalk.underline(info.url)}`));
       }
 
-      const { apiKey } = await inquirer.prompt([{
+      const { apiKey } = await inquirer.prompt({
         type: 'password',
         name: 'apiKey',
         message: `API Key${info.keyPrefix ? ` (${info.keyPrefix}...)` : ''}:`,
@@ -104,7 +104,7 @@ export async function initDirectCommand(): Promise<void> {
           }
           return true;
         }
-      }]);
+      });
 
       if (apiKey) {
         providers[key] = apiKey;
@@ -135,63 +135,64 @@ export async function initDirectCommand(): Promise<void> {
       }
     }
 
-    const { defaultModel } = await inquirer.prompt([{
+    const { defaultModel } = await inquirer.prompt({
       type: 'list',
       name: 'defaultModel',
       message: 'Select your default model:',
       choices: modelChoices
-    }]);
+    });
 
     // Cache settings
     console.log(chalk.cyan('\n💾 Step 3: Cache Configuration'));
 
-    const { cacheEnabled } = await inquirer.prompt([{
+    const { cacheEnabled } = await inquirer.prompt({
       type: 'confirm',
       name: 'cacheEnabled',
       message: 'Enable intelligent response caching?',
       default: true
-    }]);
+    });
 
     const cacheLocation = path.join(os.homedir(), '.cachegpt', 'cache');
 
     // Advanced settings
-    const { advanced } = await inquirer.prompt([{
+    const { advanced } = await inquirer.prompt({
       type: 'confirm',
       name: 'advanced',
       message: 'Configure advanced settings?',
       default: false
-    }]);
+    });
 
     let temperature = 0.7;
     let maxTokens = 2048;
 
     if (advanced) {
-      const advancedAnswers = await inquirer.prompt([
-        {
+      const temperatureAnswer = await inquirer.prompt({
           type: 'number',
           name: 'temperature',
           message: 'Default temperature (0.0 - 2.0):',
           default: 0.7,
-          validate: (input: number) => {
-            if (input < 0 || input > 2) {
+          validate: (input: number | undefined) => {
+            if (input === undefined || input < 0 || input > 2) {
               return 'Temperature must be between 0 and 2';
             }
             return true;
           }
-        },
-        {
+        });
+
+      const maxTokensAnswer = await inquirer.prompt({
           type: 'number',
           name: 'maxTokens',
           message: 'Default max tokens:',
           default: 2048,
-          validate: (input: number) => {
-            if (input < 1 || input > 32000) {
+          validate: (input: number | undefined) => {
+            if (!input || input < 1 || input > 32000) {
               return 'Max tokens must be between 1 and 32000';
             }
             return true;
           }
-        }
-      ]);
+        });
+
+      const advancedAnswers = { ...temperatureAnswer, ...maxTokensAnswer };
       temperature = advancedAnswers.temperature;
       maxTokens = advancedAnswers.maxTokens;
     }

@@ -35,27 +35,6 @@ CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON claude_messages(conve
 CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON claude_messages(timestamp);
 CREATE INDEX IF NOT EXISTS idx_messages_role ON claude_messages(role);
 
--- Drop existing view if it exists (to avoid column conflicts)
-DROP VIEW IF EXISTS conversation_summaries;
-
--- Create a view for conversation summaries
-CREATE VIEW conversation_summaries AS
-SELECT
-    c.id,
-    c.session_id,
-    c.project_path,
-    c.git_branch,
-    c.started_at,
-    c.last_updated,
-    COUNT(m.id) as message_count,
-    COUNT(m.id) FILTER (WHERE m.role = 'user') as user_messages,
-    COUNT(m.id) FILTER (WHERE m.role = 'assistant') as assistant_messages,
-    SUM((m.usage->>'output_tokens')::int) as total_output_tokens,
-    SUM((m.usage->>'input_tokens')::int) as total_input_tokens
-FROM claude_conversations c
-LEFT JOIN claude_messages m ON c.id = m.conversation_id
-GROUP BY c.id;
-
 -- Function to update last_updated timestamp
 CREATE OR REPLACE FUNCTION update_conversation_timestamp()
 RETURNS TRIGGER AS $$
@@ -67,6 +46,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Drop existing trigger if it exists
+DROP TRIGGER IF EXISTS update_conversation_on_message ON claude_messages;
+
 -- Trigger to automatically update conversation timestamp when new message is added
 CREATE TRIGGER update_conversation_on_message
     AFTER INSERT ON claude_messages
@@ -77,18 +59,27 @@ CREATE TRIGGER update_conversation_on_message
 ALTER TABLE claude_conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE claude_messages ENABLE ROW LEVEL SECURITY;
 
--- Allow users to read all conversations for now (you can restrict this later)
+-- Allow read access to conversations
+DROP POLICY IF EXISTS "Allow read access to conversations" ON claude_conversations;
 CREATE POLICY "Allow read access to conversations" ON claude_conversations
     FOR SELECT USING (true);
 
+-- Allow insert conversations
+DROP POLICY IF EXISTS "Allow insert conversations" ON claude_conversations;
 CREATE POLICY "Allow insert conversations" ON claude_conversations
     FOR INSERT WITH CHECK (true);
 
+-- Allow update conversations
+DROP POLICY IF EXISTS "Allow update conversations" ON claude_conversations;
 CREATE POLICY "Allow update conversations" ON claude_conversations
     FOR UPDATE USING (true);
 
+-- Allow read access to messages
+DROP POLICY IF EXISTS "Allow read access to messages" ON claude_messages;
 CREATE POLICY "Allow read access to messages" ON claude_messages
     FOR SELECT USING (true);
 
+-- Allow insert messages
+DROP POLICY IF EXISTS "Allow insert messages" ON claude_messages;
 CREATE POLICY "Allow insert messages" ON claude_messages
     FOR INSERT WITH CHECK (true);

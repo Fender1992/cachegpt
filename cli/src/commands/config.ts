@@ -149,14 +149,12 @@ async function manageConfig(): Promise<void> {
 
   if (!configExists()) {
     console.log(chalk.yellow('No configuration found.'));
-    const shouldInit = await inquirer.prompt([
-      {
+    const shouldInit = await inquirer.prompt({
         type: 'confirm',
         name: 'init',
         message: 'Would you like to initialize a new configuration?',
         default: true
-      }
-    ]);
+      });
 
     if (shouldInit.init) {
       // Import and run init command
@@ -169,8 +167,7 @@ async function manageConfig(): Promise<void> {
   console.log('\n' + chalk.bold('⚙️  Configuration Management'));
   console.log('═'.repeat(50));
 
-  const action = await inquirer.prompt([
-    {
+  const action = await inquirer.prompt({
       type: 'list',
       name: 'action',
       message: 'What would you like to do?',
@@ -181,8 +178,7 @@ async function manageConfig(): Promise<void> {
         { name: 'Validate configuration', value: 'validate' },
         { name: 'Exit', value: 'exit' }
       ]
-    }
-  ]);
+    });
 
   switch (action.action) {
     case 'view':
@@ -194,14 +190,12 @@ async function manageConfig(): Promise<void> {
       break;
 
     case 'reset':
-      const confirmReset = await inquirer.prompt([
-        {
+      const confirmReset = await inquirer.prompt({
           type: 'confirm',
           name: 'confirm',
           message: 'This will delete your current configuration. Continue?',
           default: false
-        }
-      ]);
+        });
 
       if (confirmReset.confirm) {
         const { initCommand } = await import('./init');
@@ -226,8 +220,7 @@ async function manageConfig(): Promise<void> {
 }
 
 async function editConfiguration(currentConfig: Partial<Config>): Promise<void> {
-  const fields = await inquirer.prompt([
-    {
+  const baseUrlAnswer = await inquirer.prompt({
       type: 'input',
       name: 'baseUrl',
       message: 'Base URL:',
@@ -238,8 +231,9 @@ async function editConfiguration(currentConfig: Partial<Config>): Promise<void> 
         return true;
       },
       filter: (input: string) => input.trim().replace(/\/$/, '')
-    },
-    {
+    });
+
+  const apiKeyAnswer = await inquirer.prompt({
       type: 'input',
       name: 'apiKey',
       message: 'API Key:',
@@ -249,25 +243,28 @@ async function editConfiguration(currentConfig: Partial<Config>): Promise<void> 
         if (!input.startsWith('sk-')) return 'API key should start with "sk-"';
         return true;
       }
-    },
-    {
+    });
+
+  const defaultModelAnswer = await inquirer.prompt({
       type: 'input',
       name: 'defaultModel',
       message: 'Default Model:',
       default: currentConfig.defaultModel || 'gpt-3.5-turbo',
       validate: (input: string) => input.trim() ? true : 'Default model is required'
-    },
-    {
+    });
+
+  const timeoutAnswer = await inquirer.prompt({
       type: 'number',
       name: 'timeout',
       message: 'Timeout (seconds):',
       default: currentConfig.timeout || 30,
-      validate: (input: number) => {
-        if (input < 1 || input > 300) return 'Timeout must be between 1 and 300 seconds';
+      validate: (input: number | undefined) => {
+        if (!input || input < 1 || input > 300) return 'Timeout must be between 1 and 300 seconds';
         return true;
       }
-    }
-  ]);
+    });
+
+  const fields = { ...baseUrlAnswer, ...apiKeyAnswer, ...defaultModelAnswer, ...timeoutAnswer };
 
   const newConfig: Config = {
     baseUrl: fields.baseUrl,

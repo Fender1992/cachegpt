@@ -31,14 +31,12 @@ export async function loginCommand() {
     if (currentUser) {
       console.log(chalk.yellow('⚠️  You are already logged in as:'), currentUser.email);
 
-      const { confirmLogout } = await inquirer.prompt([
-        {
+      const { confirmLogout } = await inquirer.prompt({
           type: 'confirm',
           name: 'confirmLogout',
           message: 'Do you want to logout and login with a different account?',
           default: false,
-        },
-      ]);
+        });
 
       if (!confirmLogout) {
         return;
@@ -49,8 +47,7 @@ export async function loginCommand() {
     }
 
     // Prompt for login credentials
-    const answers = await inquirer.prompt([
-      {
+    const emailAnswer = await inquirer.prompt({
         type: 'input',
         name: 'email',
         message: 'Email:',
@@ -58,14 +55,16 @@ export async function loginCommand() {
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
           return emailRegex.test(value) || 'Please enter a valid email address';
         },
-      },
-      {
+      });
+
+    const passwordAnswer = await inquirer.prompt({
         type: 'password',
         name: 'password',
         message: 'Password:',
         mask: '*',
-      },
-    ]);
+      });
+
+    const answers = { ...emailAnswer, ...passwordAnswer };
 
     const spinner = ora('Logging in...').start();
 

@@ -24,8 +24,7 @@ export async function registerCommand() {
     }
 
     // Prompt for registration details
-    const answers = await inquirer.prompt([
-      {
+    const emailAnswer = await inquirer.prompt({
         type: 'input',
         name: 'email',
         message: 'Email:',
@@ -33,8 +32,9 @@ export async function registerCommand() {
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
           return emailRegex.test(value) || 'Please enter a valid email address';
         },
-      },
-      {
+      });
+
+    const passwordAnswer = await inquirer.prompt({
         type: 'password',
         name: 'password',
         message: 'Password:',
@@ -42,17 +42,19 @@ export async function registerCommand() {
         validate: (value: any) => {
           return value.length >= 6 || 'Password must be at least 6 characters';
         },
-      },
-      {
+      });
+
+    const confirmPasswordAnswer = await inquirer.prompt({
         type: 'password',
         name: 'confirmPassword',
         message: 'Confirm Password:',
         mask: '*',
-        validate: (value: any, answers: any) => {
-          return value === answers.password || 'Passwords do not match';
+        validate: (value: any) => {
+          return value === passwordAnswer.password || 'Passwords do not match';
         },
-      },
-    ]);
+      });
+
+    const answers = { ...emailAnswer, ...passwordAnswer, ...confirmPasswordAnswer };
 
     const spinner = ora('Creating your account...').start();
 

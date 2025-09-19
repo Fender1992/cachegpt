@@ -60,12 +60,12 @@ export async function initBrowserCommand(): Promise<void> {
       });
       console.log();
 
-      const { continueSetup } = await inquirer.prompt([{
+      const { continueSetup } = await inquirer.prompt({
         type: 'confirm',
         name: 'continueSetup',
         message: 'Add another account?',
         default: true
-      }]);
+      });
 
       if (!continueSetup) {
         console.log(chalk.gray('\nUse "cachegpt chat" to start chatting with existing accounts.'));
@@ -74,7 +74,7 @@ export async function initBrowserCommand(): Promise<void> {
     }
 
     // Step 1: Choose provider
-    const { provider } = await inquirer.prompt([{
+    const { provider } = await inquirer.prompt({
       type: 'list',
       name: 'provider',
       message: 'Which service would you like to use?',
@@ -86,7 +86,7 @@ export async function initBrowserCommand(): Promise<void> {
         { name: '🔍 Perplexity AI', value: 'perplexity' },
         { name: '🌟 Cohere', value: 'cohere' }
       ]
-    }]);
+    });
 
     const providerUrl = PROVIDER_URLS[provider as keyof typeof PROVIDER_URLS];
 
@@ -115,12 +115,12 @@ export async function initBrowserCommand(): Promise<void> {
       );
     }
 
-    const { authMethod } = await inquirer.prompt([{
+    const { authMethod } = await inquirer.prompt({
       type: 'list',
       name: 'authMethod',
       message: 'How would you like to authenticate?',
       choices: authChoices
-    }]);
+    });
 
     let config: BrowserConfig;
 
@@ -211,31 +211,32 @@ async function handleAPIAuth(provider: string): Promise<BrowserConfig> {
   console.log(chalk.gray(providerInstructions[provider] || 'Get your API key from the provider\'s dashboard'));
   console.log();
 
-  const { apiKey } = await inquirer.prompt([{
+  const { apiKey } = await inquirer.prompt({
     type: 'password',
     name: 'apiKey',
     message: 'Enter your API key:',
     mask: '*',
     validate: (input) => input.length > 0 || 'API key is required'
-  }]);
+  });
 
   // Additional config for Azure OpenAI
   let azureConfig = {};
   if (provider === 'microsoft') {
-    const { endpoint, deployment } = await inquirer.prompt([
-      {
+    const endpointAnswer = await inquirer.prompt({
         type: 'input',
         name: 'endpoint',
         message: 'Enter your Azure OpenAI endpoint:',
         validate: (input) => input.length > 0 || 'Endpoint is required'
-      },
-      {
+      });
+
+    const deploymentAnswer = await inquirer.prompt({
         type: 'input',
         name: 'deployment',
         message: 'Enter your deployment name:',
         default: 'gpt-4'
-      }
-    ]);
+      });
+
+    const { endpoint, deployment } = { ...endpointAnswer, ...deploymentAnswer };
     azureConfig = { endpoint, deployment };
   }
 
@@ -269,13 +270,13 @@ async function handleTokenAuth(provider: string, providerUrl: string): Promise<B
   // Open browser
   await open(providerUrl);
 
-  const { token } = await inquirer.prompt([{
+  const { token } = await inquirer.prompt({
     type: 'password',
     name: 'token',
     message: 'Paste your session token here:',
     mask: '*',
     validate: (input) => input.length > 0 || 'Session token is required'
-  }]);
+  });
 
   // Save configuration
   const config: BrowserConfig = {

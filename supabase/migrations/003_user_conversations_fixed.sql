@@ -29,12 +29,17 @@ FROM claude_conversations c
 LEFT JOIN claude_messages m ON c.id = m.conversation_id
 GROUP BY c.id;
 
--- Drop existing RLS policies
+-- Drop existing RLS policies (including both old and new names)
 DROP POLICY IF EXISTS "Allow read access to conversations" ON claude_conversations;
 DROP POLICY IF EXISTS "Allow insert conversations" ON claude_conversations;
 DROP POLICY IF EXISTS "Allow update conversations" ON claude_conversations;
 DROP POLICY IF EXISTS "Allow read access to messages" ON claude_messages;
 DROP POLICY IF EXISTS "Allow insert messages" ON claude_messages;
+DROP POLICY IF EXISTS "Users can view own conversations" ON claude_conversations;
+DROP POLICY IF EXISTS "Users can create own conversations" ON claude_conversations;
+DROP POLICY IF EXISTS "Users can update own conversations" ON claude_conversations;
+DROP POLICY IF EXISTS "Users can view messages from own conversations" ON claude_messages;
+DROP POLICY IF EXISTS "Users can add messages to own conversations" ON claude_messages;
 
 -- Create new RLS policies that respect user ownership
 -- Users can only see their own conversations
