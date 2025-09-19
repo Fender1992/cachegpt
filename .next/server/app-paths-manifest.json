@@ -9,13 +9,13 @@
   "/api/v1/usage/route": "app/api/v1/usage/route.js",
   "/api/v2/chat/route": "app/api/v2/chat/route.js",
   "/auth/callback/page": "app/auth/callback/page.js",
-  "/dashboard/page": "app/dashboard/page.js",
   "/docs/page": "app/docs/page.js",
   "/login/page": "app/login/page.js",
   "/page": "app/page.js",
   "/pricing/page": "app/pricing/page.js",
   "/privacy/page": "app/privacy/page.js",
   "/status/page": "app/status/page.js",
+  "/terms/page": "app/terms/page.js",
   "/support/page": "app/support/page.js",
-  "/terms/page": "app/terms/page.js"
+  "/dashboard/page": "app/dashboard/page.js"
 }

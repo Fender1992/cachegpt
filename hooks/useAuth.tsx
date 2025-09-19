@@ -11,8 +11,8 @@ export function useAuth() {
   useEffect(() => {
     const checkUser = async () => {
       try {
-        // Skip auth check during static generation
-        if (typeof window === 'undefined') {
+        // Skip auth check during static generation or if no supabase
+        if (typeof window === 'undefined' || !supabase) {
           setLoading(false)
           return
         }
@@ -28,8 +28,8 @@ export function useAuth() {
 
     checkUser()
 
-    // Skip auth listener during static generation
-    if (typeof window === 'undefined') {
+    // Skip auth listener during static generation or if no supabase
+    if (typeof window === 'undefined' || !supabase) {
       return
     }
 

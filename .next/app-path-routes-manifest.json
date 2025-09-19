@@ -9,13 +9,13 @@
   "/api/v1/usage/route": "/api/v1/usage",
   "/api/v2/chat/route": "/api/v2/chat",
   "/auth/callback/page": "/auth/callback",
-  "/dashboard/page": "/dashboard",
   "/docs/page": "/docs",
   "/login/page": "/login",
   "/page": "/",
   "/pricing/page": "/pricing",
   "/privacy/page": "/privacy",
   "/status/page": "/status",
+  "/terms/page": "/terms",
   "/support/page": "/support",
-  "/terms/page": "/terms"
+  "/dashboard/page": "/dashboard"
 }
