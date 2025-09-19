@@ -261,14 +261,14 @@ export default function Home() {
                 <span className="text-sm text-gray-500 ml-4">terminal</span>
               </div>
               <div className="font-mono text-sm space-y-2">
-                <div className="text-gray-500">$ git clone https://github.com/Fender1992/cachegpt.git</div>
-                <div className="text-green-400">✓ Repository cloned successfully</div>
-                <div className="text-gray-500">$ cd cachegpt && yarn install</div>
-                <div className="text-blue-400">✓ Dependencies installed</div>
-                <div className="text-gray-500">$ yarn dev</div>
-                <div className="text-green-400">✓ Server running on http://localhost:3000</div>
-                <div className="text-purple-400">→ Cache API ready at /api/chat</div>
-                <div className="text-yellow-400">💡 Free and open source!</div>
+                <div className="text-gray-500">$ cachegpt init</div>
+                <div className="text-green-400">✓ Configuration file created</div>
+                <div className="text-gray-500">$ cachegpt login</div>
+                <div className="text-blue-400">✓ Authenticated successfully</div>
+                <div className="text-gray-500">$ cachegpt start</div>
+                <div className="text-green-400">✓ Cache server running on port 8080</div>
+                <div className="text-purple-400">→ Proxy endpoint: http://localhost:8080/v1/chat</div>
+                <div className="text-yellow-400">💡 100% free - no credit card required!</div>
               </div>
             </div>
           </div>
@@ -346,9 +346,14 @@ export default function Home() {
             <h2 className="text-4xl font-bold mb-4">
               Download <span className="text-blue-600">CacheGPT</span>
             </h2>
-            <p className="text-xl text-gray-600 dark:text-gray-400 mb-12">
+            <p className="text-xl text-gray-600 dark:text-gray-400 mb-4">
               Get started in seconds - completely free, no registration required
             </p>
+            <div className="inline-flex items-center space-x-2 px-4 py-2 bg-amber-100 dark:bg-amber-900/30 rounded-full mb-8">
+              <span className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                💡 Download links will be available soon. For now, install via npm below.
+              </span>
+            </div>
 
             <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto mb-12">
               {/* Windows Download */}
@@ -357,9 +362,10 @@ export default function Home() {
                 <h3 className="text-xl font-semibold mb-2">Windows</h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Windows 10/11 (64-bit)</p>
                 <a
-                  href="/downloads/cachegpt-windows-x64.exe"
+                  href="https://github.com/Fender1992/cachegpt/releases/latest/download/cachegpt-windows-x64.exe"
                   className="btn-glow w-full justify-center"
-                  download
+                  target="_blank"
+                  rel="noopener"
                 >
                   <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
@@ -375,9 +381,10 @@ export default function Home() {
                 <h3 className="text-xl font-semibold mb-2">macOS</h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">macOS 10.15+ (Intel & Apple Silicon)</p>
                 <a
-                  href="/downloads/cachegpt-macos.dmg"
+                  href="https://github.com/Fender1992/cachegpt/releases/latest/download/cachegpt-macos.dmg"
                   className="btn-glow w-full justify-center"
-                  download
+                  target="_blank"
+                  rel="noopener"
                 >
                   <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
@@ -393,9 +400,10 @@ export default function Home() {
                 <h3 className="text-xl font-semibold mb-2">Linux</h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Ubuntu, Debian, Fedora (64-bit)</p>
                 <a
-                  href="/downloads/cachegpt-linux-x64.AppImage"
+                  href="https://github.com/Fender1992/cachegpt/releases/latest/download/cachegpt-linux-x64.AppImage"
                   className="btn-glow w-full justify-center"
-                  download
+                  target="_blank"
+                  rel="noopener"
                 >
                   <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
@@ -406,23 +414,67 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Alternative Installation Methods */}
-            <div className="max-w-3xl mx-auto">
-              <div className="glass-card rounded-2xl p-6">
-                <h3 className="text-lg font-semibold mb-4">Or install via command line</h3>
-                <div className="grid md:grid-cols-2 gap-4">
+            {/* Installation Instructions */}
+            <div className="max-w-4xl mx-auto">
+              <div className="glass-card rounded-2xl p-8">
+                <h3 className="text-2xl font-semibold mb-6">📦 Installation Instructions</h3>
+
+                <div className="grid md:grid-cols-2 gap-6 mb-6">
                   <div className="text-left">
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Using npm:</p>
-                    <code className="block bg-gray-100 dark:bg-gray-800 rounded p-2 text-sm font-mono">
-                      npm install -g cachegpt
-                    </code>
+                    <h4 className="text-lg font-medium mb-3 flex items-center">
+                      <span className="text-2xl mr-2">🪟</span> Windows
+                    </h4>
+                    <ol className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                      <li>1. Download the .exe file above</li>
+                      <li>2. Double-click to run the installer</li>
+                      <li>3. Follow the setup wizard</li>
+                      <li>4. Open Command Prompt and run: <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">cachegpt --help</code></li>
+                    </ol>
                   </div>
+
                   <div className="text-left">
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Using Docker:</p>
-                    <code className="block bg-gray-100 dark:bg-gray-800 rounded p-2 text-sm font-mono">
-                      docker run -p 3000:3000 cachegpt/cachegpt
-                    </code>
+                    <h4 className="text-lg font-medium mb-3 flex items-center">
+                      <span className="text-2xl mr-2">🍎</span> macOS
+                    </h4>
+                    <ol className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                      <li>1. Download the .dmg file above</li>
+                      <li>2. Open the downloaded file</li>
+                      <li>3. Drag CacheGPT to Applications</li>
+                      <li>4. Open Terminal and run: <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">cachegpt --help</code></li>
+                    </ol>
                   </div>
+                </div>
+
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+                  <h4 className="text-lg font-medium mb-4">Alternative Installation Methods</h4>
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <div className="text-left">
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Using npm:</p>
+                      <code className="block bg-gray-100 dark:bg-gray-800 rounded p-2 text-sm font-mono">
+                        npm install -g cachegpt
+                      </code>
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Using Homebrew (macOS):</p>
+                      <code className="block bg-gray-100 dark:bg-gray-800 rounded p-2 text-sm font-mono">
+                        brew install cachegpt
+                      </code>
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Using curl (Linux/macOS):</p>
+                      <code className="block bg-gray-100 dark:bg-gray-800 rounded p-2 text-sm font-mono text-xs">
+                        curl -fsSL https://cachegpt.io/install.sh | sh
+                      </code>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                  <p className="text-sm text-blue-700 dark:text-blue-300">
+                    <strong>Note:</strong> If you encounter any issues during installation, please visit our
+                    <a href="https://github.com/Fender1992/cachegpt/issues" target="_blank" rel="noopener" className="underline hover:text-blue-800 dark:hover:text-blue-200"> GitHub Issues</a> page
+                    or check the <a href="/docs" className="underline hover:text-blue-800 dark:hover:text-blue-200">documentation</a>.
+                  </p>
                 </div>
               </div>
             </div>
