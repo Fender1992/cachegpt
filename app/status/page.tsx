@@ -197,42 +197,81 @@ export default function StatusPage() {
   }
 
   const checkDatabase = async () => {
-    // Mock implementation - replace with actual database check
-    return {
-      status: 'operational' as const,
-      latency: Math.random() * 10 + 5
+    const startTime = Date.now()
+    try {
+      const response = await fetch('/api/health')
+      const latency = Date.now() - startTime
+      if (response.ok) {
+        return { status: 'operational' as const, latency }
+      }
+      return { status: 'degraded' as const, latency }
+    } catch (error) {
+      return { status: 'outage' as const, latency: Date.now() - startTime }
     }
   }
 
   const checkCache = async () => {
-    // Mock implementation - replace with actual cache check
-    return {
-      status: 'operational' as const,
-      latency: Math.random() * 5 + 2
+    const startTime = Date.now()
+    try {
+      const response = await fetch('/api/stats')
+      const latency = Date.now() - startTime
+      if (response.ok) {
+        return { status: 'operational' as const, latency }
+      }
+      return { status: 'degraded' as const, latency }
+    } catch (error) {
+      return { status: 'outage' as const, latency: Date.now() - startTime }
     }
   }
 
   const checkHuggingFace = async () => {
-    // Mock implementation - replace with actual HF check
-    return {
-      status: 'operational' as const,
-      latency: Math.random() * 200 + 100
+    const startTime = Date.now()
+    try {
+      // Check HF API status endpoint
+      const response = await fetch('https://api-inference.huggingface.co/status', {
+        method: 'HEAD'
+      })
+      const latency = Date.now() - startTime
+      if (response.ok) {
+        return { status: 'operational' as const, latency }
+      }
+      return { status: 'degraded' as const, latency }
+    } catch (error) {
+      return { status: 'outage' as const, latency: Date.now() - startTime }
     }
   }
 
   const checkOpenAI = async () => {
-    // Mock implementation - replace with actual OpenAI check
-    return {
-      status: 'operational' as const,
-      latency: Math.random() * 150 + 50
+    const startTime = Date.now()
+    try {
+      // Check OpenAI API status
+      const response = await fetch('https://api.openai.com/v1/models', {
+        method: 'HEAD'
+      })
+      const latency = Date.now() - startTime
+      if (response.ok || response.status === 401) { // 401 means API is up but needs auth
+        return { status: 'operational' as const, latency }
+      }
+      return { status: 'degraded' as const, latency }
+    } catch (error) {
+      return { status: 'outage' as const, latency: Date.now() - startTime }
     }
   }
 
   const checkAnthropic = async () => {
-    // Mock implementation - replace with actual Anthropic check
-    return {
-      status: 'operational' as const,
-      latency: Math.random() * 150 + 50
+    const startTime = Date.now()
+    try {
+      // Check Anthropic API status
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'HEAD'
+      })
+      const latency = Date.now() - startTime
+      if (response.ok || response.status === 401) { // 401 means API is up but needs auth
+        return { status: 'operational' as const, latency }
+      }
+      return { status: 'degraded' as const, latency }
+    } catch (error) {
+      return { status: 'outage' as const, latency: Date.now() - startTime }
     }
   }
 
@@ -443,7 +482,8 @@ export default function StatusPage() {
           <CardContent>
             <div className="grid grid-cols-30 gap-1">
               {[...Array(90)].map((_, i) => {
-                const isOperational = Math.random() > 0.02 // 98% uptime simulation
+                // Show operational status - should be fetched from incident history in production
+                const isOperational = true
                 return (
                   <div
                     key={i}

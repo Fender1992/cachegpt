@@ -23,6 +23,45 @@ interface Stat {
   bgColor: string
 }
 
+interface UsageLog {
+  id: string
+  user_id: string
+  cache_hit: boolean
+  cost: number
+  response_time_ms: number
+  created_at: string
+  endpoint?: string
+  model?: string
+  tokens_used?: number
+}
+
+interface ChartDataPoint {
+  date: string
+  requests: number
+  cached: number
+}
+
+interface ApiKey {
+  id: string
+  key_name: string
+  key: string
+  created_at: string
+  last_used?: string
+}
+
+interface Activity {
+  id: string | number
+  action: string
+  model: string
+  status: string
+  time: string
+  saved: string
+  endpoint?: string
+  created_at?: string
+  cache_hit?: boolean
+  response_time_ms?: number
+}
+
 export default function Dashboard() {
   const { user, loading } = useAuth()
   const router = useRouter()
@@ -43,9 +82,9 @@ export default function Dashboard() {
     uptime: 99.9
   })
 
-  const [chartData, setChartData] = useState<any[]>([])
-  const [apiKeys, setApiKeys] = useState<any[]>([])
-  const [recentActivity, setRecentActivity] = useState<any[]>([])
+  const [chartData, setChartData] = useState<ChartDataPoint[]>([])
+  const [apiKeys, setApiKeys] = useState<ApiKey[]>([])
+  const [recentActivity, setRecentActivity] = useState<Activity[]>([])
 
   useEffect(() => {
     if (!user && !loading) {
@@ -76,30 +115,39 @@ export default function Dashboard() {
         .limit(100)
 
       if (usageData) {
-        const totalRequests = usageData.length
-        const cacheHits = usageData.filter(log => log.cache_hit).length
-        const costSaved = usageData.reduce((sum, log) => sum + (log.cost || 0), 0)
-        const avgResponseTime = usageData.reduce((sum, log) => sum + (log.response_time_ms || 0), 0) / totalRequests
+        const typedUsageData = usageData as UsageLog[]
+        const totalRequests = typedUsageData.length
+        const cacheHits = typedUsageData.filter((log: UsageLog) => log.cache_hit).length
+        const costSaved = typedUsageData.reduce((sum: number, log: UsageLog) => sum + (log.cost || 0), 0)
+        const avgResponseTime = typedUsageData.reduce((sum: number, log: UsageLog) => sum + (log.response_time_ms || 0), 0) / totalRequests
+
+        // Get unique active users count
+        const { data: activeUsersData } = await supabase
+          .from('usage_logs')
+          .select('user_id')
+          .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+
+        const uniqueUsers = new Set(activeUsersData?.map((log: any) => log.user_id) || [])
 
         setStats({
           totalRequests,
           cacheHits,
           costSaved,
           avgResponseTime: Math.round(avgResponseTime),
-          activeUsers: Math.floor(Math.random() * 50) + 10,
-          apiCalls: totalRequests * 2,
-          dataProcessed: Math.floor(totalRequests * 1.5),
+          activeUsers: uniqueUsers.size,
+          apiCalls: totalRequests,
+          dataProcessed: Math.floor(totalRequests * 0.5), // Estimate based on average request size
           uptime: 99.9
         })
 
         // Process data for chart
-        const chartDataMap = new Map()
-        usageData.forEach(log => {
+        const chartDataMap = new Map<string, ChartDataPoint>()
+        typedUsageData.forEach((log: UsageLog) => {
           const date = new Date(log.created_at).toLocaleDateString()
           if (!chartDataMap.has(date)) {
             chartDataMap.set(date, { date, requests: 0, cached: 0 })
           }
-          const dayData = chartDataMap.get(date)
+          const dayData = chartDataMap.get(date)!
           dayData.requests++
           if (log.cache_hit) dayData.cached++
         })
@@ -117,14 +165,27 @@ export default function Dashboard() {
         setApiKeys(keysData)
       }
 
-      // Generate mock recent activity
-      setRecentActivity([
-        { id: 1, action: 'API Call', model: 'gpt-4', status: 'cached', time: '2 mins ago', saved: '$0.02' },
-        { id: 2, action: 'API Call', model: 'claude-2', status: 'miss', time: '5 mins ago', saved: '$0.00' },
-        { id: 3, action: 'API Call', model: 'gpt-3.5-turbo', status: 'cached', time: '8 mins ago', saved: '$0.01' },
-        { id: 4, action: 'Key Created', model: '-', status: 'success', time: '1 hour ago', saved: '-' },
-        { id: 5, action: 'API Call', model: 'gpt-4', status: 'cached', time: '2 hours ago', saved: '$0.02' }
-      ])
+      // Fetch recent activity from usage logs
+      const { data: activityData } = await supabase
+        .from('usage_logs')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false })
+        .limit(10)
+
+      if (activityData) {
+        const activities = activityData.map((log: any) => ({
+          id: log.id,
+          action: 'API Call',
+          model: log.model || 'gpt-3.5-turbo',
+          status: log.cache_hit ? 'cached' : 'miss',
+          time: new Date(log.created_at).toLocaleString(),
+          saved: log.cache_hit ? `$${(log.cost_saved || 0).toFixed(2)}` : '$0.00',
+          endpoint: log.endpoint,
+          response_time_ms: log.response_time_ms
+        }))
+        setRecentActivity(activities)
+      }
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
     } finally {
@@ -479,10 +540,10 @@ export default function Dashboard() {
                           <h3 className="font-semibold">{key.key_name}</h3>
                           <div className="flex items-center space-x-2 mt-1">
                             <code className="text-sm text-gray-600 dark:text-gray-400 font-mono">
-                              {showApiKey === key.id ? key.api_key : `sk-...${key.api_key.slice(-8)}`}
+                              {showApiKey === key.id ? key.key : `sk-...${key.key.slice(-8)}`}
                             </code>
-                            <Badge variant={key.is_active ? 'default' : 'secondary'}>
-                              {key.is_active ? 'Active' : 'Inactive'}
+                            <Badge variant={'default'}>
+                              Active
                             </Badge>
                           </div>
                         </div>
@@ -495,7 +556,7 @@ export default function Dashboard() {
                           <Eye className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => copyApiKey(key.api_key)}
+                          onClick={() => copyApiKey(key.key)}
                           className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"
                         >
                           <Copy className="w-4 h-4" />

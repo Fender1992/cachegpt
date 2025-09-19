@@ -58,7 +58,12 @@
       "Read(//mnt/c/Users/ADMIN/Pictures/Screenshots/**)",
       "Bash(npm view:*)",
       "Bash(npm uninstall:*)",
-      "Bash(awk:*)"
+      "Bash(awk:*)",
+      "Bash(GIT_CURL_VERBOSE=1 GIT_TRACE=1 git push origin main)",
+      "Bash(export GIT_CURL_VERBOSE=1)",
+      "Bash(export GIT_TRACE=1)",
+      "Bash(git remote set-url:*)",
+      "Bash(GIT_CURL_VERBOSE=1 git push origin main)"
     ],
     "deny": [],
     "ask": []
