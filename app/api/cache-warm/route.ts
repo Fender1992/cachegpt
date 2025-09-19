@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Initialize Supabase with null checks
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+const supabase = supabaseUrl && supabaseServiceKey
+  ? createClient(supabaseUrl, supabaseServiceKey)
+  : null;
 
 /**
  * Cache pre-warming endpoint
@@ -13,6 +15,13 @@ const supabase = createClient(
  */
 export async function POST(req: NextRequest) {
   try {
+    // Check if Supabase is configured
+    if (!supabase) {
+      return NextResponse.json({
+        error: 'Database configuration missing'
+      }, { status: 503 });
+    }
+
     // Get queries that need warming
     const { data: queriesToWarm, error: fetchError } = await supabase
       .rpc('get_queries_to_warm', { limit_count: 10 });
@@ -41,22 +50,24 @@ export async function POST(req: NextRequest) {
           const embedding = await generateEmbedding(item.query);
 
           // Cache the response
-          await supabase
-            .from('cached_responses')
-            .insert({
-              query: item.query,
-              response: response,
-              embedding: embedding,
-              model: 'gpt-3.5-turbo', // Or your default model
-              created_at: new Date().toISOString(),
-              access_count: item.request_count // Start with existing request count
-            });
+          if (supabase) {
+            await supabase
+              .from('cached_responses')
+              .insert({
+                query: item.query,
+                response: response,
+                embedding: embedding,
+                model: 'gpt-3.5-turbo', // Or your default model
+                created_at: new Date().toISOString(),
+                access_count: item.request_count // Start with existing request count
+              });
 
-          // Mark as cached in popular_queries
-          await supabase
-            .from('popular_queries')
-            .update({ is_cached: true })
-            .eq('query', item.query);
+            // Mark as cached in popular_queries
+            await supabase
+              .from('popular_queries')
+              .update({ is_cached: true })
+              .eq('query', item.query);
+          }
 
           warmedQueries.push(item.query);
         }
@@ -147,6 +158,13 @@ function generateSimpleEmbedding(text: string): number[] {
 // GET endpoint to check warming status
 export async function GET(req: NextRequest) {
   try {
+    // Check if Supabase is configured
+    if (!supabase) {
+      return NextResponse.json({
+        error: 'Database configuration missing'
+      }, { status: 503 });
+    }
+
     const { data, error } = await supabase
       .rpc('get_queries_to_warm', { limit_count: 100 });
 
