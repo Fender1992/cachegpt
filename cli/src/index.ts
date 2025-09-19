@@ -14,6 +14,11 @@ import { syncClaude } from './commands/sync-claude';
 import { registerCommand } from './commands/register';
 import { loginCommand } from './commands/login';
 import { authStatusCommand } from './commands/auth-status';
+import { analyticsCommand } from './commands/analytics';
+import { tagsCommand } from './commands/tags';
+import { exportCommand } from './commands/export';
+import { rateLimitCommand } from './commands/rate-limit';
+import { templatesCommand } from './commands/templates';
 
 const program = new Command();
 
@@ -107,6 +112,31 @@ program
       process.exit(1);
     });
   });
+
+program
+  .command('analytics')
+  .description('Show detailed analytics dashboard')
+  .action(analyticsCommand);
+
+program
+  .command('tags [action] [args...]')
+  .description('Manage chat tags and organization')
+  .action(tagsCommand);
+
+program
+  .command('export [format] [output]')
+  .description('Export chat history in various formats')
+  .action(exportCommand);
+
+program
+  .command('rate-limit [action]')
+  .description('Manage API rate limits and optimization')
+  .action(rateLimitCommand);
+
+program
+  .command('templates [action] [args...]')
+  .description('Manage prompt templates for common tasks')
+  .action(templatesCommand);
 
 // Parse CLI arguments
 program.parse();

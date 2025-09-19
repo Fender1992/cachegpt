@@ -16,6 +16,14 @@ interface CacheEntry {
   tokens_used?: number;
   response_time_ms?: number;
   cache_hit?: boolean;
+  tags?: string[];
+}
+
+interface ChatTag {
+  name: string;
+  chatCount: number;
+  created: string;
+  lastUsed: string;
 }
 
 interface LocalCache {
@@ -335,6 +343,284 @@ export class CacheService {
       }
     } else if (cloud && !this.supabase) {
       console.log(chalk.yellow('Note: Cloud cache is not available'));
+    }
+  }
+
+  async getRecentActivity(days: number = 7): Promise<Array<{date: string, total: number, hits: number}>> {
+    const results: Array<{date: string, total: number, hits: number}> = [];
+
+    // Get local cache activity
+    if (fs.existsSync(this.localCachePath)) {
+      try {
+        const cacheContent = fs.readFileSync(this.localCachePath, 'utf-8');
+        const cache: LocalCache = JSON.parse(cacheContent);
+
+        const dayMap = new Map<string, {total: number, hits: number}>();
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - days);
+
+        cache.entries.forEach(entry => {
+          const entryDate = new Date(entry.timestamp);
+          if (entryDate >= cutoffDate) {
+            const dateStr = entryDate.toISOString().split('T')[0];
+            const existing = dayMap.get(dateStr) || {total: 0, hits: 0};
+            existing.total++;
+            if (entry.cache_hit) existing.hits++;
+            dayMap.set(dateStr, existing);
+          }
+        });
+
+        dayMap.forEach((value, key) => {
+          results.push({date: key, total: value.total, hits: value.hits});
+        });
+      } catch (error) {
+        // Ignore errors
+      }
+    }
+
+    return results.sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  async getTopQueries(limit: number = 10): Promise<Array<{prompt: string, count: number, lastUsed: string}>> {
+    const queryMap = new Map<string, {count: number, lastUsed: string}>();
+
+    // Analyze local cache
+    if (fs.existsSync(this.localCachePath)) {
+      try {
+        const cacheContent = fs.readFileSync(this.localCachePath, 'utf-8');
+        const cache: LocalCache = JSON.parse(cacheContent);
+
+        cache.entries.forEach(entry => {
+          const existing = queryMap.get(entry.prompt) || {count: 0, lastUsed: entry.timestamp};
+          existing.count++;
+          if (new Date(entry.timestamp) > new Date(existing.lastUsed)) {
+            existing.lastUsed = entry.timestamp;
+          }
+          queryMap.set(entry.prompt, existing);
+        });
+      } catch (error) {
+        // Ignore errors
+      }
+    }
+
+    return Array.from(queryMap.entries())
+      .map(([prompt, data]) => ({prompt, ...data}))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit);
+  }
+
+  async getUsagePattern(): Promise<{peakHour: number, peakCount: number, mostActiveDay: string, avgDailyQueries: number}> {
+    const hourCounts = new Array(24).fill(0);
+    const dayCounts: {[key: string]: number} = {};
+    let totalQueries = 0;
+
+    if (fs.existsSync(this.localCachePath)) {
+      try {
+        const cacheContent = fs.readFileSync(this.localCachePath, 'utf-8');
+        const cache: LocalCache = JSON.parse(cacheContent);
+
+        cache.entries.forEach(entry => {
+          const date = new Date(entry.timestamp);
+          const hour = date.getHours();
+          const dayName = date.toLocaleDateString('en-US', {weekday: 'long'});
+
+          hourCounts[hour]++;
+          dayCounts[dayName] = (dayCounts[dayName] || 0) + 1;
+          totalQueries++;
+        });
+      } catch (error) {
+        // Ignore errors
+      }
+    }
+
+    const peakHour = hourCounts.indexOf(Math.max(...hourCounts));
+    const mostActiveDay = Object.keys(dayCounts).reduce((a, b) =>
+      dayCounts[a] > dayCounts[b] ? a : b, 'Monday');
+
+    const uniqueDays = new Set();
+    if (fs.existsSync(this.localCachePath)) {
+      try {
+        const cacheContent = fs.readFileSync(this.localCachePath, 'utf-8');
+        const cache: LocalCache = JSON.parse(cacheContent);
+        cache.entries.forEach(entry => {
+          uniqueDays.add(new Date(entry.timestamp).toDateString());
+        });
+      } catch (error) {
+        // Ignore errors
+      }
+    }
+
+    return {
+      peakHour,
+      peakCount: hourCounts[peakHour],
+      mostActiveDay,
+      avgDailyQueries: uniqueDays.size > 0 ? Math.round(totalQueries / uniqueDays.size) : 0
+    };
+  }
+
+  // Tagging methods
+  async addTagToChat(chatId: string, tagName: string): Promise<void> {
+    if (!fs.existsSync(this.localCachePath)) return;
+
+    try {
+      const cacheContent = fs.readFileSync(this.localCachePath, 'utf-8');
+      const cache: LocalCache = JSON.parse(cacheContent);
+
+      const chatIndex = parseInt(chatId);
+      if (chatIndex >= 0 && chatIndex < cache.entries.length) {
+        const entry = cache.entries[chatIndex];
+        if (!entry.tags) entry.tags = [];
+        if (!entry.tags.includes(tagName)) {
+          entry.tags.push(tagName);
+
+          // Save updated cache
+          fs.writeFileSync(
+            this.localCachePath,
+            JSON.stringify(cache, null, 2),
+            { mode: 0o600 }
+          );
+        }
+      }
+    } catch (error) {
+      throw new Error('Failed to add tag to chat');
+    }
+  }
+
+  async getAllTags(): Promise<ChatTag[]> {
+    const tagMap = new Map<string, {count: number, created: string, lastUsed: string}>();
+
+    if (fs.existsSync(this.localCachePath)) {
+      try {
+        const cacheContent = fs.readFileSync(this.localCachePath, 'utf-8');
+        const cache: LocalCache = JSON.parse(cacheContent);
+
+        cache.entries.forEach(entry => {
+          if (entry.tags) {
+            entry.tags.forEach(tag => {
+              const existing = tagMap.get(tag) || {
+                count: 0,
+                created: entry.timestamp,
+                lastUsed: entry.timestamp
+              };
+              existing.count++;
+              if (new Date(entry.timestamp) > new Date(existing.lastUsed)) {
+                existing.lastUsed = entry.timestamp;
+              }
+              if (new Date(entry.timestamp) < new Date(existing.created)) {
+                existing.created = entry.timestamp;
+              }
+              tagMap.set(tag, existing);
+            });
+          }
+        });
+      } catch (error) {
+        // Ignore errors
+      }
+    }
+
+    return Array.from(tagMap.entries()).map(([name, data]) => ({
+      name,
+      chatCount: data.count,
+      created: data.created,
+      lastUsed: data.lastUsed
+    }));
+  }
+
+  async getChatsByTag(tagName: string): Promise<CacheEntry[]> {
+    if (!fs.existsSync(this.localCachePath)) return [];
+
+    try {
+      const cacheContent = fs.readFileSync(this.localCachePath, 'utf-8');
+      const cache: LocalCache = JSON.parse(cacheContent);
+
+      return cache.entries.filter(entry =>
+        entry.tags && entry.tags.includes(tagName)
+      );
+    } catch (error) {
+      return [];
+    }
+  }
+
+  async getRecentChats(limit: number = 10): Promise<CacheEntry[]> {
+    if (!fs.existsSync(this.localCachePath)) return [];
+
+    try {
+      const cacheContent = fs.readFileSync(this.localCachePath, 'utf-8');
+      const cache: LocalCache = JSON.parse(cacheContent);
+
+      return cache.entries
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .slice(0, limit)
+        .map((entry, index) => ({...entry, id: index.toString()}));
+    } catch (error) {
+      return [];
+    }
+  }
+
+  async getUntaggedChats(): Promise<CacheEntry[]> {
+    if (!fs.existsSync(this.localCachePath)) return [];
+
+    try {
+      const cacheContent = fs.readFileSync(this.localCachePath, 'utf-8');
+      const cache: LocalCache = JSON.parse(cacheContent);
+
+      return cache.entries
+        .filter(entry => !entry.tags || entry.tags.length === 0)
+        .map((entry, index) => ({...entry, id: index.toString()}));
+    } catch (error) {
+      return [];
+    }
+  }
+
+  async getTotalChatCount(): Promise<number> {
+    if (!fs.existsSync(this.localCachePath)) return 0;
+
+    try {
+      const cacheContent = fs.readFileSync(this.localCachePath, 'utf-8');
+      const cache: LocalCache = JSON.parse(cacheContent);
+      return cache.entries.length;
+    } catch (error) {
+      return 0;
+    }
+  }
+
+  async getAllChats(): Promise<CacheEntry[]> {
+    if (!fs.existsSync(this.localCachePath)) return [];
+
+    try {
+      const cacheContent = fs.readFileSync(this.localCachePath, 'utf-8');
+      const cache: LocalCache = JSON.parse(cacheContent);
+
+      // Sort by timestamp, newest first
+      return cache.entries.sort((a, b) =>
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+    } catch (error) {
+      return [];
+    }
+  }
+
+  async getChatsByDateRange(startDate: string, endDate: string): Promise<CacheEntry[]> {
+    if (!fs.existsSync(this.localCachePath)) return [];
+
+    try {
+      const cacheContent = fs.readFileSync(this.localCachePath, 'utf-8');
+      const cache: LocalCache = JSON.parse(cacheContent);
+
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999); // Include the entire end date
+
+      return cache.entries
+        .filter(entry => {
+          const entryDate = new Date(entry.timestamp);
+          return entryDate >= start && entryDate <= end;
+        })
+        .sort((a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+    } catch (error) {
+      return [];
     }
   }
 }
