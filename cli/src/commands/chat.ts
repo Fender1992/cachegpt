@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import { loadConfig } from '../lib/config';
 import { createApiClient } from '../lib/api';
 import { logError, logInfo } from '../lib/utils';
+import { CacheService } from '../lib/cache-service';
 import readline from 'readline';
 
 export async function chatCommand(): Promise<void> {
@@ -49,6 +50,8 @@ export async function chatCommand(): Promise<void> {
   };
 
   const apiClient = createApiClient(fullConfig);
+  const cacheService = new CacheService(); // Initialize cache service
+
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -153,6 +156,13 @@ export async function chatCommand(): Promise<void> {
       // Add assistant message to history
       conversationHistory.push({ role: 'assistant', content: response.content });
 
+      // Save chat to cache (both locally and in cloud if authenticated)
+      await cacheService.saveChat(trimmedInput, response.content, {
+        model: fullConfig.defaultModel || 'gpt-3.5-turbo',
+        provider: 'openai',
+        cache_hit: response.cached || false
+      });
+
       // Show cost savings if applicable
       if (response.cached && response.costSaved) {
         console.log(chalk.green(`💰 Saved: $${response.costSaved.toFixed(4)}`));
@@ -187,12 +197,29 @@ function showThinking(): NodeJS.Timeout {
 
 async function showCacheStats(apiClient: any): Promise<void> {
   try {
-    const stats = await apiClient.getStats();
+    // Get cache stats from both API and local cache service
+    const cacheService = new CacheService();
+    const localStats = await cacheService.getCacheStats();
+
     console.log(chalk.yellow('\n📊 Cache Statistics:'));
-    console.log(chalk.white(`  Total Requests: ${stats.totalRequests}`));
-    console.log(chalk.white(`  Cache Hits: ${stats.cacheHits}`));
-    console.log(chalk.white(`  Hit Rate: ${stats.hitRate}%`));
-    console.log(chalk.white(`  Total Saved: $${stats.totalSaved}`));
+    console.log(chalk.white(`  Total Entries: ${localStats.total_entries}`));
+    console.log(chalk.white(`  Local Cache: ${localStats.local_entries} entries`));
+    console.log(chalk.white(`  Cloud Cache: ${localStats.cloud_entries} entries`));
+    console.log(chalk.white(`  Authenticated: ${localStats.authenticated ? 'Yes' : 'No'}`));
+
+    if (localStats.user_id) {
+      console.log(chalk.white(`  User ID: ${localStats.user_id.substring(0, 8)}...`));
+    }
+
+    // Try to get API stats as well
+    try {
+      const stats = await apiClient.getStats();
+      console.log(chalk.white(`  API Hit Rate: ${stats.hitRate}%`));
+      console.log(chalk.white(`  Total Saved: $${stats.totalSaved}`));
+    } catch (e) {
+      // API stats not available
+    }
+
     console.log();
   } catch (error) {
     console.log(chalk.red('Failed to fetch statistics'));

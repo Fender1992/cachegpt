@@ -24,7 +24,7 @@ interface LocalCache {
 
 export class CacheService {
   private supabase: SupabaseClient | null = null;
-  private authService: AuthService;
+  private authService: AuthService | null = null;
   private localCachePath: string;
   private isAuthenticated: boolean = false;
   private currentUserId: string | null = null;
@@ -118,8 +118,21 @@ export class CacheService {
       }
     }
 
+    // Create a proper CacheEntry for local storage
+    const cacheEntry: CacheEntry = {
+      user_id: this.currentUserId,
+      prompt,
+      response,
+      model: metadata?.model,
+      provider: metadata?.provider,
+      timestamp: new Date().toISOString(),
+      tokens_used: metadata?.tokens_used,
+      response_time_ms: metadata?.response_time_ms,
+      cache_hit: metadata?.cache_hit || false
+    };
+
     // Always save to local cache
-    this.saveToLocalCache(entry);
+    this.saveToLocalCache(cacheEntry);
 
     // Show user status message
     if (!this.isAuthenticated && !this.hasShownAuthPrompt) {
