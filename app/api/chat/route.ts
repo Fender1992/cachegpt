@@ -2,14 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { HfInference } from '@huggingface/inference';
 
-// Initialize Hugging Face client
-const hf = new HfInference(process.env.HUGGINGFACE_API_KEY);
+// Initialize Hugging Face client with null check
+const hfApiKey = process.env.HUGGINGFACE_API_KEY;
+const hf = hfApiKey ? new HfInference(hfApiKey) : null;
 
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
-);
+// Initialize Supabase client with null checks
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+
+const supabase = supabaseUrl && supabaseServiceKey
+  ? createClient(supabaseUrl, supabaseServiceKey)
+  : null;
 
 // American-made models available on Hugging Face
 const RESPONSE_ADAPTER_MODEL = 'meta-llama/Llama-2-7b-chat-hf'; // Meta's Llama 2
@@ -34,6 +37,13 @@ interface CachedResponse {
 
 export async function POST(req: NextRequest) {
   try {
+    // Check if services are configured
+    if (!supabase || !hf) {
+      return NextResponse.json({
+        error: 'Service configuration missing'
+      }, { status: 503 });
+    }
+
     // Get API key from header for authentication
     const apiKey = req.headers.get('authorization')?.replace('Bearer ', '');
     if (!apiKey) {
@@ -155,6 +165,11 @@ export async function POST(req: NextRequest) {
 // Generate embeddings using Hugging Face
 async function generateEmbedding(text: string): Promise<number[]> {
   try {
+    if (!hf) {
+      // If HF is not configured, use fallback
+      return generateFallbackEmbedding(text);
+    }
+
     const response = await hf.featureExtraction({
       model: EMBEDDING_MODEL,
       inputs: text,
@@ -173,6 +188,11 @@ async function findSimilarResponse(
   model: string
 ): Promise<CachedResponse | null> {
   try {
+    if (!supabase) {
+      // If Supabase is not configured, skip similarity search
+      return null;
+    }
+
     // Use Supabase's pgvector for similarity search
     const { data, error } = await supabase
       .rpc('match_responses', {
@@ -219,6 +239,11 @@ Please adapt the original response to answer the new question naturally and accu
 Adapted Response:`;
 
     // Use Hugging Face for response adaptation
+    if (!hf) {
+      // If HF is not configured, return cached response as is
+      return cachedResponse;
+    }
+
     const response = await hf.textGeneration({
       model: 'microsoft/DialoGPT-medium', // Microsoft's conversational model
       inputs: adaptationPrompt,
@@ -344,6 +369,11 @@ async function cacheResponse(
   model: string
 ): Promise<void> {
   try {
+    if (!supabase) {
+      // If Supabase is not configured, skip caching
+      return;
+    }
+
     await supabase
       .from('cached_responses')
       .insert({
@@ -394,6 +424,11 @@ async function trackUsage(data: {
   cost_saved: number;
 }): Promise<void> {
   try {
+    if (!supabase) {
+      // If Supabase is not configured, skip usage tracking
+      return;
+    }
+
     await supabase
       .from('usage_tracking')
       .insert({
