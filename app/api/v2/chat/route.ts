@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 // V2 API with enhanced features
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
-);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+
+const supabase = supabaseUrl && supabaseServiceKey
+  ? createClient(supabaseUrl, supabaseServiceKey)
+  : null;
 
 interface V2ChatRequest {
   model: string;
@@ -24,6 +26,11 @@ interface V2ChatRequest {
 
 export async function POST(req: NextRequest) {
   try {
+    if (!supabase) {
+      return NextResponse.json({
+        error: 'Database configuration missing'
+      }, { status: 503 });
+    }
     // Enhanced authentication with scope checking
     const apiKey = req.headers.get('authorization')?.replace('Bearer ', '');
     if (!apiKey) {

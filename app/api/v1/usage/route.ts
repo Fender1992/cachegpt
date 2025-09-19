@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
-);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+
+const supabase = supabaseUrl && supabaseServiceKey
+  ? createClient(supabaseUrl, supabaseServiceKey)
+  : null;
 
 // Cost tracking for different models (per 1K tokens)
 const MODEL_COSTS = {
@@ -19,6 +21,11 @@ const MODEL_COSTS = {
 
 export async function GET(req: NextRequest) {
   try {
+    if (!supabase) {
+      return NextResponse.json({
+        error: 'Database configuration missing'
+      }, { status: 503 });
+    }
     // Get API key from header
     const apiKey = req.headers.get('authorization')?.replace('Bearer ', '');
 
@@ -127,6 +134,12 @@ export async function GET(req: NextRequest) {
 // Track usage for each request
 export async function POST(req: NextRequest) {
   try {
+    if (!supabase) {
+      return NextResponse.json({
+        error: 'Database configuration missing'
+      }, { status: 503 });
+    }
+
     const body = await req.json();
     const {
       user_id,
