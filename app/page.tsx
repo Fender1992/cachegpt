@@ -117,7 +117,7 @@ export default function Home() {
 
           <div className={`flex items-center space-x-6 transition-all duration-500 delay-100 ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-5'}`}>
             <Link href="#features" className="text-gray-600 hover:text-purple-600 transition">Features</Link>
-            <Link href="/pricing" className="text-gray-600 hover:text-purple-600 transition">Pricing</Link>
+            <Link href="#download" className="text-gray-600 hover:text-purple-600 transition">Download</Link>
             <Link href="/docs" className="text-gray-600 hover:text-purple-600 transition">Docs</Link>
 
             {loading ? (
@@ -152,13 +152,6 @@ export default function Home() {
                       <span>Settings</span>
                     </Link>
 
-                    <Link
-                      href="/billing"
-                      className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                    >
-                      <CreditCard className="w-4 h-4" />
-                      <span>Billing</span>
-                    </Link>
 
                     <div className="border-t border-gray-200 dark:border-gray-700 mt-1 pt-1">
                       <button
@@ -215,13 +208,15 @@ export default function Home() {
                     <span className="relative z-10">View Documentation</span>
                   </button>
 
-                  <button
-                    onClick={() => router.push('/pricing')}
-                    className="group px-8 py-4 border-2 border-gray-300 dark:border-gray-600 rounded-xl font-semibold text-lg hover:border-purple-500 transition-all duration-200"
+                  <a
+                    href="#download"
+                    className="group px-8 py-4 border-2 border-gray-300 dark:border-gray-600 rounded-xl font-semibold text-lg hover:border-purple-500 transition-all duration-200 inline-flex items-center"
                   >
-                    <CreditCard className="w-5 h-5 inline mr-2" />
-                    Upgrade Plan
-                  </button>
+                    <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                    </svg>
+                    Download Free
+                  </a>
                 </>
               ) : (
                 <>
@@ -266,14 +261,14 @@ export default function Home() {
                 <span className="text-sm text-gray-500 ml-4">terminal</span>
               </div>
               <div className="font-mono text-sm space-y-2">
-                <div className="text-gray-500">$ llm-cache init</div>
-                <div className="text-green-400">✓ Configuration initialized</div>
-                <div className="text-gray-500">$ llm-cache test --model gpt-4</div>
-                <div className="text-blue-400">→ Cache miss (2.1s) - Calling OpenAI...</div>
-                <div className="text-green-400">✓ Response cached</div>
-                <div className="text-gray-500">$ llm-cache test --model gpt-4</div>
-                <div className="text-purple-400">→ Cache hit (8ms) - 99.6% faster!</div>
-                <div className="text-yellow-400">💰 Saved: $0.03</div>
+                <div className="text-gray-500">$ git clone https://github.com/Fender1992/cachegpt.git</div>
+                <div className="text-green-400">✓ Repository cloned successfully</div>
+                <div className="text-gray-500">$ cd cachegpt && yarn install</div>
+                <div className="text-blue-400">✓ Dependencies installed</div>
+                <div className="text-gray-500">$ yarn dev</div>
+                <div className="text-green-400">✓ Server running on http://localhost:3000</div>
+                <div className="text-purple-400">→ Cache API ready at /api/chat</div>
+                <div className="text-yellow-400">💡 Free and open source!</div>
               </div>
             </div>
           </div>
@@ -344,6 +339,97 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Download Section */}
+      <section className="py-20 px-6 bg-gradient-to-b from-transparent via-blue-50/50 to-transparent dark:via-blue-900/10">
+        <div className="max-w-7xl mx-auto text-center">
+          <div className="fade-in">
+            <h2 className="text-4xl font-bold mb-4">
+              Download <span className="text-blue-600">CacheGPT</span>
+            </h2>
+            <p className="text-xl text-gray-600 dark:text-gray-400 mb-12">
+              Get started in seconds - completely free, no registration required
+            </p>
+
+            <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto mb-12">
+              {/* Windows Download */}
+              <div className="glass-card rounded-2xl p-6 card-lift">
+                <div className="text-4xl mb-4">🪟</div>
+                <h3 className="text-xl font-semibold mb-2">Windows</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Windows 10/11 (64-bit)</p>
+                <a
+                  href="/downloads/cachegpt-windows-x64.exe"
+                  className="btn-glow w-full justify-center"
+                  download
+                >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                  </svg>
+                  Download .exe
+                </a>
+                <p className="text-xs text-gray-500 mt-2">v6.3.0 • 45 MB</p>
+              </div>
+
+              {/* macOS Download */}
+              <div className="glass-card rounded-2xl p-6 card-lift">
+                <div className="text-4xl mb-4">🍎</div>
+                <h3 className="text-xl font-semibold mb-2">macOS</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">macOS 10.15+ (Intel & Apple Silicon)</p>
+                <a
+                  href="/downloads/cachegpt-macos.dmg"
+                  className="btn-glow w-full justify-center"
+                  download
+                >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                  </svg>
+                  Download .dmg
+                </a>
+                <p className="text-xs text-gray-500 mt-2">v6.3.0 • 42 MB</p>
+              </div>
+
+              {/* Linux Download */}
+              <div className="glass-card rounded-2xl p-6 card-lift">
+                <div className="text-4xl mb-4">🐧</div>
+                <h3 className="text-xl font-semibold mb-2">Linux</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Ubuntu, Debian, Fedora (64-bit)</p>
+                <a
+                  href="/downloads/cachegpt-linux-x64.AppImage"
+                  className="btn-glow w-full justify-center"
+                  download
+                >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                  </svg>
+                  Download AppImage
+                </a>
+                <p className="text-xs text-gray-500 mt-2">v6.3.0 • 48 MB</p>
+              </div>
+            </div>
+
+            {/* Alternative Installation Methods */}
+            <div className="max-w-3xl mx-auto">
+              <div className="glass-card rounded-2xl p-6">
+                <h3 className="text-lg font-semibold mb-4">Or install via command line</h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Using npm:</p>
+                    <code className="block bg-gray-100 dark:bg-gray-800 rounded p-2 text-sm font-mono">
+                      npm install -g cachegpt
+                    </code>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Using Docker:</p>
+                    <code className="block bg-gray-100 dark:bg-gray-800 rounded p-2 text-sm font-mono">
+                      docker run -p 3000:3000 cachegpt/cachegpt
+                    </code>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="py-20 px-6">
         <div className="max-w-4xl mx-auto">
@@ -387,7 +473,7 @@ export default function Home() {
           </div>
           <div className="flex items-center space-x-6 text-sm text-gray-600 dark:text-gray-400">
             <Link href="/docs" className="hover:text-purple-600 transition">Documentation</Link>
-            <Link href="/pricing" className="hover:text-purple-600 transition">Pricing</Link>
+            <a href="https://github.com/Fender1992/cachegpt" target="_blank" rel="noopener" className="hover:text-purple-600 transition">GitHub</a>
             <Link href="/support" className="hover:text-purple-600 transition">Support</Link>
             <Link href="/terms" className="hover:text-purple-600 transition">Terms</Link>
             <Link href="/privacy" className="hover:text-purple-600 transition">Privacy</Link>

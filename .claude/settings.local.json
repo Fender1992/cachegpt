@@ -66,7 +66,11 @@
       "Bash(GIT_CURL_VERBOSE=1 git push origin main)",
       "Bash(npm link:*)",
       "Bash(lsof:*)",
-      "Bash(export:*)"
+      "Bash(export:*)",
+      "Bash(git reset:*)",
+      "Bash(GIT_TRACE=1 git push origin main)",
+      "Bash(yarn start)",
+      "Bash(git ls-tree:*)"
     ],
     "deny": [],
     "ask": []
