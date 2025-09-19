@@ -93,12 +93,12 @@ export async function POST(req: NextRequest) {
       .select('uuid')
       .eq('conversation_id', conversationId);
 
-    const existingUuids = new Set(existingMessages?.map(m => m.uuid) || []);
+    const existingUuids = new Set(existingMessages?.map((m: any) => m.uuid) || []);
 
     // Prepare messages for insertion
     const newMessages = conversation.messages
-      .filter(msg => !existingUuids.has(msg.uuid))
-      .map(msg => ({
+      .filter((msg: any) => !existingUuids.has(msg.uuid))
+      .map((msg: any) => ({
         conversation_id: conversationId,
         message_id: msg.message?.id || null,
         parent_uuid: msg.parentUuid || null,
