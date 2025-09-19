@@ -11,8 +11,8 @@ export function useAuth() {
   useEffect(() => {
     const checkUser = async () => {
       try {
-        // Skip auth check during static generation or if no supabase
-        if (typeof window === 'undefined' || !supabase) {
+        // Skip auth check during static generation
+        if (typeof window === 'undefined') {
           setLoading(false)
           return
         }
@@ -20,7 +20,10 @@ export function useAuth() {
         const { data: { user } } = await supabase.auth.getUser()
         setUser(user)
       } catch (error) {
-        console.error('Error fetching user:', error)
+        // Silently fail if Supabase is not configured
+        if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+          console.log('Supabase not configured - auth disabled')
+        }
       } finally {
         setLoading(false)
       }
@@ -28,8 +31,8 @@ export function useAuth() {
 
     checkUser()
 
-    // Skip auth listener during static generation or if no supabase
-    if (typeof window === 'undefined' || !supabase) {
+    // Skip auth listener during static generation
+    if (typeof window === 'undefined') {
       return
     }
 
@@ -37,7 +40,7 @@ export function useAuth() {
       setUser(session?.user ?? null)
     })
 
-    return () => subscription.unsubscribe()
+    return () => subscription?.unsubscribe?.()
   }, [])
 
   return { user, loading }
