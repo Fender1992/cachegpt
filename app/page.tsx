@@ -118,7 +118,7 @@ export default function Home() {
           <div className={`flex items-center space-x-6 transition-all duration-500 delay-100 ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-5'}`}>
             <Link href="#features" className="text-gray-600 hover:text-purple-600 transition">Features</Link>
             <Link href="#installation" className="text-gray-600 hover:text-purple-600 transition">Install</Link>
-            <Link href="/docs" className="text-gray-600 hover:text-purple-600 transition">Docs</Link>
+            <Link href="/support" className="text-gray-600 hover:text-purple-600 transition">Support</Link>
 
             {loading ? (
               <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse"></div>
@@ -201,11 +201,11 @@ export default function Home() {
               {user ? (
                 <>
                   <button
-                    onClick={() => router.push('/docs')}
+                    onClick={() => router.push('/dashboard')}
                     className="group relative px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200"
                   >
-                    <Terminal className="w-5 h-5 inline mr-2" />
-                    <span className="relative z-10">View Documentation</span>
+                    <BarChart3 className="w-5 h-5 inline mr-2" />
+                    <span className="relative z-10">Go to Dashboard</span>
                   </button>
 
                   <a
@@ -228,13 +228,15 @@ export default function Home() {
                     <ArrowRight className="w-5 h-5 inline ml-2 group-hover:translate-x-1 transition-transform" />
                   </button>
 
-                  <button
-                    onClick={() => router.push('/docs')}
-                    className="group px-8 py-4 border-2 border-gray-300 dark:border-gray-600 rounded-xl font-semibold text-lg hover:border-purple-500 transition-all duration-200"
+                  <a
+                    href="#installation"
+                    className="group px-8 py-4 border-2 border-gray-300 dark:border-gray-600 rounded-xl font-semibold text-lg hover:border-purple-500 transition-all duration-200 inline-flex items-center"
                   >
-                    <Terminal className="w-5 h-5 inline mr-2" />
-                    View Documentation
-                  </button>
+                    <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                    </svg>
+                    Install Now
+                  </a>
                 </>
               )}
             </div>
@@ -411,7 +413,7 @@ export default function Home() {
               <div className="mt-6 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
                 <p className="text-sm text-green-700 dark:text-green-300">
                   <strong>✅ That's it!</strong> CacheGPT is now running and ready to cache your LLM API calls.
-                  Check out the <a href="/docs" className="underline hover:text-green-800 dark:hover:text-green-200">documentation</a> for configuration options.
+                  Configure it to work with your favorite LLM providers.
                 </p>
               </div>
 
@@ -448,10 +450,10 @@ export default function Home() {
                   <ArrowRight className="w-4 h-4 ml-2 inline" />
                 </button>
                 <button
-                  onClick={() => router.push('/docs')}
+                  onClick={() => router.push('/support')}
                   className="px-8 py-3 font-semibold border-2 border-gray-300 dark:border-gray-600 rounded-xl hover:border-purple-500 transition"
                 >
-                  View Documentation
+                  Get Support
                 </button>
               </div>
             </div>
@@ -469,7 +471,6 @@ export default function Home() {
             <span className="font-semibold">CacheGPT</span>
           </div>
           <div className="flex items-center space-x-6 text-sm text-gray-600 dark:text-gray-400">
-            <Link href="/docs" className="hover:text-purple-600 transition">Documentation</Link>
             <a href="https://github.com/Fender1992/cachegpt" target="_blank" rel="noopener" className="hover:text-purple-600 transition">GitHub</a>
             <Link href="/support" className="hover:text-purple-600 transition">Support</Link>
             <Link href="/terms" className="hover:text-purple-600 transition">Terms</Link>
