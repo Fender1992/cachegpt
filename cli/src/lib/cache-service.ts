@@ -4,6 +4,13 @@ import * as path from 'path';
 import * as os from 'os';
 import { AuthService } from './auth-service';
 import chalk from 'chalk';
+import * as dotenv from 'dotenv';
+
+// Load environment variables from .env.defaults
+const envPath = path.join(__dirname, '..', '..', '.env.defaults');
+if (fs.existsSync(envPath)) {
+  dotenv.config({ path: envPath });
+}
 
 interface CacheEntry {
   id?: string;
