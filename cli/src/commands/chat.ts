@@ -47,12 +47,10 @@ export async function chatCommand(): Promise<void> {
 
     if (loginChoice.action === 'login') {
       const { loginCommand } = await import('./login');
-      console.log();
-      console.log(chalk.cyan('Opening browser for OAuth login...'));
       await loginCommand();
 
-      // After login, restart the chat command to show welcome message
-      console.log(chalk.green('\n✅ Login completed! Starting chat...'));
+      // After login and LLM setup, restart the chat command
+      console.log(chalk.green('\n✅ Setup complete! Starting chat...'));
       console.log();
       return await chatCommand();
     }

@@ -51,39 +51,28 @@ export async function loginCommand() {
 
     console.log();
     console.log(chalk.gray('Complete the OAuth login in your browser (Google or GitHub).'));
-    console.log(chalk.gray('After logging in, copy the session token from the success page.'));
+    console.log(chalk.gray('You will be redirected back here after successful login.'));
     console.log();
 
-    // Wait for user to complete OAuth and get session token
-    const { sessionToken } = await inquirer.prompt({
-      type: 'password',
-      name: 'sessionToken',
-      message: 'Paste your session token here:',
-      mask: '*',
-      validate: (value) => {
-        if (!value.trim()) {
-          return 'Session token is required';
-        }
-        return true;
-      }
+    // Wait for user to complete OAuth
+    const { completed } = await inquirer.prompt({
+      type: 'confirm',
+      name: 'completed',
+      message: 'Press Enter after completing login in the browser',
+      default: true
     });
 
-    const spinner = ora('Verifying session...').start();
-
-    // Store the session token and authenticate
-    await authService.setSessionToken(sessionToken);
-    const user = await authService.getCurrentUser();
-
-    if (!user) {
-      spinner.fail('Invalid session token');
-      throw new Error('Could not authenticate with provided token');
+    if (!completed) {
+      console.log(chalk.gray('Login cancelled.'));
+      return;
     }
 
-    spinner.succeed('Logged in successfully!');
+    console.log(chalk.green('\n✅ Great! Now let\'s set up your LLM provider.'));
+    console.log();
 
-    console.log(chalk.green('\n✅ Authentication successful!'));
-    console.log(chalk.dim('Email:', user.email));
-    console.log(chalk.dim('User ID:', user.id));
+    // Automatically proceed to LLM provider setup
+    const { initDirectCommand } = await import('./init-direct');
+    await initDirectCommand();
 
     // Store Claude user ID if available
     const claudeConfigPath = path.join(os.homedir(), '.claude.json');
