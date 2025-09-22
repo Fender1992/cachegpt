@@ -246,4 +246,26 @@ export class AuthService {
 
     return decrypted;
   }
+
+  async setSessionToken(token: string): Promise<void> {
+    // Store the session token as credentials
+    // This allows users to authenticate via web OAuth then use the CLI
+    const credentials: StoredCredentials = {
+      email: '', // Will be filled when we get user info
+      access_token: token,
+      refresh_token: token, // Use same token for now
+      user_id: '', // Will be filled when we get user info
+      expires_at: Math.floor(Date.now() / 1000) + 86400 // 24 hours
+    };
+
+    // Try to use the token to get user info
+    const { data, error } = await this.supabase.auth.getUser(token);
+    if (!error && data.user) {
+      credentials.email = data.user.email || '';
+      credentials.user_id = data.user.id;
+    }
+
+    // Save credentials
+    await this.saveCredentials(credentials);
+  }
 }

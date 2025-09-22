@@ -46,30 +46,49 @@ export async function loginCommand() {
       console.log(chalk.dim('Logged out successfully\n'));
     }
 
-    // Prompt for login credentials
-    const emailAnswer = await inquirer.prompt({
-        type: 'input',
-        name: 'email',
-        message: 'Email:',
-        validate: (value) => {
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          return emailRegex.test(value) || 'Please enter a valid email address';
-        },
-      });
+    // Open browser for OAuth login
+    console.log(chalk.cyan('🌐 Opening browser for authentication...\n'));
 
-    const passwordAnswer = await inquirer.prompt({
-        type: 'password',
-        name: 'password',
-        message: 'Password:',
-        mask: '*',
-      });
+    const open = await import('open').catch(() => null);
+    const authUrl = 'https://cachegpt-1zyg7ani5-rolando-fenders-projects.vercel.app/login';
 
-    const answers = { ...emailAnswer, ...passwordAnswer };
+    if (open) {
+      await open.default(authUrl);
+      console.log(chalk.green('✅ Browser opened to login page'));
+    } else {
+      console.log(chalk.yellow('Please open this URL in your browser:'));
+      console.log(chalk.blue.underline(authUrl));
+    }
 
-    const spinner = ora('Logging in...').start();
+    console.log();
+    console.log(chalk.gray('Complete the OAuth login in your browser (Google or GitHub).'));
+    console.log(chalk.gray('After logging in, copy the session token from the success page.'));
+    console.log();
 
-    // Login the user
-    const user = await authService.login(answers.email, answers.password);
+    // Wait for user to complete OAuth and get session token
+    const { sessionToken } = await inquirer.prompt({
+      type: 'password',
+      name: 'sessionToken',
+      message: 'Paste your session token here:',
+      mask: '*',
+      validate: (value) => {
+        if (!value.trim()) {
+          return 'Session token is required';
+        }
+        return true;
+      }
+    });
+
+    const spinner = ora('Verifying session...').start();
+
+    // Store the session token and authenticate
+    await authService.setSessionToken(sessionToken);
+    const user = await authService.getCurrentUser();
+
+    if (!user) {
+      spinner.fail('Invalid session token');
+      throw new Error('Could not authenticate with provided token');
+    }
 
     spinner.succeed('Logged in successfully!');
 

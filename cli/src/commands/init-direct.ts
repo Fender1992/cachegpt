@@ -76,39 +76,123 @@ export async function initDirectCommand(): Promise<void> {
       }
     }
 
-    console.log(chalk.cyan('\n📝 Step 1: Configure API Keys'));
-    console.log(chalk.gray('Enter your API keys for the providers you want to use.'));
-    console.log(chalk.gray('Press Enter to skip any provider.\n'));
+    console.log(chalk.cyan('\n📝 Step 1: Choose Authentication Method'));
+
+    const { authMethod } = await inquirer.prompt({
+      type: 'list',
+      name: 'authMethod',
+      message: 'How would you like to authenticate with your LLM provider?',
+      choices: [
+        {
+          name: '🌐 Web Login (ChatGPT, Claude) - Use existing web sessions',
+          value: 'web'
+        },
+        {
+          name: '🔑 API Keys - Use official API keys',
+          value: 'api'
+        }
+      ]
+    });
 
     const providers: any = {};
 
-    // Collect API keys
-    for (const [key, info] of Object.entries(PROVIDER_INFO)) {
-      console.log(chalk.white(`\n${info.name}:`));
-      if (info.url) {
-        console.log(chalk.gray(`Get your key at: ${chalk.underline(info.url)}`));
+    if (authMethod === 'web') {
+      // Web login flow for ChatGPT/Claude
+      const { webProvider } = await inquirer.prompt({
+        type: 'list',
+        name: 'webProvider',
+        message: 'Select your provider:',
+        choices: [
+          { name: '💬 ChatGPT (OpenAI)', value: 'chatgpt' },
+          { name: '🧠 Claude (Anthropic)', value: 'claude' }
+        ]
+      });
+
+      const open = await import('open').catch(() => null);
+      let loginUrl = '';
+      let instructions = '';
+
+      if (webProvider === 'chatgpt') {
+        loginUrl = 'https://chat.openai.com';
+        instructions = `
+${chalk.cyan('Instructions:')}
+1. Your browser will open to ${chalk.blue(loginUrl)}
+2. Log in to your account
+3. Open Developer Tools (F12)
+4. Go to Application/Storage → Cookies
+5. Find and copy the session token
+   (Usually named: __Secure-next-auth.session-token, sessionKey, or similar)
+        `;
+      } else {
+        loginUrl = 'https://claude.ai';
+        instructions = `
+${chalk.cyan('Instructions:')}
+1. Your browser will open to ${chalk.blue(loginUrl)}
+2. Log in to your account
+3. Open Developer Tools (F12)
+4. Go to Application/Storage → Cookies
+5. Find and copy the session token
+   (Usually named: sessionKey, claude_session, or similar)
+        `;
       }
 
-      const { apiKey } = await inquirer.prompt({
+      console.log(instructions);
+
+      if (open) {
+        await open.default(loginUrl);
+        console.log(chalk.green('\n✅ Browser opened'));
+      }
+
+      const { sessionToken } = await inquirer.prompt({
         type: 'password',
-        name: 'apiKey',
-        message: `API Key${info.keyPrefix ? ` (${info.keyPrefix}...)` : ''}:`,
+        name: 'sessionToken',
+        message: 'Paste your session token here:',
         mask: '*',
         validate: (input: string) => {
-          if (!input) return true; // Allow skipping
-          if (info.keyPrefix && !input.startsWith(info.keyPrefix)) {
-            return `Key should start with "${info.keyPrefix}"`;
-          }
-          if (input.length < 20) {
-            return 'API key seems too short';
+          if (!input.trim()) {
+            return 'Session token is required';
           }
           return true;
         }
       });
 
-      if (apiKey) {
-        providers[key] = apiKey;
-        console.log(chalk.green(`✓ ${info.name} configured`));
+      // Store session token as provider key
+      providers[webProvider] = sessionToken;
+      console.log(chalk.green(`✓ ${webProvider === 'chatgpt' ? 'ChatGPT' : 'Claude'} session configured`));
+
+    } else {
+      // Original API key flow
+      console.log(chalk.gray('Enter your API keys for the providers you want to use.'));
+      console.log(chalk.gray('Press Enter to skip any provider.\n'));
+
+      // Collect API keys
+      for (const [key, info] of Object.entries(PROVIDER_INFO)) {
+        console.log(chalk.white(`\n${info.name}:`));
+        if (info.url) {
+          console.log(chalk.gray(`Get your key at: ${chalk.underline(info.url)}`));
+        }
+
+        const { apiKey } = await inquirer.prompt({
+          type: 'password',
+          name: 'apiKey',
+          message: `API Key${info.keyPrefix ? ` (${info.keyPrefix}...)` : ''}:`,
+          mask: '*',
+          validate: (input: string) => {
+            if (!input) return true; // Allow skipping
+            if (info.keyPrefix && !input.startsWith(info.keyPrefix)) {
+              return `Key should start with "${info.keyPrefix}"`;
+            }
+            if (input.length < 20) {
+              return 'API key seems too short';
+            }
+            return true;
+          }
+        });
+
+        if (apiKey) {
+          providers[key] = apiKey;
+          console.log(chalk.green(`✓ ${info.name} configured`));
+        }
       }
     }
 
