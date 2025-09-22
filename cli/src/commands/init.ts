@@ -96,26 +96,10 @@ export async function initCommand(): Promise<void> {
           {
             name: '☁️  Cloud (hosted on a remote server)',
             value: 'cloud'
-          },
-          {
-            name: '🚀 Not deployed yet (I need help setting it up)',
-            value: 'setup'
           }
         ]
       }
     ]);
-
-    if (deploymentAnswer.deployment === 'setup') {
-      console.log();
-      console.log(chalk.yellow('📚 Setup Instructions:'));
-      console.log(chalk.white('1. Clone the repository: ') + chalk.cyan('git clone https://github.com/Fender1992/cachegpt.git'));
-      console.log(chalk.white('2. Install dependencies: ') + chalk.cyan('cd cachegpt && npm install'));
-      console.log(chalk.white('3. Set up environment: ') + chalk.cyan('cp .env.example .env'));
-      console.log(chalk.white('4. Start the server: ') + chalk.cyan('npm run dev'));
-      console.log();
-      console.log(chalk.gray('Once your server is running, run this command again.'));
-      return;
-    }
 
     // Step 2: Get server URL
     let baseUrl = 'http://localhost:8000';
