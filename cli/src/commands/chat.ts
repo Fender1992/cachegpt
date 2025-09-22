@@ -37,6 +37,17 @@ export async function chatCommand(): Promise<void> {
   console.log(chalk.cyan('║         CacheGPT Chat Interface 💬           ║'));
   console.log(chalk.cyan('╚══════════════════════════════════════════════╝'));
   console.log();
+
+  // Check authentication and get user info
+  const cacheService = new CacheService();
+  const userInfo = await cacheService.getUserInfo();
+
+  if (userInfo && userInfo.name) {
+    console.log(chalk.green(`👋 Welcome back, ${userInfo.name}!`));
+    console.log(chalk.gray(`Authenticated via ${userInfo.provider}`));
+    console.log();
+  }
+
   console.log(chalk.gray('Type your message and press Enter. Type "exit" or press Ctrl+C to quit.'));
   console.log(chalk.gray('Type "clear" to clear the screen, "help" for commands.'));
   console.log();
@@ -50,12 +61,16 @@ export async function chatCommand(): Promise<void> {
   };
 
   const apiClient = createApiClient(fullConfig);
-  const cacheService = new CacheService(); // Initialize cache service
+
+  // Set prompt based on user info
+  const promptText = userInfo && userInfo.name
+    ? chalk.green(`${userInfo.name}: `)
+    : chalk.green('You: ');
 
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
-    prompt: chalk.green('You: ')
+    prompt: promptText
   });
 
   // Store conversation history
@@ -98,7 +113,10 @@ export async function chatCommand(): Promise<void> {
     if (trimmedInput.toLowerCase() === 'history') {
       console.log(chalk.yellow('\n📜 Conversation History:'));
       conversationHistory.forEach((msg, index) => {
-        const prefix = msg.role === 'user' ? chalk.green('You:') : chalk.blue('AI:');
+        const userPrefix = userInfo && userInfo.name
+          ? chalk.green(`${userInfo.name}:`)
+          : chalk.green('You:');
+        const prefix = msg.role === 'user' ? userPrefix : chalk.blue('AI:');
         console.log(`${prefix} ${msg.content}`);
       });
       console.log();

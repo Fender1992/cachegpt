@@ -630,4 +630,39 @@ export class CacheService {
       return [];
     }
   }
+
+  async getUserInfo(): Promise<{ name: string; provider: string; email?: string } | null> {
+    try {
+      if (!this.authService) return null;
+
+      const user = await this.authService.getCurrentUser();
+      if (!user) return null;
+
+      // Get user profile from database
+      if (this.supabase) {
+        const { data, error } = await this.supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (data && !error) {
+          return {
+            name: data.full_name || user.email?.split('@')[0] || 'User',
+            provider: data.provider || 'unknown',
+            email: data.email || user.email
+          };
+        }
+      }
+
+      // Fallback to basic user info
+      return {
+        name: user.email?.split('@')[0] || 'User',
+        provider: 'unknown',
+        email: user.email
+      };
+    } catch (error) {
+      return null;
+    }
+  }
 }
