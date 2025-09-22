@@ -636,7 +636,16 @@ export class CacheService {
       if (!this.authService) return null;
 
       const user = await this.authService.getCurrentUser();
-      if (!user) return null;
+      if (!user) {
+        // Update internal state if user is not found
+        this.isAuthenticated = false;
+        this.currentUserId = null;
+        return null;
+      }
+
+      // Update internal state if user is found
+      this.isAuthenticated = true;
+      this.currentUserId = user.id;
 
       // Get user profile from database
       if (this.supabase) {
@@ -662,6 +671,8 @@ export class CacheService {
         email: user.email
       };
     } catch (error) {
+      this.isAuthenticated = false;
+      this.currentUserId = null;
       return null;
     }
   }
