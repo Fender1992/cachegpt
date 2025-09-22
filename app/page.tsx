@@ -177,88 +177,83 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative pt-16 pb-20 px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className={`text-center max-w-5xl mx-auto transition-all duration-700 delay-200 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}>
+      <section className="relative pt-20 pb-24 px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className={`text-center transition-all duration-700 delay-200 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}>
             {/* Problem Statement */}
-            <h1 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900 dark:text-white">
-              Your LLM APIs cost too much and respond too slowly
+            <h1 className="text-5xl md:text-6xl font-bold mb-8 leading-tight">
+              <span className="text-gray-900 dark:text-white">Your LLM APIs are</span><br/>
+              <span className="text-red-500">expensive</span> and <span className="text-orange-500">slow</span>
             </h1>
 
             {/* Solution */}
-            <p className="text-2xl text-gray-700 dark:text-gray-300 mb-8">
-              CacheGPT cuts costs by <span className="text-purple-600 font-bold">80%</span> and speeds up responses to <span className="text-purple-600 font-bold">&lt;10ms</span>
+            <p className="text-2xl md:text-3xl text-gray-700 dark:text-gray-200 mb-12 leading-relaxed">
+              CacheGPT makes them <span className="text-green-500 font-bold">80% cheaper</span><br/>
+              and <span className="text-blue-500 font-bold">300x faster</span>
             </p>
 
             {/* One-line install */}
-            <div className="glass-card rounded-xl p-4 inline-flex items-center space-x-4 mb-8">
-              <Terminal className="w-5 h-5 text-gray-500" />
-              <code className="text-lg font-mono">npm install -g cachegpt</code>
+            <div className="bg-gray-900 rounded-2xl p-6 inline-flex items-center space-x-4 mb-12 shadow-2xl">
+              <Terminal className="w-6 h-6 text-green-400" />
+              <code className="text-xl font-mono text-white">npm install -g cachegpt</code>
               <button
                 onClick={() => navigator.clipboard.writeText('npm install -g cachegpt')}
-                className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 rounded text-sm hover:bg-purple-200 dark:hover:bg-purple-900/50 transition"
+                className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold transition"
               >
                 Copy
               </button>
             </div>
 
-            <div className="flex items-center justify-center mb-12">
+            <div className="flex items-center justify-center mb-16">
               <button
                 onClick={() => {
                   const element = document.getElementById('installation');
                   element?.scrollIntoView({ behavior: 'smooth' });
                 }}
-                className="group relative px-10 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200"
+                className="group relative px-12 py-5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-2xl font-bold text-xl shadow-2xl hover:shadow-3xl transform hover:-translate-y-1 transition-all duration-200"
               >
-                Start Saving Now
-                <ArrowRight className="w-5 h-5 inline ml-2 group-hover:translate-x-1 transition-transform" />
+                Get Started Free
+                <ArrowRight className="w-6 h-6 inline ml-3 group-hover:translate-x-1 transition-transform" />
               </button>
             </div>
 
             {/* Before/After Comparison */}
-            <div className={`grid md:grid-cols-2 gap-6 max-w-4xl mx-auto transition-all duration-700 delay-400 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}>
+            <div className={`grid md:grid-cols-2 gap-8 max-w-5xl mx-auto transition-all duration-700 delay-400 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}>
               {/* Without CacheGPT */}
-              <div className="glass-card rounded-2xl p-6 border-2 border-red-200 dark:border-red-900/50">
-                <h3 className="text-lg font-semibold mb-4 text-red-600 dark:text-red-400">❌ Without CacheGPT</h3>
-                <div className="space-y-3 text-left">
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Response Time</span>
-                    <span className="font-mono font-bold text-red-600">2,300ms</span>
+              <div className="bg-red-50 dark:bg-red-950/20 rounded-3xl p-8 border-2 border-red-200 dark:border-red-800">
+                <h3 className="text-2xl font-bold mb-6 text-red-700 dark:text-red-400">😔 Without CacheGPT</h3>
+                <div className="space-y-5 text-left">
+                  <div className="bg-white dark:bg-gray-900/50 rounded-xl p-4">
+                    <span className="text-sm text-gray-500 dark:text-gray-400 block mb-1">Response Time</span>
+                    <span className="text-3xl font-bold text-red-600">2.3s</span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Cost per 1K calls</span>
-                    <span className="font-mono font-bold text-red-600">$30</span>
+                  <div className="bg-white dark:bg-gray-900/50 rounded-xl p-4">
+                    <span className="text-sm text-gray-500 dark:text-gray-400 block mb-1">Monthly Cost</span>
+                    <span className="text-3xl font-bold text-red-600">$5,000</span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Rate Limits</span>
-                    <span className="font-mono font-bold text-red-600">Hitting Daily</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Monthly Cost</span>
-                    <span className="font-mono font-bold text-red-600">$5,000+</span>
+                  <div className="bg-white dark:bg-gray-900/50 rounded-xl p-4">
+                    <span className="text-sm text-gray-500 dark:text-gray-400 block mb-1">Rate Limits</span>
+                    <span className="text-xl font-bold text-red-600">Hit Daily</span>
                   </div>
                 </div>
               </div>
 
               {/* With CacheGPT */}
-              <div className="glass-card rounded-2xl p-6 border-2 border-green-200 dark:border-green-900/50">
-                <h3 className="text-lg font-semibold mb-4 text-green-600 dark:text-green-400">✅ With CacheGPT</h3>
-                <div className="space-y-3 text-left">
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Response Time</span>
-                    <span className="font-mono font-bold text-green-600">8ms</span>
+              <div className="bg-green-50 dark:bg-green-950/20 rounded-3xl p-8 border-2 border-green-200 dark:border-green-800 relative">
+                <div className="absolute -top-3 -right-3 bg-yellow-400 text-black px-4 py-1 rounded-full text-sm font-bold rotate-3">SAVE 80%</div>
+                <h3 className="text-2xl font-bold mb-6 text-green-700 dark:text-green-400">🚀 With CacheGPT</h3>
+                <div className="space-y-5 text-left">
+                  <div className="bg-white dark:bg-gray-900/50 rounded-xl p-4">
+                    <span className="text-sm text-gray-500 dark:text-gray-400 block mb-1">Response Time</span>
+                    <span className="text-3xl font-bold text-green-600">8ms</span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Cost per 1K calls</span>
-                    <span className="font-mono font-bold text-green-600">$6</span>
+                  <div className="bg-white dark:bg-gray-900/50 rounded-xl p-4">
+                    <span className="text-sm text-gray-500 dark:text-gray-400 block mb-1">Monthly Cost</span>
+                    <span className="text-3xl font-bold text-green-600">$1,000</span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Rate Limits</span>
-                    <span className="font-mono font-bold text-green-600">Never</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Monthly Cost</span>
-                    <span className="font-mono font-bold text-green-600">$1,000</span>
+                  <div className="bg-white dark:bg-gray-900/50 rounded-xl p-4">
+                    <span className="text-sm text-gray-500 dark:text-gray-400 block mb-1">Rate Limits</span>
+                    <span className="text-xl font-bold text-green-600">Never</span>
                   </div>
                 </div>
               </div>
@@ -266,11 +261,10 @@ export default function Home() {
           </div>
 
           {/* Savings Calculator */}
-          <div className={`mt-12 max-w-4xl mx-auto transition-all duration-700 delay-600 ${isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
-            <div className="glass-card rounded-2xl p-8">
-              <h3 className="text-2xl font-bold mb-6 text-center">
-                <DollarSign className="w-6 h-6 inline mr-2 text-green-600" />
-                Calculate Your Savings
+          <div className={`mt-20 max-w-4xl mx-auto transition-all duration-700 delay-600 ${isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
+            <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 rounded-3xl p-10 shadow-xl">
+              <h3 className="text-3xl font-bold mb-8 text-center">
+                💰 Calculate Your Savings
               </h3>
 
               <div className="grid md:grid-cols-2 gap-6 mb-6">
@@ -337,28 +331,36 @@ export default function Home() {
       </section>
 
       {/* Compact Features Grid */}
-      <section className="py-12 px-6 bg-gradient-to-b from-transparent via-gray-50/50 to-transparent dark:via-gray-900/10">
-        <div className="max-w-5xl mx-auto">
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="glass-card rounded-xl p-4 text-center">
-              <Timer className="w-8 h-8 mx-auto mb-2 text-purple-600" />
-              <div className="font-bold text-2xl">8ms</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Response Time</div>
+      <section className="py-20 px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 text-center shadow-lg hover:shadow-xl transition-shadow">
+              <div className="w-16 h-16 mx-auto mb-4 bg-purple-100 dark:bg-purple-900/30 rounded-2xl flex items-center justify-center">
+                <Timer className="w-8 h-8 text-purple-600" />
+              </div>
+              <div className="font-bold text-4xl mb-2">8ms</div>
+              <div className="text-gray-600 dark:text-gray-400">Response Time</div>
             </div>
-            <div className="glass-card rounded-xl p-4 text-center">
-              <DollarSign className="w-8 h-8 mx-auto mb-2 text-green-600" />
-              <div className="font-bold text-2xl">80%</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Cost Reduction</div>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 text-center shadow-lg hover:shadow-xl transition-shadow">
+              <div className="w-16 h-16 mx-auto mb-4 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center">
+                <DollarSign className="w-8 h-8 text-green-600" />
+              </div>
+              <div className="font-bold text-4xl mb-2">80%</div>
+              <div className="text-gray-600 dark:text-gray-400">Cost Reduction</div>
             </div>
-            <div className="glass-card rounded-xl p-4 text-center">
-              <Shield className="w-8 h-8 mx-auto mb-2 text-blue-600" />
-              <div className="font-bold text-2xl">SOC2</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Compliant</div>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 text-center shadow-lg hover:shadow-xl transition-shadow">
+              <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center">
+                <Shield className="w-8 h-8 text-blue-600" />
+              </div>
+              <div className="font-bold text-4xl mb-2">SOC2</div>
+              <div className="text-gray-600 dark:text-gray-400">Compliant</div>
             </div>
-            <div className="glass-card rounded-xl p-4 text-center">
-              <TrendingUp className="w-8 h-8 mx-auto mb-2 text-orange-600" />
-              <div className="font-bold text-2xl">99.9%</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Uptime SLA</div>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 text-center shadow-lg hover:shadow-xl transition-shadow">
+              <div className="w-16 h-16 mx-auto mb-4 bg-orange-100 dark:bg-orange-900/30 rounded-2xl flex items-center justify-center">
+                <TrendingUp className="w-8 h-8 text-orange-600" />
+              </div>
+              <div className="font-bold text-4xl mb-2">99.9%</div>
+              <div className="text-gray-600 dark:text-gray-400">Uptime SLA</div>
             </div>
           </div>
         </div>
