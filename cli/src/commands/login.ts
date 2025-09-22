@@ -11,19 +11,8 @@ export async function loginCommand() {
   console.log(chalk.cyan('🔐 Login to CacheGPT\n'));
 
   try {
-    // Load environment config if available
-    const envPath = path.join(process.cwd(), '.env.local');
-    if (fs.existsSync(envPath)) {
-      const envContent = fs.readFileSync(envPath, 'utf-8');
-      envContent.split('\n').forEach(line => {
-        const [key, value] = line.split('=');
-        if (key && value) {
-          process.env[key.trim()] = value.trim().replace(/["']/g, '');
-        }
-      });
-    }
-
-    // Initialize auth service
+    // The AuthService will load defaults from .env.defaults automatically
+    // No need to manually load environment variables here
     const authService = new AuthService();
 
     // Check if already logged in
