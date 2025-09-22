@@ -119,8 +119,8 @@ export default function Home() {
 
           <div className={`flex items-center space-x-6 transition-all duration-500 delay-100 ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-5'}`}>
             <Link href="#installation" className="text-gray-600 hover:text-purple-600 transition">Install</Link>
-            <a href="https://github.com/Fender1992/cachegpt" target="_blank" rel="noopener" className="text-gray-600 hover:text-purple-600 transition">GitHub</a>
             <Link href="/docs" className="text-gray-600 hover:text-purple-600 transition">Docs</Link>
+            <Link href="/support" className="text-gray-600 hover:text-purple-600 transition">Support</Link>
 
             {loading ? (
               <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse"></div>
@@ -452,7 +452,7 @@ export default function Home() {
             <span className="font-semibold">CacheGPT</span>
           </div>
           <div className="flex items-center space-x-6 text-sm text-gray-600 dark:text-gray-400">
-            <a href="https://github.com/Fender1992/cachegpt" target="_blank" rel="noopener" className="hover:text-purple-600 transition">GitHub</a>
+            <Link href="/docs" className="hover:text-purple-600 transition">Documentation</Link>
             <Link href="/support" className="hover:text-purple-600 transition">Support</Link>
             <Link href="/terms" className="hover:text-purple-600 transition">Terms</Link>
             <Link href="/privacy" className="hover:text-purple-600 transition">Privacy</Link>
