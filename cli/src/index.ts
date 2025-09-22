@@ -19,6 +19,7 @@ import { tagsCommand } from './commands/tags';
 import { exportCommand } from './commands/export';
 import { rateLimitCommand } from './commands/rate-limit';
 import { templatesCommand } from './commands/templates';
+import { chatApiCommand } from './commands/chat-api';
 
 const program = new Command();
 
@@ -74,6 +75,11 @@ program
   .command('chat')
   .description('Start interactive chat with your LLM')
   .action(chatCommand);
+
+program
+  .command('chat-api')
+  .description('Chat using Claude API directly (private, no web console logging)')
+  .action(chatApiCommand);
 
 program
   .command('status')
