@@ -7,12 +7,86 @@ import { CacheService } from '../lib/cache-service';
 import readline from 'readline';
 
 export async function chatCommand(): Promise<void> {
-  const config: any = loadConfig();
-  if (!config) {
-    logError('Configuration not found. Please run "cachegpt init" first.');
-    return;
+  console.clear();
+  console.log(chalk.cyan('╔══════════════════════════════════════════════╗'));
+  console.log(chalk.cyan('║         CacheGPT Chat Interface 💬           ║'));
+  console.log(chalk.cyan('╚══════════════════════════════════════════════╝'));
+  console.log();
+
+  // ALWAYS check OAuth authentication first, regardless of API key configuration
+  const cacheService = new CacheService();
+  const userInfo = await cacheService.getUserInfo();
+
+  if (userInfo && userInfo.name) {
+    console.log(chalk.green(`👋 Welcome back, ${userInfo.name}!`));
+    console.log(chalk.gray(`Authenticated via ${userInfo.provider}`));
+    console.log();
+  } else {
+    // User is not logged in, offer login option
+    console.log(chalk.yellow('🔐 You are not logged in to CacheGPT.'));
+    console.log(chalk.gray('Login to sync your chats across devices and access cloud features.'));
+    console.log();
+
+    const loginChoice = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'action',
+        message: 'What would you like to do?',
+        choices: [
+          {
+            name: '🔑 Login with Google/GitHub to your CacheGPT account',
+            value: 'login'
+          },
+          {
+            name: '💬 Continue without login (local only)',
+            value: 'continue'
+          }
+        ]
+      }
+    ]);
+
+    if (loginChoice.action === 'login') {
+      const { loginCommand } = await import('./login');
+      console.log();
+      console.log(chalk.cyan('Opening browser for OAuth login...'));
+      await loginCommand();
+
+      // After login, restart the chat command to show welcome message
+      console.log(chalk.green('\n✅ Login completed! Starting chat...'));
+      console.log();
+      return await chatCommand();
+    }
+
+    console.log(chalk.gray('Continuing without CacheGPT account (local only)...'));
+    console.log();
   }
 
+  // Now check for API key configuration AFTER OAuth check
+  const config: any = loadConfig();
+  if (!config) {
+    console.log(chalk.yellow('⚠️  No API configuration found.'));
+    console.log(chalk.gray('You need to configure your LLM API keys to start chatting.'));
+    console.log();
+
+    const setupChoice = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'setup',
+        message: 'Would you like to set up your API keys now?',
+        default: true
+      }
+    ]);
+
+    if (setupChoice.setup) {
+      const { initCommand } = await import('./init');
+      await initCommand();
+      // Restart chat after setup
+      return await chatCommand();
+    } else {
+      logError('Please run "cachegpt init" to configure your API keys.');
+      return;
+    }
+  }
 
   // Check if using browser mode
   if (config.mode === 'browser') {
@@ -28,62 +102,8 @@ export async function chatCommand(): Promise<void> {
 
   // Proxy mode
   if (!config.baseUrl || !config.apiKey || !config.defaultModel) {
-    logError('Configuration incomplete. Please run "cachegpt init" again.');
+    logError('API configuration incomplete. Please run "cachegpt init" again.');
     return;
-  }
-
-  console.clear();
-  console.log(chalk.cyan('╔══════════════════════════════════════════════╗'));
-  console.log(chalk.cyan('║         CacheGPT Chat Interface 💬           ║'));
-  console.log(chalk.cyan('╚══════════════════════════════════════════════╝'));
-  console.log();
-
-  // Check authentication and get user info
-  const cacheService = new CacheService();
-  const userInfo = await cacheService.getUserInfo();
-
-  if (userInfo && userInfo.name) {
-    console.log(chalk.green(`👋 Welcome back, ${userInfo.name}!`));
-    console.log(chalk.gray(`Authenticated via ${userInfo.provider}`));
-    console.log();
-  } else {
-    // User is not logged in, offer login option
-    console.log(chalk.yellow('🔐 You are not logged in.'));
-    console.log(chalk.gray('Login to sync your chats across devices and access cloud features.'));
-    console.log();
-
-    const loginChoice = await inquirer.prompt([
-      {
-        type: 'list',
-        name: 'action',
-        message: 'What would you like to do?',
-        choices: [
-          {
-            name: '🔑 Login to your account',
-            value: 'login'
-          },
-          {
-            name: '💬 Continue without login (local only)',
-            value: 'continue'
-          }
-        ]
-      }
-    ]);
-
-    if (loginChoice.action === 'login') {
-      const { loginCommand } = await import('./login');
-      console.log();
-      console.log(chalk.cyan('Opening browser for login...'));
-      await loginCommand();
-
-      // After login, restart the chat command to show welcome message
-      console.log(chalk.green('\n✅ Login completed! Starting chat...'));
-      console.log();
-      return await chatCommand();
-    }
-
-    console.log(chalk.gray('Continuing with local chat only...'));
-    console.log();
   }
 
   console.log(chalk.gray('Type your message and press Enter. Type "exit" or press Ctrl+C to quit.'));
@@ -100,7 +120,7 @@ export async function chatCommand(): Promise<void> {
 
   const apiClient = createApiClient(fullConfig);
 
-  // Set prompt based on user info
+  // Set prompt based on user info (userInfo is already defined at the top)
   const promptText = userInfo && userInfo.name
     ? chalk.green(`${userInfo.name}: `)
     : chalk.green('You: ');

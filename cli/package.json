@@ -1,6 +1,6 @@
 {
   "name": "cachegpt-cli",
-  "version": "7.4.2",
+  "version": "7.5.0",
   "description": "Clean, minimal CLI for CacheGPT with intelligent cloud caching. Seamless LLM experience with Supabase-powered response caching and AI adaptation.",
   "main": "dist/index.js",
   "bin": {
