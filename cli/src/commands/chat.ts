@@ -46,6 +46,44 @@ export async function chatCommand(): Promise<void> {
     console.log(chalk.green(`👋 Welcome back, ${userInfo.name}!`));
     console.log(chalk.gray(`Authenticated via ${userInfo.provider}`));
     console.log();
+  } else {
+    // User is not logged in, offer login option
+    console.log(chalk.yellow('🔐 You are not logged in.'));
+    console.log(chalk.gray('Login to sync your chats across devices and access cloud features.'));
+    console.log();
+
+    const loginChoice = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'action',
+        message: 'What would you like to do?',
+        choices: [
+          {
+            name: '🔑 Login to your account',
+            value: 'login'
+          },
+          {
+            name: '💬 Continue without login (local only)',
+            value: 'continue'
+          }
+        ]
+      }
+    ]);
+
+    if (loginChoice.action === 'login') {
+      const { loginCommand } = await import('./login');
+      console.log();
+      console.log(chalk.cyan('Opening browser for login...'));
+      await loginCommand();
+
+      // After login, restart the chat command to show welcome message
+      console.log(chalk.green('\n✅ Login completed! Starting chat...'));
+      console.log();
+      return await chatCommand();
+    }
+
+    console.log(chalk.gray('Continuing with local chat only...'));
+    console.log();
   }
 
   console.log(chalk.gray('Type your message and press Enter. Type "exit" or press Ctrl+C to quit.'));

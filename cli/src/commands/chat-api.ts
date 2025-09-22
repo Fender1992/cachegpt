@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import readline from 'readline';
+import inquirer from 'inquirer';
 import { CacheService } from '../lib/cache-service';
 import { logError } from '../lib/utils';
 
@@ -44,19 +45,72 @@ export async function chatApiCommand(): Promise<void> {
   console.log(chalk.bold.cyan('  Claude API Chat (Private Mode)'));
   console.log(chalk.dim('  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
   console.log();
+
+  // Check authentication and get user info
+  const cacheService = new CacheService();
+  const userInfo = await cacheService.getUserInfo();
+
+  if (userInfo && userInfo.name) {
+    console.log(chalk.green(`  👋 Welcome back, ${userInfo.name}!`));
+    console.log(chalk.gray(`  Authenticated via ${userInfo.provider}`));
+    console.log();
+  } else {
+    // User is not logged in, offer login option
+    console.log(chalk.yellow('  🔐 You are not logged in.'));
+    console.log(chalk.gray('  Login to sync your chats across devices and access cloud features.'));
+    console.log();
+
+    const loginChoice = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'action',
+        message: 'What would you like to do?',
+        choices: [
+          {
+            name: '🔑 Login to your account',
+            value: 'login'
+          },
+          {
+            name: '💬 Continue without login (local only)',
+            value: 'continue'
+          }
+        ]
+      }
+    ]);
+
+    if (loginChoice.action === 'login') {
+      const { loginCommand } = await import('./login');
+      console.log();
+      console.log(chalk.cyan('Opening browser for login...'));
+      await loginCommand();
+
+      // After login, restart the chat command to show welcome message
+      console.log(chalk.green('\n✅ Login completed! Starting chat...'));
+      console.log();
+      return await chatApiCommand();
+    }
+
+    console.log(chalk.gray('  Continuing with local chat only...'));
+    console.log();
+  }
+
   console.log(chalk.dim('  This chat uses the Claude API directly.'));
   console.log(chalk.dim('  Conversations will NOT appear in Claude web console.'));
   console.log();
   console.log(chalk.dim('  Commands: ') + chalk.white('exit') + chalk.dim(' | ') + chalk.white('clear') + chalk.dim(' | ') + chalk.white('help'));
   console.log();
 
-  const cacheService = new CacheService();
   const conversationHistory: Array<{ role: string; content: string }> = [];
+
+  // Set prompt based on user info
+  const promptText = userInfo && userInfo.name
+    ? chalk.bold.cyan(`\n▸ ${userInfo.name}: `)
+    : chalk.bold.cyan('\n▸ You: ');
 
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
-    prompt: chalk.bold.cyan('\n▸ You: ')
+    prompt: promptText
   });
 
   let isProcessing = false;
