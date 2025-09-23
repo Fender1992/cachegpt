@@ -100,11 +100,15 @@ export function AuthForm({ isFromCLI = false }: AuthFormProps) {
     try {
       // Store CLI state in localStorage to preserve it through OAuth flow
       if (isFromCLI) {
-        localStorage.setItem('cli_auth_flow', JSON.stringify({
+        const cliState = {
           source: 'cli',
           return_to: 'terminal',
           timestamp: Date.now()
-        }))
+        }
+        localStorage.setItem('cli_auth_flow', JSON.stringify(cliState))
+        console.log('💾 Stored CLI state in localStorage:', cliState)
+      } else {
+        console.log('🌐 Not from CLI, no localStorage needed')
       }
 
       const baseUrl = `${window.location.origin}/auth/callback`

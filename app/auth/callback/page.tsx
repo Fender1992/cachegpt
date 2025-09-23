@@ -14,17 +14,27 @@ function AuthCallbackContent() {
       const urlSource = searchParams.get('source')
       const urlReturnTo = searchParams.get('return_to')
 
+      console.log('🔍 OAuth Callback Debug:', {
+        urlSource,
+        urlReturnTo,
+        url: window.location.href
+      })
+
       // Also check localStorage for CLI state (preserved through OAuth)
       let cliState = null
       try {
         const stored = localStorage.getItem('cli_auth_flow')
+        console.log('📱 localStorage check:', { stored })
         if (stored) {
           cliState = JSON.parse(stored)
           // Clear it after reading
           localStorage.removeItem('cli_auth_flow')
+          console.log('✅ Found CLI state in localStorage:', cliState)
+        } else {
+          console.log('❌ No CLI state found in localStorage')
         }
       } catch (e) {
-        // Ignore localStorage errors
+        console.log('⚠️ localStorage error:', e)
       }
 
       const isFromCLI =
@@ -34,6 +44,15 @@ function AuthCallbackContent() {
 
       const source = urlSource || (cliState && cliState.source) || null
       const returnTo = urlReturnTo || (cliState && cliState.return_to) || null
+
+      console.log('🎯 Final CLI detection:', {
+        isFromCLI,
+        source,
+        returnTo,
+        urlSource,
+        urlReturnTo,
+        cliState
+      })
       try {
         // Get the code from URL
         const { data: { session }, error } = await supabase.auth.getSession()
