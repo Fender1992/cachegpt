@@ -28,7 +28,33 @@ export default function Home() {
     const source = urlParams.get('source')
     const returnTo = urlParams.get('return_to')
 
-    if (source === 'cli' || returnTo === 'terminal') {
+    // Also check for OAuth callback parameters (code, state)
+    const code = urlParams.get('code')
+    const state = urlParams.get('state')
+
+    // Check localStorage for CLI state (in case we're returning from OAuth)
+    let isFromCLI = false
+    try {
+      const stored = localStorage.getItem('cli_auth_flow')
+      if (stored) {
+        const cliState = JSON.parse(stored)
+        if (Date.now() - cliState.timestamp < 10 * 60 * 1000) { // Within 10 minutes
+          isFromCLI = true
+        }
+      }
+    } catch (e) {
+      // Ignore localStorage errors
+    }
+
+    // If we have OAuth callback parameters, redirect to callback page
+    if (code && state) {
+      console.log('🔄 OAuth callback detected on home page, redirecting to callback...')
+      const callbackUrl = `/auth/callback?code=${code}&state=${state}`
+      router.push(callbackUrl)
+      return
+    }
+
+    if (source === 'cli' || returnTo === 'terminal' || isFromCLI) {
       console.log('🔄 CLI params detected on home page, redirecting to login...')
       router.push(`/login?source=${source || 'cli'}&return_to=${returnTo || 'terminal'}`)
       return
