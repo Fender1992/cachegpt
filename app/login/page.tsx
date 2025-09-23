@@ -10,6 +10,14 @@ export default async function LoginPage({
   const params = await searchParams;
   const isFromCLI = params?.source === 'cli' || params?.return_to === 'terminal';
 
+  // Debug logging for CLI detection
+  console.log('🔍 Login Page Debug:', {
+    params,
+    isFromCLI,
+    source: params?.source,
+    return_to: params?.return_to
+  });
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 flex flex-col">
       {/* Header */}
@@ -32,6 +40,11 @@ export default async function LoginPage({
 
       {/* Main Content */}
       <main className="flex-1 flex items-center justify-center p-6">
+        {isFromCLI && (
+          <div className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50">
+            🔗 CLI Authentication Mode
+          </div>
+        )}
         <AuthForm isFromCLI={isFromCLI} />
       </main>
 
