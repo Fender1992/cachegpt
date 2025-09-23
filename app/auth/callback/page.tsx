@@ -1,21 +1,30 @@
 'use client'
 
 import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
 
 export default function AuthCallback() {
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   useEffect(() => {
     const handleCallback = async () => {
+      // Get CLI parameters from URL
+      const source = searchParams.get('source')
+      const returnTo = searchParams.get('return_to')
+      const isFromCLI = source === 'cli' || returnTo === 'terminal'
       try {
         // Get the code from URL
         const { data: { session }, error } = await supabase.auth.getSession()
 
         if (error) {
           console.error('Error during auth callback:', error)
-          router.push('/login?error=callback_failed')
+          if (isFromCLI) {
+            router.push(`/login?source=${source}&return_to=${returnTo}&error=callback_failed`)
+          } else {
+            router.push('/login?error=callback_failed')
+          }
           return
         }
 
@@ -83,20 +92,35 @@ export default function AuthCallback() {
             }
           })
 
-          // Redirect to home page
-          router.push('/')
+          // Redirect based on source
+          if (isFromCLI) {
+            // For CLI users, redirect to success page with CLI parameters
+            const successUrl = `/auth/success?source=${source || 'cli'}&return_to=${returnTo || 'terminal'}`
+            router.push(successUrl)
+          } else {
+            // For web users, redirect to home page
+            router.push('/')
+          }
         } else {
           // No session, redirect to login
-          router.push('/login')
+          if (isFromCLI) {
+            router.push(`/login?source=${source}&return_to=${returnTo}&error=no_session`)
+          } else {
+            router.push('/login')
+          }
         }
       } catch (error) {
         console.error('Unexpected error during auth callback:', error)
-        router.push('/login?error=unexpected')
+        if (isFromCLI) {
+          router.push(`/login?source=${source}&return_to=${returnTo}&error=unexpected`)
+        } else {
+          router.push('/login?error=unexpected')
+        }
       }
     }
 
     handleCallback()
-  }, [router])
+  }, [router, searchParams])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-gray-800">
