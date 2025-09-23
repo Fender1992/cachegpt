@@ -108,57 +108,60 @@ export async function initDirectCommand(): Promise<void> {
         ]
       });
 
-      const open = await import('open').catch(() => null);
-      let loginUrl = '';
-      let instructions = '';
+      console.log(chalk.cyan('\n🤖 Automated Browser Login'));
+      console.log(chalk.gray('A browser window will open for you to log in.'));
+      console.log(chalk.gray('Your session will be captured automatically after login.\n'));
 
-      if (webProvider === 'chatgpt') {
-        loginUrl = 'https://chat.openai.com';
-        instructions = `
-${chalk.cyan('Instructions:')}
+      try {
+        // Use automated browser capture
+        const { BrowserAuth } = await import('../lib/browser-auth');
+        const browserAuth = new BrowserAuth();
+        const sessionToken = await browserAuth.loginToProvider(webProvider as 'chatgpt' | 'claude');
+
+        // Store session token as provider key
+        providers[webProvider] = sessionToken;
+        console.log(chalk.green(`✓ ${webProvider === 'chatgpt' ? 'ChatGPT' : 'Claude'} session configured`));
+
+      } catch (error: any) {
+        // Fallback to manual method if automated capture fails
+        console.log(chalk.yellow('\n⚠️  Automated capture failed. Falling back to manual method.\n'));
+
+        const open = await import('open').catch(() => null);
+        const loginUrl = webProvider === 'chatgpt' ? 'https://chat.openai.com' : 'https://claude.ai';
+
+        const instructions = `
+${chalk.cyan('Manual Instructions:')}
 1. Your browser will open to ${chalk.blue(loginUrl)}
 2. Log in to your account
 3. Open Developer Tools (F12)
 4. Go to Application/Storage → Cookies
 5. Find and copy the session token
-   (Usually named: __Secure-next-auth.session-token, sessionKey, or similar)
+   (Usually named: ${webProvider === 'chatgpt' ? '__Secure-next-auth.session-token' : 'sessionKey, claude_session'})
         `;
-      } else {
-        loginUrl = 'https://claude.ai';
-        instructions = `
-${chalk.cyan('Instructions:')}
-1. Your browser will open to ${chalk.blue(loginUrl)}
-2. Log in to your account
-3. Open Developer Tools (F12)
-4. Go to Application/Storage → Cookies
-5. Find and copy the session token
-   (Usually named: sessionKey, claude_session, or similar)
-        `;
-      }
 
-      console.log(instructions);
+        console.log(instructions);
 
-      if (open) {
-        await open.default(loginUrl);
-        console.log(chalk.green('\n✅ Browser opened'));
-      }
-
-      const { sessionToken } = await inquirer.prompt({
-        type: 'password',
-        name: 'sessionToken',
-        message: 'Paste your session token here:',
-        mask: '*',
-        validate: (input: string) => {
-          if (!input.trim()) {
-            return 'Session token is required';
-          }
-          return true;
+        if (open) {
+          await open.default(loginUrl);
+          console.log(chalk.green('\n✅ Browser opened'));
         }
-      });
 
-      // Store session token as provider key
-      providers[webProvider] = sessionToken;
-      console.log(chalk.green(`✓ ${webProvider === 'chatgpt' ? 'ChatGPT' : 'Claude'} session configured`));
+        const { sessionToken } = await inquirer.prompt({
+          type: 'password',
+          name: 'sessionToken',
+          message: 'Paste your session token here:',
+          mask: '*',
+          validate: (input: string) => {
+            if (!input.trim()) {
+              return 'Session token is required';
+            }
+            return true;
+          }
+        });
+
+        providers[webProvider] = sessionToken;
+        console.log(chalk.green(`✓ ${webProvider === 'chatgpt' ? 'ChatGPT' : 'Claude'} session configured`));
+      }
 
     } else {
       // Original API key flow
