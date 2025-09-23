@@ -1,0 +1,22 @@
+{
+  "/api/cache-warm/route": "app/api/cache-warm/route.js",
+  "/api/chat/route": "app/api/chat/route.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/claude-sync/route": "app/api/claude-sync/route.js",
+  "/api/health/route": "app/api/health/route.js",
+  "/api/stats/route": "app/api/stats/route.js",
+  "/api/stripe/webhook/route": "app/api/stripe/webhook/route.js",
+  "/api/support/route": "app/api/support/route.js",
+  "/api/v1/usage/route": "app/api/v1/usage/route.js",
+  "/api/v2/chat/route": "app/api/v2/chat/route.js",
+  "/auth/callback/page": "app/auth/callback/page.js",
+  "/auth/success/page": "app/auth/success/page.js",
+  "/conversations/page": "app/conversations/page.js",
+  "/login/page": "app/login/page.js",
+  "/page": "app/page.js",
+  "/privacy/page": "app/privacy/page.js",
+  "/status/page": "app/status/page.js",
+  "/support/page": "app/support/page.js",
+  "/terms/page": "app/terms/page.js",
+  "/dashboard/page": "app/dashboard/page.js"
+}

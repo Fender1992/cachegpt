@@ -20,15 +20,20 @@ export default function Home() {
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [monthlyCalls, setMonthlyCalls] = useState(10000)
   const [avgResponseSize, setAvgResponseSize] = useState(2)
+  const [debugInfo, setDebugInfo] = useState<string>('')
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     // Debug logging
-    console.log('🏠 Home Page Mount:', {
+    const debugData = {
       url: window.location.href,
       search: window.location.search,
-      hash: window.location.hash
-    })
+      hash: window.location.hash,
+      timestamp: new Date().toISOString()
+    }
+
+    console.log('🏠 Home Page Mount:', debugData)
+    setDebugInfo(JSON.stringify(debugData, null, 2))
 
     // Check for CLI parameters in URL and redirect to login if present
     const urlParams = new URLSearchParams(window.location.search)
@@ -153,6 +158,19 @@ export default function Home() {
 
   return (
     <div className="min-h-screen overflow-x-hidden">
+      {/* Debug Panel */}
+      {debugInfo && (
+        <div className="fixed top-0 left-0 right-0 bg-yellow-500 text-black p-4 z-[9999] overflow-auto max-h-40">
+          <div className="font-bold mb-2">🔍 OAuth Debug Info:</div>
+          <pre className="text-xs">{debugInfo}</pre>
+          <button
+            onClick={() => setDebugInfo('')}
+            className="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 rounded text-sm"
+          >
+            Close
+          </button>
+        </div>
+      )}
       {/* Animated Background */}
       <div className="fixed inset-0 -z-10">
         <div className="absolute inset-0 mesh-gradient opacity-30"></div>

@@ -111,7 +111,12 @@ export function AuthForm({ isFromCLI = false }: AuthFormProps) {
         console.log('🌐 Not from CLI, no localStorage needed')
       }
 
-      const baseUrl = `${window.location.origin}/auth/callback`
+      // Force the exact redirect URL
+      const baseUrl = window.location.origin.includes('localhost')
+        ? 'http://localhost:3000/auth/callback'
+        : 'https://cachegpt-1zyg7ani5-rolando-fenders-projects.vercel.app/auth/callback'
+
+      console.log('🔐 OAuth redirect URL:', baseUrl)
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
@@ -121,6 +126,7 @@ export function AuthForm({ isFromCLI = false }: AuthFormProps) {
             access_type: 'offline',
             prompt: 'consent',
           },
+          scopes: provider === 'github' ? 'read:user user:email' : undefined,
         },
       })
 
