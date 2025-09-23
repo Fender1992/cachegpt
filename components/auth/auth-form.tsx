@@ -111,10 +111,8 @@ export function AuthForm({ isFromCLI = false }: AuthFormProps) {
         console.log('🌐 Not from CLI, no localStorage needed')
       }
 
-      // Force the exact redirect URL
-      const baseUrl = window.location.origin.includes('localhost')
-        ? 'http://localhost:3000/auth/callback'
-        : 'https://cachegpt-1zyg7ani5-rolando-fenders-projects.vercel.app/auth/callback'
+      // Use dynamic redirect URL based on current origin
+      const baseUrl = `${window.location.origin}/auth/callback`
 
       console.log('🔐 OAuth redirect URL:', baseUrl)
 
