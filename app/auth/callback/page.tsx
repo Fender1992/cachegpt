@@ -10,10 +10,30 @@ function AuthCallbackContent() {
 
   useEffect(() => {
     const handleCallback = async () => {
-      // Get CLI parameters from URL
-      const source = searchParams.get('source')
-      const returnTo = searchParams.get('return_to')
-      const isFromCLI = source === 'cli' || returnTo === 'terminal'
+      // Check for CLI parameters from URL or localStorage
+      const urlSource = searchParams.get('source')
+      const urlReturnTo = searchParams.get('return_to')
+
+      // Also check localStorage for CLI state (preserved through OAuth)
+      let cliState = null
+      try {
+        const stored = localStorage.getItem('cli_auth_flow')
+        if (stored) {
+          cliState = JSON.parse(stored)
+          // Clear it after reading
+          localStorage.removeItem('cli_auth_flow')
+        }
+      } catch (e) {
+        // Ignore localStorage errors
+      }
+
+      const isFromCLI =
+        urlSource === 'cli' ||
+        urlReturnTo === 'terminal' ||
+        (cliState && cliState.source === 'cli')
+
+      const source = urlSource || (cliState && cliState.source) || null
+      const returnTo = urlReturnTo || (cliState && cliState.return_to) || null
       try {
         // Get the code from URL
         const { data: { session }, error } = await supabase.auth.getSession()

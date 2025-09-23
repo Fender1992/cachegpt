@@ -98,16 +98,21 @@ export function AuthForm({ isFromCLI = false }: AuthFormProps) {
     setMessage(null)
 
     try {
-      // Include CLI parameters in the redirect URL if from CLI
+      // Store CLI state in localStorage to preserve it through OAuth flow
+      if (isFromCLI) {
+        localStorage.setItem('cli_auth_flow', JSON.stringify({
+          source: 'cli',
+          return_to: 'terminal',
+          timestamp: Date.now()
+        }))
+      }
+
       const baseUrl = `${window.location.origin}/auth/callback`
-      const redirectTo = isFromCLI
-        ? `${baseUrl}?source=cli&return_to=terminal`
-        : baseUrl
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo,
+          redirectTo: baseUrl,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
