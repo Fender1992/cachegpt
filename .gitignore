@@ -82,3 +82,4 @@ Thumbs.db
 *.tmp
 temp/
 tmp/.next/
+.next/

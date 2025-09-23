@@ -37,7 +37,7 @@ export async function loginCommandSimple() {
     console.log(chalk.cyan('🌐 Opening browser for authentication...\n'));
 
     const open = await import('open').catch(() => null);
-    const authUrl = 'https://cachegpt-1zyg7ani5-rolando-fenders-projects.vercel.app/login?source=cli&return_to=terminal';
+    const authUrl = 'https://cachegpt-1zyg7ani5-rolando-fenders-projects.vercel.app/cli-auth';
 
     if (open) {
       await open.default(authUrl);
