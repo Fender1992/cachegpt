@@ -20,10 +20,16 @@ function CLIAuthCallbackContent() {
         }
 
         if (session) {
+          // First delete any existing session for this user
+          await supabase
+            .from('cli_auth_sessions')
+            .delete()
+            .eq('user_id', session.user.id)
+
           // Save session for CLI
           const { error: saveError } = await supabase
             .from('cli_auth_sessions')
-            .upsert({
+            .insert({
               user_id: session.user.id,
               access_token: session.access_token,
               refresh_token: session.refresh_token,
@@ -31,8 +37,6 @@ function CLIAuthCallbackContent() {
               expires_at: session.expires_at,
               status: 'authenticated',
               created_at: new Date().toISOString()
-            }, {
-              onConflict: 'user_id'
             })
 
           if (saveError) {

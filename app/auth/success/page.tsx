@@ -45,9 +45,16 @@ function AuthSuccessContent() {
 
           // Save CLI session data to database for CLI to poll
           try {
+            // First try to delete any existing session for this user
+            await supabase
+              .from('cli_auth_sessions')
+              .delete()
+              .eq('user_id', session.user.id);
+
+            // Then insert the new session
             const { error } = await supabase
               .from('cli_auth_sessions')
-              .upsert({
+              .insert({
                 user_id: session.user.id,
                 access_token: session.access_token,
                 refresh_token: session.refresh_token,
@@ -55,8 +62,6 @@ function AuthSuccessContent() {
                 expires_at: session.expires_at,
                 status: 'authenticated',
                 created_at: new Date().toISOString()
-              }, {
-                onConflict: 'user_id'
               });
 
             if (error) {
@@ -76,153 +81,14 @@ function AuthSuccessContent() {
   const handleProviderSelect = async (provider: string) => {
     setSelectedProvider(provider)
 
-    console.log(`🚀 Auto-capturing ${provider} credentials...`);
-
-    try {
-      // Step 1: Auto-capture provider session token
-      let providerToken = null;
-
-      if (provider === 'claude') {
-        providerToken = await autoCaptureClaudeToken();
-      } else if (provider === 'chatgpt') {
-        providerToken = await autoCaptureChatGPTToken();
-      }
-
-      if (!providerToken) {
-        console.log('⚠️ Could not auto-capture token, will require manual entry');
-      }
-
-      // Step 2: Save credentials directly to database
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        console.log('💾 Saving credentials to database...');
-
-        const { error } = await supabase
-          .from('user_provider_credentials')
-          .upsert({
-            user_id: session.user.id,
-            provider: provider,
-            user_email: userEmail,
-            llm_token: providerToken ? btoa(providerToken) : null, // Base64 encode
-            session_token: sessionToken ? btoa(sessionToken) : null,
-            auto_captured: !!providerToken,
-            status: 'ready',
-            updated_at: new Date().toISOString()
-          }, {
-            onConflict: 'user_id,provider'
-          });
-
-        if (error) {
-          console.error('Database save failed:', error);
-          alert('Failed to save credentials to database. Please try again.');
-          return;
-        }
-
-        console.log('✅ Credentials saved successfully!');
-
-        // Show success message
-        alert(`✅ ${provider} credentials saved! You can now close this window and return to the terminal.`);
-      }
-
-    } catch (error) {
-      console.error('Error in handleProviderSelect:', error);
-      alert('An error occurred. Please try again.');
-    }
-
-    // Store provider selection locally as backup
+    // Store provider selection in localStorage for the setup page
     localStorage.setItem('selectedLLMProvider', provider)
     localStorage.setItem('userEmail', userEmail)
 
-    // Auto-close window after successful save
-    setTimeout(() => {
-      try {
-        window.close();
-      } catch (e) {
-        console.log('Could not auto-close window');
-      }
-    }, 2000);
+    // Redirect to the provider setup page to get API key
+    window.location.href = `/auth/provider-setup?provider=${provider}&source=cli`
   }
 
-  // Auto-capture Claude session token
-  const autoCaptureClaudeToken = async (): Promise<string | null> => {
-    try {
-      // Open Claude in a hidden iframe to capture session
-      const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
-      iframe.src = 'https://claude.ai';
-      document.body.appendChild(iframe);
-
-      // Wait for iframe to load
-      await new Promise(resolve => {
-        iframe.onload = resolve;
-        setTimeout(resolve, 5000); // Timeout after 5 seconds
-      });
-
-      // Try to extract session token from iframe (if same-origin allows)
-      try {
-        const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-        if (iframeDoc) {
-          // Extract sessionKey cookie
-          const cookies = iframeDoc.cookie.split(';');
-          for (const cookie of cookies) {
-            if (cookie.trim().startsWith('sessionKey=')) {
-              const token = cookie.trim().substring('sessionKey='.length);
-              document.body.removeChild(iframe);
-              return token;
-            }
-          }
-        }
-      } catch (e) {
-        console.log('Cross-origin restriction, cannot auto-capture Claude token');
-      }
-
-      document.body.removeChild(iframe);
-      return null;
-
-    } catch (error) {
-      console.log('Claude auto-capture failed:', error);
-      return null;
-    }
-  };
-
-  // Auto-capture ChatGPT session token
-  const autoCaptureChatGPTToken = async (): Promise<string | null> => {
-    try {
-      // Similar approach for ChatGPT
-      const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
-      iframe.src = 'https://chat.openai.com';
-      document.body.appendChild(iframe);
-
-      await new Promise(resolve => {
-        iframe.onload = resolve;
-        setTimeout(resolve, 5000);
-      });
-
-      try {
-        const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-        if (iframeDoc) {
-          const cookies = iframeDoc.cookie.split(';');
-          for (const cookie of cookies) {
-            if (cookie.trim().startsWith('__Secure-next-auth.session-token=')) {
-              const token = cookie.trim().substring('__Secure-next-auth.session-token='.length);
-              document.body.removeChild(iframe);
-              return token;
-            }
-          }
-        }
-      } catch (e) {
-        console.log('Cross-origin restriction, cannot auto-capture ChatGPT token');
-      }
-
-      document.body.removeChild(iframe);
-      return null;
-
-    } catch (error) {
-      console.log('ChatGPT auto-capture failed:', error);
-      return null;
-    }
-  };
 
   const copyToClipboard = () => {
     if (sessionToken) {

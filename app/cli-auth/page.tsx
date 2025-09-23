@@ -30,8 +30,13 @@ export default function CLIAuthPage() {
 
   const saveSessionForCLI = async (session: any) => {
     try {
+      // First delete any existing session for this user
+      await supabase.from('cli_auth_sessions')
+        .delete()
+        .eq('user_id', session.user.id)
+
       // Save to database for CLI to poll
-      const { error } = await supabase.from('cli_auth_sessions').upsert({
+      const { error } = await supabase.from('cli_auth_sessions').insert({
         user_id: session.user.id,
         access_token: session.access_token,
         refresh_token: session.refresh_token,
@@ -39,8 +44,6 @@ export default function CLIAuthPage() {
         expires_at: session.expires_at,
         status: 'authenticated',
         created_at: new Date().toISOString()
-      }, {
-        onConflict: 'user_id'
       })
 
       if (error) {

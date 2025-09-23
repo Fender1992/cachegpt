@@ -13,7 +13,10 @@ CREATE TABLE IF NOT EXISTS public.cli_auth_sessions (
   expires_at BIGINT,
   status TEXT DEFAULT 'authenticated' CHECK (status IN ('authenticated', 'consumed', 'expired')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+  -- Add unique constraint on user_id for upsert operations
+  UNIQUE(user_id)
 );
 
 -- 2. CREATE user_provider_credentials table for LLM provider tokens
@@ -22,6 +25,7 @@ CREATE TABLE IF NOT EXISTS public.user_provider_credentials (
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   provider TEXT NOT NULL CHECK (provider IN ('claude', 'chatgpt', 'gemini', 'perplexity')),
   user_email TEXT NOT NULL,
+  key_name TEXT, -- Optional key name, nullable for backwards compatibility
   llm_token TEXT, -- Base64 encoded LLM session token
   session_token TEXT, -- Base64 encoded OAuth session token
   api_key TEXT, -- Base64 encoded API key (alternative to token)
