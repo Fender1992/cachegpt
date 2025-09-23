@@ -23,6 +23,13 @@ export default function Home() {
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    // Debug logging
+    console.log('🏠 Home Page Mount:', {
+      url: window.location.href,
+      search: window.location.search,
+      hash: window.location.hash
+    })
+
     // Check for CLI parameters in URL and redirect to login if present
     const urlParams = new URLSearchParams(window.location.search)
     const source = urlParams.get('source')
@@ -49,7 +56,18 @@ export default function Home() {
     // If we have OAuth callback parameters, redirect to callback page
     if (code && state) {
       console.log('🔄 OAuth callback detected on home page, redirecting to callback...')
-      const callbackUrl = `/auth/callback?code=${code}&state=${state}`
+      // Include all URL parameters when redirecting
+      const allParams = new URLSearchParams(window.location.search)
+      const callbackUrl = `/auth/callback?${allParams.toString()}`
+      router.push(callbackUrl)
+      return
+    }
+
+    // Also check for hash fragments (some OAuth providers use this)
+    if (window.location.hash && window.location.hash.includes('access_token')) {
+      console.log('🔄 OAuth hash fragment detected, redirecting to callback...')
+      const hashParams = new URLSearchParams(window.location.hash.substring(1))
+      const callbackUrl = `/auth/callback#${window.location.hash.substring(1)}`
       router.push(callbackUrl)
       return
     }
