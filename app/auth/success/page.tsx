@@ -39,9 +39,34 @@ export default function AuthSuccessPage() {
           setUserName(username)
         }
 
-        // If from CLI, show provider selection instead of auto-closing
+        // If from CLI, save session for CLI polling and show provider selection
         if (isFromCLI) {
           setShowProviderSelection(true)
+
+          // Save CLI session data to database for CLI to poll
+          try {
+            const { error } = await supabase
+              .from('cli_auth_sessions')
+              .upsert({
+                user_id: session.user.id,
+                access_token: session.access_token,
+                refresh_token: session.refresh_token,
+                user_email: session.user.email || '',
+                expires_at: session.expires_at,
+                status: 'authenticated',
+                created_at: new Date().toISOString()
+              }, {
+                onConflict: 'user_id'
+              });
+
+            if (error) {
+              console.error('Failed to save CLI session:', error);
+            } else {
+              console.log('✅ CLI session saved for polling');
+            }
+          } catch (error) {
+            console.error('Error saving CLI session:', error);
+          }
         }
       }
     }
@@ -51,105 +76,153 @@ export default function AuthSuccessPage() {
   const handleProviderSelect = async (provider: string) => {
     setSelectedProvider(provider)
 
-    // Send message to CLI with selected provider and token
-    if (window.opener) {
-      window.opener.postMessage({
-        type: 'provider_selected',
-        provider: provider,
-        token: sessionToken,
-        userEmail: userEmail
-      }, '*')
+    console.log(`🚀 Auto-capturing ${provider} credentials...`);
+
+    try {
+      // Step 1: Auto-capture provider session token
+      let providerToken = null;
+
+      if (provider === 'claude') {
+        providerToken = await autoCaptureClaudeToken();
+      } else if (provider === 'chatgpt') {
+        providerToken = await autoCaptureChatGPTToken();
+      }
+
+      if (!providerToken) {
+        console.log('⚠️ Could not auto-capture token, will require manual entry');
+      }
+
+      // Step 2: Save credentials directly to database
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        console.log('💾 Saving credentials to database...');
+
+        const { error } = await supabase
+          .from('user_provider_credentials')
+          .upsert({
+            user_id: session.user.id,
+            provider: provider,
+            user_email: userEmail,
+            llm_token: providerToken ? btoa(providerToken) : null, // Base64 encode
+            session_token: sessionToken ? btoa(sessionToken) : null,
+            auto_captured: !!providerToken,
+            status: 'ready',
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'user_id,provider'
+          });
+
+        if (error) {
+          console.error('Database save failed:', error);
+          alert('Failed to save credentials to database. Please try again.');
+          return;
+        }
+
+        console.log('✅ Credentials saved successfully!');
+
+        // Show success message
+        alert(`✅ ${provider} credentials saved! You can now close this window and return to the terminal.`);
+      }
+
+    } catch (error) {
+      console.error('Error in handleProviderSelect:', error);
+      alert('An error occurred. Please try again.');
     }
 
-    // Send to the local CLI server via multiple methods
-    const sendCallback = async () => {
-      const callbackData = {
-        provider: provider,
-        email: userEmail,
-        userName: userName,
-        sessionToken: sessionToken
-      };
-
-      console.log('Sending authentication callback...', { provider, email: userEmail });
-
-      // Try multiple ports and methods
-      const attempts = [];
-
-      // POST requests
-      for (let port = 3001; port <= 3010; port++) {
-        attempts.push(
-          fetch(`http://localhost:${port}/auth/callback`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify(callbackData)
-          }).then(response => {
-            console.log(`POST callback to port ${port} responded:`, response.status);
-            return response;
-          }).catch(err => {
-            console.log(`POST callback to port ${port} failed:`, err.message);
-            return null;
-          })
-        );
-
-        // GET requests as fallback
-        const params = new URLSearchParams({
-          provider: provider,
-          email: userEmail,
-          userName: userName || '',
-          sessionToken: sessionToken || ''
-        });
-
-        attempts.push(
-          fetch(`http://localhost:${port}/provider-selected?${params}`).then(response => {
-            console.log(`GET callback to port ${port} responded:`, response.status);
-            return response;
-          }).catch(err => {
-            console.log(`GET callback to port ${port} failed:`, err.message);
-            return null;
-          })
-        );
-      }
-
-      // Wait for any successful response
-      try {
-        await Promise.allSettled(attempts);
-        console.log('All callback attempts completed');
-      } catch (e) {
-        console.log('Callback error:', e);
-      }
-    };
-
-    // Send callback without blocking UI
-    sendCallback();
-
-    // Store provider selection
+    // Store provider selection locally as backup
     localStorage.setItem('selectedLLMProvider', provider)
     localStorage.setItem('userEmail', userEmail)
 
-    // Close window after selection with multiple attempts
-    const closeWindow = () => {
+    // Auto-close window after successful save
+    setTimeout(() => {
       try {
         window.close();
       } catch (e) {
-        // If window.close() fails, try other methods
-        try {
-          if (window.opener) {
-            window.opener.focus();
-          }
-        } catch (e2) {
-          console.log('Could not focus opener window');
-        }
+        console.log('Could not auto-close window');
       }
-    };
-
-    // Multiple close attempts
-    setTimeout(closeWindow, 500);
-    setTimeout(closeWindow, 1500);
-    setTimeout(closeWindow, 3000);
+    }, 2000);
   }
+
+  // Auto-capture Claude session token
+  const autoCaptureClaudeToken = async (): Promise<string | null> => {
+    try {
+      // Open Claude in a hidden iframe to capture session
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = 'https://claude.ai';
+      document.body.appendChild(iframe);
+
+      // Wait for iframe to load
+      await new Promise(resolve => {
+        iframe.onload = resolve;
+        setTimeout(resolve, 5000); // Timeout after 5 seconds
+      });
+
+      // Try to extract session token from iframe (if same-origin allows)
+      try {
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+        if (iframeDoc) {
+          // Extract sessionKey cookie
+          const cookies = iframeDoc.cookie.split(';');
+          for (const cookie of cookies) {
+            if (cookie.trim().startsWith('sessionKey=')) {
+              const token = cookie.trim().substring('sessionKey='.length);
+              document.body.removeChild(iframe);
+              return token;
+            }
+          }
+        }
+      } catch (e) {
+        console.log('Cross-origin restriction, cannot auto-capture Claude token');
+      }
+
+      document.body.removeChild(iframe);
+      return null;
+
+    } catch (error) {
+      console.log('Claude auto-capture failed:', error);
+      return null;
+    }
+  };
+
+  // Auto-capture ChatGPT session token
+  const autoCaptureChatGPTToken = async (): Promise<string | null> => {
+    try {
+      // Similar approach for ChatGPT
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = 'https://chat.openai.com';
+      document.body.appendChild(iframe);
+
+      await new Promise(resolve => {
+        iframe.onload = resolve;
+        setTimeout(resolve, 5000);
+      });
+
+      try {
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+        if (iframeDoc) {
+          const cookies = iframeDoc.cookie.split(';');
+          for (const cookie of cookies) {
+            if (cookie.trim().startsWith('__Secure-next-auth.session-token=')) {
+              const token = cookie.trim().substring('__Secure-next-auth.session-token='.length);
+              document.body.removeChild(iframe);
+              return token;
+            }
+          }
+        }
+      } catch (e) {
+        console.log('Cross-origin restriction, cannot auto-capture ChatGPT token');
+      }
+
+      document.body.removeChild(iframe);
+      return null;
+
+    } catch (error) {
+      console.log('ChatGPT auto-capture failed:', error);
+      return null;
+    }
+  };
 
   const copyToClipboard = () => {
     if (sessionToken) {

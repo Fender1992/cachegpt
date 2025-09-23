@@ -7,7 +7,11 @@ import {
   User, Shield, Zap, CheckCircle2
 } from 'lucide-react'
 
-export function AuthForm() {
+interface AuthFormProps {
+  isFromCLI?: boolean
+}
+
+export function AuthForm({ isFromCLI = false }: AuthFormProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -76,8 +80,11 @@ export function AuthForm() {
             .eq('id', data.user.id)
         }
 
-        // Redirect to home page (since we don't have a dashboard)
-        window.location.href = '/'
+        // Redirect to success page with CLI parameters if from CLI
+        const redirectUrl = isFromCLI
+          ? `/auth/success?source=cli&return_to=terminal`
+          : '/'
+        window.location.href = redirectUrl
       }
     } catch (error: any) {
       setMessage({ type: 'error', text: error.message })
@@ -91,10 +98,16 @@ export function AuthForm() {
     setMessage(null)
 
     try {
+      // Include CLI parameters in the redirect URL if from CLI
+      const baseUrl = `${window.location.origin}/auth/callback`
+      const redirectTo = isFromCLI
+        ? `${baseUrl}?source=cli&return_to=terminal`
+        : baseUrl
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',

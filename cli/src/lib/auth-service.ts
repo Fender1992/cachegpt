@@ -121,6 +121,12 @@ export class AuthService {
     }
   }
 
+  async getSessionToken(): Promise<string | null> {
+    // Load stored credentials and return the access token
+    const credentials = await this.loadCredentials();
+    return credentials ? credentials.access_token : null;
+  }
+
   async getCurrentUser(): Promise<User | null> {
     // Try to load and use stored credentials
     const credentials = await this.loadCredentials();

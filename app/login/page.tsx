@@ -2,7 +2,13 @@ import { AuthForm } from '@/components/auth/auth-form'
 import { Sparkles } from 'lucide-react'
 import Link from 'next/link'
 
-export default function LoginPage() {
+export default function LoginPage({
+  searchParams
+}: {
+  searchParams: { source?: string; return_to?: string }
+}) {
+  const isFromCLI = searchParams?.source === 'cli' || searchParams?.return_to === 'terminal';
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 flex flex-col">
       {/* Header */}
@@ -25,7 +31,7 @@ export default function LoginPage() {
 
       {/* Main Content */}
       <main className="flex-1 flex items-center justify-center p-6">
-        <AuthForm />
+        <AuthForm isFromCLI={isFromCLI} />
       </main>
 
       {/* Footer */}

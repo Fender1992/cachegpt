@@ -4,7 +4,11 @@ import { loadConfig } from '../lib/config';
 import { createApiClient } from '../lib/api';
 import { logError, logInfo } from '../lib/utils';
 import { CacheService } from '../lib/cache-service';
+import { AuthService } from '../lib/auth-service';
 import readline from 'readline';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 
 export async function chatCommand(): Promise<void> {
   console.clear();
@@ -60,7 +64,14 @@ export async function chatCommand(): Promise<void> {
   }
 
   // Now check for API key configuration AFTER OAuth check
-  const config: any = loadConfig();
+  let config: any = loadConfig();
+
+  // If no local config, try to load provider credentials from database
+  if (!config && userInfo) {
+    console.log(chalk.gray('🔍 Loading your saved LLM provider credentials...'));
+    config = await loadProviderCredentials();
+  }
+
   if (!config) {
     console.log(chalk.yellow('⚠️  No API configuration found.'));
     console.log(chalk.gray('You need to configure your LLM API keys to start chatting.'));
@@ -88,8 +99,9 @@ export async function chatCommand(): Promise<void> {
 
   // Check if using browser mode
   if (config.mode === 'browser') {
-    const { chatBrowserCommand } = await import('./chat-browser');
-    return await chatBrowserCommand();
+    console.log(chalk.yellow('Browser chat mode is temporarily unavailable.'));
+    console.log(chalk.gray('Please use API key mode instead.'));
+    return;
   }
 
   // Check if using direct mode
@@ -299,4 +311,101 @@ async function showCacheStats(apiClient: any): Promise<void> {
     console.log(chalk.red('Failed to fetch statistics'));
     console.log();
   }
+}
+
+async function loadProviderCredentials(): Promise<any> {
+  try {
+    const authService = new AuthService();
+    const currentUser = await authService.getCurrentUser();
+
+    if (!currentUser) {
+      return null;
+    }
+
+    // Load environment variables from .env.defaults if needed
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      const dotenv = await import('dotenv');
+      const defaultsPath = path.join(__dirname, '../../.env.defaults');
+      if (fs.existsSync(defaultsPath)) {
+        dotenv.config({ path: defaultsPath });
+      }
+    }
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      // Fallback to local file
+      return loadProviderCredentialsLocally();
+    }
+
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Get provider credentials from database
+    const { data, error } = await supabase
+      .from('user_provider_credentials')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error || !data) {
+      // Fallback to local file
+      return loadProviderCredentialsLocally();
+    }
+
+    // Convert database credentials to config format
+    const config = {
+      provider: data.provider,
+      mode: data.llm_token ? 'browser' : 'api',
+      authMethod: data.llm_token ? 'web-session' : 'api-key',
+      apiKey: data.api_key ? decrypt(data.api_key) : undefined,
+      sessionKey: data.llm_token ? decrypt(data.llm_token) : undefined,
+      userEmail: data.user_email
+    };
+
+    console.log(chalk.green(`✅ Loaded ${data.provider} credentials from database`));
+    return config;
+
+  } catch (error: any) {
+    console.log(chalk.yellow(`⚠️ Database error: ${error.message} - trying local file`));
+    return loadProviderCredentialsLocally();
+  }
+}
+
+function loadProviderCredentialsLocally(): any {
+  try {
+    const configPath = path.join(os.homedir(), '.cachegpt', 'provider-config.json');
+
+    if (!fs.existsSync(configPath)) {
+      return null;
+    }
+
+    const content = fs.readFileSync(configPath, 'utf-8');
+    const encryptedConfig = JSON.parse(content);
+
+    // Convert local credentials to config format
+    const config = {
+      provider: encryptedConfig.provider,
+      mode: encryptedConfig.llmToken ? 'browser' : 'api',
+      authMethod: encryptedConfig.llmToken ? 'web-session' : 'api-key',
+      apiKey: encryptedConfig.apiKey ? decrypt(encryptedConfig.apiKey) : undefined,
+      sessionKey: encryptedConfig.llmToken ? decrypt(encryptedConfig.llmToken) : undefined,
+      userEmail: encryptedConfig.userEmail
+    };
+
+    console.log(chalk.green(`✅ Loaded ${encryptedConfig.provider} credentials from local file`));
+    return config;
+
+  } catch (error: any) {
+    console.log(chalk.gray('No local provider credentials found'));
+    return null;
+  }
+}
+
+function decrypt(text: string): string {
+  // Simple base64 decoding - matches the encryption in auth-provider.ts
+  return Buffer.from(text, 'base64').toString('utf8');
 }

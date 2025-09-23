@@ -72,7 +72,14 @@
       "Bash(yarn start)",
       "Bash(git ls-tree:*)",
       "Bash(git pull:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(yarn list:*)",
+      "Bash(yarn install:*)",
+      "Bash(npm pack:*)",
+      "Bash(git log:*)",
+      "Bash(npm version:*)",
+      "Bash(xargs rm:*)",
+      "Bash(git restore:*)"
     ],
     "deny": [],
     "ask": []

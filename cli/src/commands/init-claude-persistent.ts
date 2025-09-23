@@ -176,9 +176,25 @@ export async function initClaudePersistent(): Promise<ClaudeWebConfig> {
       console.log('3. Use the manual method (copy cookie from your regular browser)\n');
     }
 
-    // Fall back to manual
-    const { initClaudeWebAuth } = await import('./init-claude-web');
-    return initClaudeWebAuth();
+    // Fall back to manual token entry
+    console.log(chalk.yellow('Automatic browser login failed. Please enter token manually.'));
+
+    const { sessionKey } = await inquirer.prompt({
+      type: 'password',
+      name: 'sessionKey',
+      message: 'Enter your Claude session token:',
+      mask: '*'
+    });
+
+    return {
+      mode: 'browser',
+      provider: 'anthropic',
+      authMethod: 'web-session',
+      sessionKey: sessionKey,
+      defaultModel: 'claude-3-opus',
+      cacheEnabled: true,
+      cacheLocation: path.join(os.homedir(), '.cachegpt', 'cache')
+    };
   }
 }
 

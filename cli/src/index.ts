@@ -14,14 +14,23 @@ import { syncClaude } from './commands/sync-claude';
 import { registerCommand } from './commands/register';
 import { loginCommand } from './commands/login';
 import { authStatusCommand } from './commands/auth-status';
-import { analyticsCommand } from './commands/analytics';
-import { tagsCommand } from './commands/tags';
-import { exportCommand } from './commands/export';
-import { rateLimitCommand } from './commands/rate-limit';
 import { templatesCommand } from './commands/templates';
 import { chatApiCommand } from './commands/chat-api';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const program = new Command();
+
+// Get version from package.json
+function getVersion(): string {
+  try {
+    const packageJsonPath = path.join(__dirname, '../package.json');
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+    return packageJson.version;
+  } catch (error) {
+    return '10.0.2'; // Fallback version
+  }
+}
 
 // Set up error handling
 process.on('uncaughtException', (error) => {
@@ -35,9 +44,9 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 program
-  .name('llm-cache')
-  .description('CLI tool for LLM Cache Proxy')
-  .version('1.0.0');
+  .name('cachegpt')
+  .description('CacheGPT CLI - Intelligent LLM caching with browser authentication')
+  .version(getVersion());
 
 program
   .command('init')
@@ -119,25 +128,9 @@ program
     });
   });
 
-program
-  .command('analytics')
-  .description('Show detailed analytics dashboard')
-  .action(analyticsCommand);
 
-program
-  .command('tags [action] [args...]')
-  .description('Manage chat tags and organization')
-  .action(tagsCommand);
 
-program
-  .command('export [format] [output]')
-  .description('Export chat history in various formats')
-  .action(exportCommand);
 
-program
-  .command('rate-limit [action]')
-  .description('Manage API rate limits and optimization')
-  .action(rateLimitCommand);
 
 program
   .command('templates [action] [args...]')

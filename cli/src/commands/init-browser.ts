@@ -10,10 +10,6 @@ import { saveConfig, getConfigPath } from '../lib/config';
 import { logError, logSuccess } from '../lib/utils';
 import { OAuth2Client, OAUTH_PROVIDERS } from '../lib/oauth';
 import { CredentialStore } from '../lib/credential-store';
-import { initClaudeWebAuth } from './init-claude-web';
-import { initClaudeAutomated } from './init-claude-automated';
-import { initClaudeFixed } from './init-claude-fixed';
-import { initClaudeRealBrowser } from './init-claude-real-browser';
 import { initClaudePersistent } from './init-claude-persistent';
 
 interface BrowserConfig {
