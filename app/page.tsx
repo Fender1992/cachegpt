@@ -23,6 +23,17 @@ export default function Home() {
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    // Check for CLI parameters in URL and redirect to login if present
+    const urlParams = new URLSearchParams(window.location.search)
+    const source = urlParams.get('source')
+    const returnTo = urlParams.get('return_to')
+
+    if (source === 'cli' || returnTo === 'terminal') {
+      console.log('🔄 CLI params detected on home page, redirecting to login...')
+      router.push(`/login?source=${source || 'cli'}&return_to=${returnTo || 'terminal'}`)
+      return
+    }
+
     setIsVisible(true)
   }, [user, loading, router])
 
