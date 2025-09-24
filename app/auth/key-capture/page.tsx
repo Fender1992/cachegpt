@@ -43,30 +43,56 @@ function KeyCaptureContent() {
       return
     }
 
-    // Poll for capture results
+    // Poll for capture results with exponential backoff
     let attempts = 0
-    const maxAttempts = 120 // 2 minutes
+    let consecutiveFailures = 0
+    let pollTimeout: NodeJS.Timeout
 
-    const pollInterval = setInterval(async () => {
+    const maxAttempts = 40 // Reduced from 120 since we're polling less frequently
+    const baseInterval = 2000 // Start with 2 second intervals
+
+    const pollForResult = async (): Promise<void> => {
       attempts++
 
       try {
         const response = await fetch(`/api/auth/capture-key?session=${sessionId}`)
+
+        // Handle rate limiting
+        if (response.status === 429) {
+          consecutiveFailures++
+          const backoffDelay = Math.min(8000, baseInterval * Math.pow(2, consecutiveFailures)) // Max 8s backoff
+          console.log(`Rate limited, backing off for ${backoffDelay}ms`)
+
+          if (attempts >= maxAttempts) {
+            captureWindow.close()
+            setStatus('error')
+            setMessage('Request rate limited. Please wait a moment and try again.')
+            return
+          }
+
+          // Schedule next poll with backoff
+          pollTimeout = setTimeout(pollForResult, backoffDelay)
+          return
+        }
+
         const result = await response.json()
+        consecutiveFailures = 0 // Reset on successful response
 
         if (result.waiting) {
           // Still waiting
           if (attempts >= maxAttempts) {
-            clearInterval(pollInterval)
             captureWindow.close()
             setStatus('error')
             setMessage('Capture timeout. Please try again or use manual API key entry.')
+            return
           }
+
+          // Schedule next poll with normal interval
+          pollTimeout = setTimeout(pollForResult, baseInterval)
           return
         }
 
         // Got a result
-        clearInterval(pollInterval)
         captureWindow.close()
 
         if (result.success && result.apiKey) {
@@ -91,14 +117,21 @@ function KeyCaptureContent() {
         }
 
       } catch (error: any) {
+        consecutiveFailures++
         if (attempts >= maxAttempts) {
-          clearInterval(pollInterval)
           captureWindow.close()
           setStatus('error')
           setMessage('Network error during capture')
+        } else {
+          // Schedule retry with backoff
+          const backoffDelay = Math.min(5000, baseInterval + (consecutiveFailures * 1000))
+          pollTimeout = setTimeout(pollForResult, backoffDelay)
         }
       }
-    }, 1000)
+    }
+
+    // Start polling
+    pollTimeout = setTimeout(pollForResult, baseInterval)
 
     // Update status message
     setMessage(`Please sign in to your ${config.name} account in the popup window...`)
@@ -110,14 +143,14 @@ function KeyCaptureContent() {
 
   if (!provider || !config) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center p-4">
-        <div className="max-w-md w-full glass-card rounded-3xl p-8 text-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-lg border border-gray-200 p-8 text-center">
           <AlertCircle className="w-16 h-16 mx-auto mb-6 text-red-500" />
-          <h1 className="text-2xl font-bold mb-4 text-red-400">Invalid Request</h1>
-          <p className="text-gray-300 mb-6">Missing or invalid provider information.</p>
+          <h1 className="text-2xl font-bold mb-4 text-gray-900">Invalid Request</h1>
+          <p className="text-gray-600 mb-6">Missing or invalid provider information.</p>
           <button
             onClick={() => router.push('/auth/provider-setup?source=cli')}
-            className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors"
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-sm"
           >
             Back to Provider Setup
           </button>
@@ -127,23 +160,23 @@ function KeyCaptureContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="max-w-2xl w-full">
-        <div className="glass-card rounded-3xl p-8">
+        <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-8">
           {status === 'instructions' && (
             <>
               <div className="text-center mb-8">
-                <Key className="w-16 h-16 mx-auto mb-6 text-purple-500" />
-                <h1 className="text-3xl font-bold mb-2">Auto-Capture {config.name} API Key</h1>
-                <p className="text-gray-400">We'll automatically capture your API key from your authenticated session</p>
+                <Key className="w-16 h-16 mx-auto mb-6 text-blue-600" />
+                <h1 className="text-3xl font-bold mb-2 text-gray-900">Auto-Capture {config.name} API Key</h1>
+                <p className="text-gray-600">We'll automatically capture your API key from your authenticated session</p>
               </div>
 
-              <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-6 mb-8">
-                <h3 className="font-semibold text-blue-300 mb-4">How it works:</h3>
-                <ol className="space-y-3 text-base text-white">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
+                <h3 className="font-semibold text-blue-700 mb-4">How it works:</h3>
+                <ol className="space-y-3 text-base text-gray-700">
                   {config.instructions.map((instruction, index) => (
                     <li key={index} className="flex items-start gap-3">
-                      <span className="flex-shrink-0 w-7 h-7 bg-blue-500/30 text-blue-200 rounded-full flex items-center justify-center text-sm font-bold">
+                      <span className="flex-shrink-0 w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
                         {index + 1}
                       </span>
                       <span className="pt-0.5">{instruction}</span>
@@ -155,7 +188,7 @@ function KeyCaptureContent() {
               <div className="flex gap-4">
                 <button
                   onClick={startCapture}
-                  className="flex-1 py-4 px-6 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 py-4 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 shadow-sm"
                 >
                   <ExternalLink className="w-5 h-5" />
                   Start Auto-Capture
@@ -163,7 +196,7 @@ function KeyCaptureContent() {
 
                 <button
                   onClick={handleManualEntry}
-                  className="py-4 px-6 bg-gray-700 hover:bg-gray-600 rounded-xl font-medium transition-colors"
+                  className="py-4 px-6 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 rounded-lg font-medium transition-colors"
                 >
                   Manual Entry Instead
                 </button>
@@ -174,13 +207,13 @@ function KeyCaptureContent() {
           {status === 'capturing' && (
             <>
               <div className="text-center mb-8">
-                <Loader2 className="w-16 h-16 mx-auto mb-6 text-purple-500 animate-spin" />
-                <h1 className="text-2xl font-bold mb-4">Capturing API Key...</h1>
-                <p className="text-gray-400">{message}</p>
+                <Loader2 className="w-16 h-16 mx-auto mb-6 text-blue-600 animate-spin" />
+                <h1 className="text-2xl font-bold mb-4 text-gray-900">Capturing API Key...</h1>
+                <p className="text-gray-600">{message}</p>
               </div>
 
-              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 text-center">
-                <p className="text-sm text-yellow-400">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center">
+                <p className="text-sm text-amber-700">
                   🔒 Make sure you're signed in to your {config.name} account in the popup window
                 </p>
               </div>
@@ -190,11 +223,11 @@ function KeyCaptureContent() {
           {status === 'success' && (
             <>
               <div className="text-center mb-8">
-                <div className="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
+                <div className="w-16 h-16 mx-auto mb-6 bg-green-600 rounded-full flex items-center justify-center">
                   <CheckCircle2 className="w-8 h-8 text-white" />
                 </div>
-                <h1 className="text-2xl font-bold mb-4 text-green-400">API Key Captured!</h1>
-                <p className="text-gray-300 mb-4">{message}</p>
+                <h1 className="text-2xl font-bold mb-4 text-gray-900">API Key Captured!</h1>
+                <p className="text-gray-700 mb-4">{message}</p>
                 <p className="text-sm text-gray-500">Redirecting in {countdown} seconds...</p>
               </div>
             </>
@@ -203,23 +236,23 @@ function KeyCaptureContent() {
           {status === 'error' && (
             <>
               <div className="text-center mb-8">
-                <div className="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center">
+                <div className="w-16 h-16 mx-auto mb-6 bg-red-600 rounded-full flex items-center justify-center">
                   <AlertCircle className="w-8 h-8 text-white" />
                 </div>
-                <h1 className="text-2xl font-bold mb-4 text-red-400">Capture Failed</h1>
-                <p className="text-gray-300 mb-6">{message}</p>
+                <h1 className="text-2xl font-bold mb-4 text-gray-900">Capture Failed</h1>
+                <p className="text-gray-700 mb-6">{message}</p>
               </div>
 
               <div className="flex gap-4">
                 <button
                   onClick={startCapture}
-                  className="flex-1 py-3 px-6 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors"
+                  className="flex-1 py-3 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-sm"
                 >
                   Try Again
                 </button>
                 <button
                   onClick={handleManualEntry}
-                  className="flex-1 py-3 px-6 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition-colors"
+                  className="flex-1 py-3 px-6 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 rounded-lg font-medium transition-colors"
                 >
                   Manual Entry
                 </button>
@@ -235,8 +268,8 @@ function KeyCaptureContent() {
 export default function KeyCapturePage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center p-4">
-        <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
       </div>
     }>
       <KeyCaptureContent />

@@ -254,11 +254,11 @@ function ProviderSetupContent() {
 
                 <button
                   onClick={() => handleProviderSelect('perplexity')}
-                  className="p-6 bg-gray-800/50 hover:bg-gray-700/50 rounded-xl transition-all hover:scale-105 border border-gray-700 hover:border-orange-500/50 group"
+                  className="p-6 bg-white hover:bg-gray-50 rounded-lg transition-all hover:scale-105 border border-gray-200 hover:border-orange-500 shadow-sm group"
                 >
-                  <Zap className="w-10 h-10 mx-auto mb-3 text-orange-500 group-hover:text-orange-400" />
-                  <div className="font-semibold text-lg">Perplexity</div>
-                  <div className="text-sm text-gray-500">AI Search</div>
+                  <Zap className="w-10 h-10 mx-auto mb-3 text-orange-600 group-hover:text-orange-500" />
+                  <div className="font-semibold text-lg text-gray-900">Perplexity</div>
+                  <div className="text-sm text-gray-600">AI Search</div>
                 </button>
               </div>
             </>
@@ -276,34 +276,34 @@ function ProviderSetupContent() {
               </button>
 
               <div className="text-center mb-8">
-                <Shield className="w-12 h-12 mx-auto mb-4 text-green-500" />
-                <h1 className="text-2xl font-bold mb-2">Connect to {selectedProvider === 'chatgpt' ? 'OpenAI' : selectedProvider === 'claude' ? 'Anthropic' : selectedProvider === 'gemini' ? 'Google' : 'Perplexity'}</h1>
-                <p className="text-gray-200">Choose how you want to authenticate</p>
+                <Shield className="w-12 h-12 mx-auto mb-4 text-blue-600" />
+                <h1 className="text-2xl font-bold mb-2 text-gray-900">Connect to {selectedProvider === 'chatgpt' ? 'OpenAI' : selectedProvider === 'claude' ? 'Anthropic' : selectedProvider === 'gemini' ? 'Google' : 'Perplexity'}</h1>
+                <p className="text-gray-600">Choose how you want to authenticate</p>
               </div>
 
               <div className="space-y-4 mb-6">
-                <div className="p-6 bg-gradient-to-r from-green-500/10 to-green-600/10 border border-green-500/20 rounded-xl">
+                <div className="p-6 bg-green-50 border border-green-200 rounded-lg">
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <h3 className="font-semibold text-green-400 mb-2">
+                      <h3 className="font-semibold text-green-700 mb-2">
                         {['claude', 'openai', 'perplexity'].includes(selectedProvider!) ?
                           '🔐 Auto-Capture (Recommended)' :
                           '🔐 OAuth Authentication (Recommended)'
                         }
                       </h3>
-                      <p className="text-sm text-gray-200">
+                      <p className="text-sm text-gray-700">
                         {['claude', 'openai', 'perplexity'].includes(selectedProvider!) ?
                           'Automatically capture your API key from the provider console' :
                           'Secure login directly through the provider'
                         }
                       </p>
                     </div>
-                    <ExternalLink className="w-6 h-6 text-green-400" />
+                    <ExternalLink className="w-6 h-6 text-green-600" />
                   </div>
                   <button
                     onClick={() => handleProviderOAuth(selectedProvider!)}
                     disabled={isLoading}
-                    className="w-full py-3 px-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                    className="w-full py-3 px-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 shadow-sm"
                   >
                     {['claude', 'openai', 'perplexity'].includes(selectedProvider!) ?
                       `Auto-Capture from ${selectedProvider === 'openai' ? 'OpenAI' : selectedProvider === 'claude' ? 'Anthropic' : 'Perplexity'}` :
@@ -312,7 +312,7 @@ function ProviderSetupContent() {
                   </button>
                 </div>
 
-                <div className="text-center text-gray-300">
+                <div className="text-center text-gray-500">
                   <div className="flex items-center">
                     <div className="flex-1 border-t border-gray-700"></div>
                     <span className="px-3 text-base">or</span>
@@ -320,17 +320,17 @@ function ProviderSetupContent() {
                   </div>
                 </div>
 
-                <div className="p-6 bg-gray-800/30 border border-gray-700 rounded-xl">
+                <div className="p-6 bg-gray-50 border border-gray-200 rounded-lg">
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <h3 className="font-semibold text-white mb-2">🔑 API Key</h3>
-                      <p className="text-base text-gray-200">Use your existing API key</p>
+                      <h3 className="font-semibold text-gray-900 mb-2">🔑 API Key</h3>
+                      <p className="text-base text-gray-700">Use your existing API key</p>
                     </div>
-                    <Key className="w-6 h-6 text-gray-400" />
+                    <Key className="w-6 h-6 text-gray-600" />
                   </div>
                   <button
                     onClick={() => setStep('configure')}
-                    className="w-full py-3 px-4 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition-colors"
+                    className="w-full py-3 px-4 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 rounded-lg font-medium transition-colors shadow-sm"
                   >
                     Enter API Key Instead
                   </button>
@@ -345,26 +345,26 @@ function ProviderSetupContent() {
                   setApiKey('')
                   setError(null)
                 }}
-                className="text-gray-400 hover:text-white mb-6 flex items-center gap-2"
+                className="text-gray-600 hover:text-gray-900 mb-6 flex items-center gap-2"
               >
                 ← Back to authentication options
               </button>
 
               <div className="text-center mb-8">
-                <Key className="w-12 h-12 mx-auto mb-4 text-purple-500" />
-                <h1 className="text-2xl font-bold mb-2">{instructions?.title}</h1>
-                <p className="text-gray-400">Follow these steps to get your API key</p>
+                <Key className="w-12 h-12 mx-auto mb-4 text-blue-600" />
+                <h1 className="text-2xl font-bold mb-2 text-gray-900">{instructions?.title}</h1>
+                <p className="text-gray-600">Follow these steps to get your API key</p>
               </div>
 
-              <div className="bg-gray-800/50 rounded-xl p-6 mb-6">
-                <h3 className="font-semibold mb-4 text-gray-300">Instructions:</h3>
-                <ol className="space-y-2">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+                <h3 className="font-semibold mb-4 text-blue-700">Instructions:</h3>
+                <ol className="space-y-3">
                   {instructions?.instructions.map((step, index) => (
                     <li key={index} className="flex items-start gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 bg-purple-600/20 text-purple-400 rounded-full flex items-center justify-center text-sm font-semibold">
+                      <span className="flex-shrink-0 w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
                         {index + 1}
                       </span>
-                      <span className="text-gray-300 text-sm">{step}</span>
+                      <span className="text-gray-700 text-base pt-0.5">{step}</span>
                     </li>
                   ))}
                 </ol>
@@ -372,7 +372,7 @@ function ProviderSetupContent() {
 
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="apiKey" className="block text-sm font-medium mb-2 text-gray-300">
+                  <label htmlFor="apiKey" className="block text-sm font-medium mb-2 text-gray-700">
                     API Key
                   </label>
                   <input
@@ -381,13 +381,13 @@ function ProviderSetupContent() {
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
                     placeholder={instructions?.placeholder}
-                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-white placeholder-gray-500"
+                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500"
                     disabled={isLoading}
                   />
                 </div>
 
                 {error && (
-                  <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm">
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
                     {error}
                   </div>
                 )}
@@ -395,7 +395,7 @@ function ProviderSetupContent() {
                 <button
                   onClick={handleSaveCredentials}
                   disabled={isLoading || !apiKey.trim()}
-                  className="w-full py-3 px-4 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                  className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 shadow-sm"
                 >
                   {isLoading ? (
                     <>
@@ -411,8 +411,8 @@ function ProviderSetupContent() {
                 </button>
               </div>
 
-              <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
-                <p className="text-sm text-blue-400">
+              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-700">
                   💡 Your API key will be encrypted and stored securely. It will only be used for your CLI sessions.
                 </p>
               </div>
@@ -420,7 +420,7 @@ function ProviderSetupContent() {
           )}
         </div>
 
-        <div className="text-center mt-6 text-sm text-gray-500">
+        <div className="text-center mt-6 text-sm text-gray-600">
           {step === 'select'
             ? "You'll need an API key from your chosen provider"
             : "Your credentials will be synced to the terminal automatically"
@@ -434,11 +434,11 @@ function ProviderSetupContent() {
 export default function ProviderSetupPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
-          <h1 className="text-xl font-semibold text-white mb-2">Loading...</h1>
-          <p className="text-gray-400">Preparing provider setup...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">Loading...</h1>
+          <p className="text-gray-600">Preparing provider setup...</p>
         </div>
       </div>
     }>

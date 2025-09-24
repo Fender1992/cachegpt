@@ -11,19 +11,19 @@ export default async function LoginPage({
   const isFromCLI = params?.source === 'cli' || params?.return_to === 'terminal';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 flex flex-col">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <header className="p-6">
+      <header className="p-6 bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link href="/" className="flex items-center space-x-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
               <Sparkles className="w-6 h-6 text-white" />
             </div>
-            <span className="text-xl font-bold text-white">CacheGPT</span>
+            <span className="text-xl font-bold text-gray-900">CacheGPT</span>
           </Link>
           <Link
             href="/"
-            className="text-sm text-gray-400 hover:text-white transition"
+            className="text-sm text-gray-600 hover:text-gray-900 transition"
           >
             Back to home
           </Link>
@@ -37,7 +37,7 @@ export default async function LoginPage({
 
       {/* Footer */}
       <footer className="p-6">
-        <div className="max-w-7xl mx-auto text-center text-sm text-gray-500">
+        <div className="max-w-7xl mx-auto text-center text-sm text-gray-600">
           © 2025 CacheGPT. All rights reserved.
         </div>
       </footer>

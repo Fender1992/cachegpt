@@ -146,20 +146,17 @@ export function AuthForm({ isFromCLI = false }: AuthFormProps) {
   return (
     <div className="w-full max-w-md mx-auto">
       {/* Card Container */}
-      <div className="glass-card rounded-3xl p-8 relative overflow-hidden">
-        {/* Decorative Elements */}
-        <div className="absolute -top-10 -right-10 w-32 h-32 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full filter blur-3xl opacity-20"></div>
-        <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-gradient-to-tr from-blue-500 to-cyan-500 rounded-full filter blur-3xl opacity-20"></div>
+      <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-8 relative">
 
         {/* Header */}
-        <div className="text-center mb-8 relative">
-          <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-purple-500 to-blue-500 rounded-2xl flex items-center justify-center shadow-lg">
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 mx-auto mb-4 bg-blue-600 rounded-lg flex items-center justify-center">
             <User className="w-8 h-8 text-white" />
           </div>
-          <h2 className="text-2xl font-bold mb-2">
+          <h2 className="text-2xl font-bold mb-2 text-gray-900">
             {isSignUp ? 'Create Account' : 'Welcome Back'}
           </h2>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-gray-600">
             {isSignUp
               ? 'Start your journey with intelligent LLM caching'
               : 'Sign in to access your dashboard'}
@@ -169,7 +166,7 @@ export function AuthForm({ isFromCLI = false }: AuthFormProps) {
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <label htmlFor="email" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label htmlFor="email" className="text-sm font-medium text-gray-700">
               Email Address
             </label>
             <div className="relative">
@@ -182,13 +179,13 @@ export function AuthForm({ isFromCLI = false }: AuthFormProps) {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={isLoading}
-                className="w-full pl-10 pr-4 py-3 input-modern"
+                className="w-full pl-10 pr-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="password" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label htmlFor="password" className="text-sm font-medium text-gray-700">
               Password
             </label>
             <div className="relative">
@@ -201,7 +198,7 @@ export function AuthForm({ isFromCLI = false }: AuthFormProps) {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={isLoading}
-                className="w-full pl-10 pr-12 py-3 input-modern"
+                className="w-full pl-10 pr-12 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500"
               />
               <button
                 type="button"
@@ -217,10 +214,10 @@ export function AuthForm({ isFromCLI = false }: AuthFormProps) {
           {!isSignUp && (
             <div className="flex items-center justify-between">
               <label className="flex items-center space-x-2 cursor-pointer">
-                <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500" />
-                <span className="text-sm text-gray-600 dark:text-gray-400">Remember me</span>
+                <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                <span className="text-sm text-gray-600">Remember me</span>
               </label>
-              <button type="button" className="text-sm text-purple-600 hover:text-purple-700 transition">
+              <button type="button" className="text-sm text-blue-600 hover:text-blue-700 transition"
                 Forgot password?
               </button>
             </div>
@@ -230,8 +227,8 @@ export function AuthForm({ isFromCLI = false }: AuthFormProps) {
           {message && (
             <div className={`flex items-center space-x-2 p-3 rounded-lg ${
               message.type === 'error'
-                ? 'bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400'
-                : 'bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400'
+                ? 'bg-red-50 border border-red-200 text-red-700'
+                : 'bg-green-50 border border-green-200 text-green-700'
             }`}>
               <CheckCircle2 className="w-4 h-4" />
               <span className="text-sm">{message.text}</span>
@@ -272,7 +269,7 @@ export function AuthForm({ isFromCLI = false }: AuthFormProps) {
             <button
               type="button"
               onClick={() => handleOAuthLogin('google')}
-              className="flex items-center justify-center space-x-2 px-4 py-2 border-2 border-gray-300 dark:border-gray-700 rounded-xl hover:border-purple-500 transition"
+              className="flex items-center justify-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:border-blue-500 hover:bg-gray-50 transition"
               disabled={isLoading}
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -286,7 +283,7 @@ export function AuthForm({ isFromCLI = false }: AuthFormProps) {
             <button
               type="button"
               onClick={() => handleOAuthLogin('github')}
-              className="flex items-center justify-center space-x-2 px-4 py-2 border-2 border-gray-300 dark:border-gray-700 rounded-xl hover:border-purple-500 transition"
+              className="flex items-center justify-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:border-blue-500 hover:bg-gray-50 transition"
               disabled={isLoading}
             >
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -302,7 +299,7 @@ export function AuthForm({ isFromCLI = false }: AuthFormProps) {
               type="button"
               onClick={() => setIsSignUp(!isSignUp)}
               disabled={isLoading}
-              className="text-sm text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition"
+              className="text-sm text-gray-600 hover:text-blue-600 transition"
             >
               {isSignUp
                 ? 'Already have an account? Sign in'
@@ -313,11 +310,11 @@ export function AuthForm({ isFromCLI = false }: AuthFormProps) {
 
         {/* Features for Sign Up */}
         {isSignUp && (
-          <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+          <div className="mt-8 pt-6 border-t border-gray-200">
             <div className="flex items-center justify-around">
               {features.map((feature, index) => (
-                <div key={index} className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-                  <div className="text-purple-600">{feature.icon}</div>
+                <div key={index} className="flex items-center space-x-2 text-sm text-gray-600">
+                  <div className="text-blue-600">{feature.icon}</div>
                   <span>{feature.text}</span>
                 </div>
               ))}
@@ -327,9 +324,9 @@ export function AuthForm({ isFromCLI = false }: AuthFormProps) {
       </div>
 
       {/* Footer Links */}
-      <div className="text-center mt-6 text-sm text-gray-600 dark:text-gray-400">
+      <div className="text-center mt-6 text-sm text-gray-600">
         By continuing, you agree to our{' '}
-        <a href="#" className="text-purple-600 hover:text-purple-700 transition">Terms of Service</a>
+        <a href="#" className="text-blue-600 hover:text-blue-700 transition">Terms of Service</a>
         {' '}and{' '}
         <a href="#" className="text-purple-600 hover:text-purple-700 transition">Privacy Policy</a>
       </div>
