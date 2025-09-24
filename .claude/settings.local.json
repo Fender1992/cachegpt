@@ -84,7 +84,8 @@
       "Bash(sudo npm install:*)",
       "Bash(llm-cache:*)",
       "Bash(git rm:*)",
-      "Bash(cachegpt:*)"
+      "Bash(cachegpt:*)",
+      "Bash(npm unpublish:*)"
     ],
     "deny": [],
     "ask": []
