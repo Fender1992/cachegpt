@@ -113,7 +113,28 @@ export async function chatV2Command(): Promise<void> {
       validate: (input) => input.length > 0 || 'Session token is required'
     });
 
-    // Now select LLM provider
+    console.log(chalk.gray('✅ Session token received'));
+    console.log(chalk.gray('The browser will now guide you through provider selection and authentication...'));
+    console.log(chalk.yellow('🔄 Return here after completing the browser setup'));
+
+    // Wait for user confirmation that they completed browser setup
+    const { completed } = await inquirer.prompt({
+      type: 'confirm',
+      name: 'completed',
+      message: 'Have you completed the provider setup in the browser?',
+      default: false
+    });
+
+    if (!completed) {
+      console.log(chalk.gray('Please complete the browser setup and run the command again.'));
+      return;
+    }
+
+    // Now try to load provider credentials from the server
+    console.log(chalk.cyan('🔍 Loading your provider credentials...'));
+
+    // In a real implementation, we'd fetch from the API using sessionToken
+    // For now, we'll still ask for provider selection
     console.log(chalk.cyan('\n🤖 LLM Provider Setup'));
 
     const { provider } = await inquirer.prompt({

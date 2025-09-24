@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { supabase } from '@/lib/supabase-client'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Bot, Brain, Sparkles, Zap, Key, ArrowRight, CheckCircle2 } from 'lucide-react'
+import { Bot, Brain, Sparkles, Zap, Key, ArrowRight, CheckCircle2, ExternalLink, Shield } from 'lucide-react'
 
 function ProviderSetupContent() {
   const router = useRouter()
@@ -13,7 +13,7 @@ function ProviderSetupContent() {
   const [isLoading, setIsLoading] = useState(false)
   const [userEmail, setUserEmail] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [step, setStep] = useState<'select' | 'configure'>('select')
+  const [step, setStep] = useState<'select' | 'configure' | 'oauth'>('select')
 
   useEffect(() => {
     checkAuth()
@@ -28,10 +28,61 @@ function ProviderSetupContent() {
     setUserEmail(session.user.email || '')
   }
 
-  const handleProviderSelect = (provider: string) => {
+  const checkProviderOAuth = async (provider: string): Promise<boolean> => {
+    // For now, most providers don't have OAuth - return false
+    // In the future, we can check which providers support OAuth
+    const oauthProviders = ['google'] // Only Google has proper OAuth for AI
+    return oauthProviders.includes(provider)
+  }
+
+  const handleProviderOAuth = async (provider: string) => {
+    setIsLoading(true)
+    try {
+      // Generate state parameter for OAuth security
+      const state = btoa(JSON.stringify({
+        provider,
+        userEmail,
+        returnTo: 'cli',
+        timestamp: Date.now()
+      }))
+
+      // Redirect to provider OAuth
+      if (provider === 'google') {
+        const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+        const redirectUri = encodeURIComponent(`${window.location.origin}/auth/provider-callback`)
+        const scopes = encodeURIComponent('https://www.googleapis.com/auth/generative-language')
+
+        const oauthUrl = `https://accounts.google.com/oauth2/auth?` +
+          `client_id=${clientId}&` +
+          `redirect_uri=${redirectUri}&` +
+          `scope=${scopes}&` +
+          `response_type=code&` +
+          `state=${state}&` +
+          `access_type=offline&` +
+          `prompt=consent`
+
+        window.location.href = oauthUrl
+      }
+    } catch (error: any) {
+      setError('Failed to initiate OAuth: ' + error.message)
+      setIsLoading(false)
+    }
+  }
+
+  const handleProviderSelect = async (provider: string) => {
     setSelectedProvider(provider)
-    setStep('configure')
     setError(null)
+
+    // Check if provider supports OAuth or needs API key
+    const supportsOAuth = await checkProviderOAuth(provider)
+
+    if (supportsOAuth) {
+      // Show OAuth option first
+      setStep('oauth')
+    } else {
+      // Go directly to API key setup
+      setStep('configure')
+    }
   }
 
   const getProviderInstructions = (provider: string) => {
@@ -196,18 +247,82 @@ function ProviderSetupContent() {
                 </button>
               </div>
             </>
-          ) : (
+          ) : step === 'oauth' ? (
             <>
               <button
                 onClick={() => {
                   setStep('select')
                   setSelectedProvider(null)
-                  setApiKey('')
                   setError(null)
                 }}
                 className="text-gray-400 hover:text-white mb-6 flex items-center gap-2"
               >
                 ← Back to providers
+              </button>
+
+              <div className="text-center mb-8">
+                <Shield className="w-12 h-12 mx-auto mb-4 text-green-500" />
+                <h1 className="text-2xl font-bold mb-2">Connect to {selectedProvider === 'chatgpt' ? 'OpenAI' : selectedProvider === 'claude' ? 'Anthropic' : selectedProvider === 'gemini' ? 'Google' : 'Perplexity'}</h1>
+                <p className="text-gray-400">Choose how you want to authenticate</p>
+              </div>
+
+              <div className="space-y-4 mb-6">
+                <div className="p-6 bg-gradient-to-r from-green-500/10 to-green-600/10 border border-green-500/20 rounded-xl">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="font-semibold text-green-400 mb-2">🔐 OAuth Authentication (Recommended)</h3>
+                      <p className="text-sm text-gray-300">Secure login directly through the provider</p>
+                    </div>
+                    <ExternalLink className="w-6 h-6 text-green-400" />
+                  </div>
+                  <button
+                    onClick={() => handleProviderOAuth(selectedProvider!)}
+                    disabled={isLoading || selectedProvider !== 'google'}
+                    className="w-full py-3 px-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                  >
+                    {selectedProvider === 'google' ? 'Connect with Google OAuth' : 'Coming Soon'}
+                  </button>
+                  {selectedProvider !== 'google' && (
+                    <p className="text-xs text-gray-500 mt-2">OAuth support coming soon for this provider</p>
+                  )}
+                </div>
+
+                <div className="text-center text-gray-500">
+                  <div className="flex items-center">
+                    <div className="flex-1 border-t border-gray-700"></div>
+                    <span className="px-3 text-sm">or</span>
+                    <div className="flex-1 border-t border-gray-700"></div>
+                  </div>
+                </div>
+
+                <div className="p-6 bg-gray-800/30 border border-gray-700 rounded-xl">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="font-semibold text-gray-300 mb-2">🔑 API Key</h3>
+                      <p className="text-sm text-gray-400">Use your existing API key</p>
+                    </div>
+                    <Key className="w-6 h-6 text-gray-400" />
+                  </div>
+                  <button
+                    onClick={() => setStep('configure')}
+                    className="w-full py-3 px-4 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition-colors"
+                  >
+                    Enter API Key Instead
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => {
+                  setStep('oauth')
+                  setApiKey('')
+                  setError(null)
+                }}
+                className="text-gray-400 hover:text-white mb-6 flex items-center gap-2"
+              >
+                ← Back to authentication options
               </button>
 
               <div className="text-center mb-8">
