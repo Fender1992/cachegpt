@@ -270,7 +270,7 @@ function ProviderSetupContent() {
                   setSelectedProvider(null)
                   setError(null)
                 }}
-                className="text-gray-400 hover:text-white mb-6 flex items-center gap-2"
+                className="text-gray-200 hover:text-white mb-6 flex items-center gap-2"
               >
                 ← Back to providers
               </button>
@@ -278,7 +278,7 @@ function ProviderSetupContent() {
               <div className="text-center mb-8">
                 <Shield className="w-12 h-12 mx-auto mb-4 text-green-500" />
                 <h1 className="text-2xl font-bold mb-2">Connect to {selectedProvider === 'chatgpt' ? 'OpenAI' : selectedProvider === 'claude' ? 'Anthropic' : selectedProvider === 'gemini' ? 'Google' : 'Perplexity'}</h1>
-                <p className="text-gray-400">Choose how you want to authenticate</p>
+                <p className="text-gray-200">Choose how you want to authenticate</p>
               </div>
 
               <div className="space-y-4 mb-6">
@@ -291,7 +291,7 @@ function ProviderSetupContent() {
                           '🔐 OAuth Authentication (Recommended)'
                         }
                       </h3>
-                      <p className="text-sm text-gray-300">
+                      <p className="text-sm text-gray-200">
                         {['claude', 'openai', 'perplexity'].includes(selectedProvider!) ?
                           'Automatically capture your API key from the provider console' :
                           'Secure login directly through the provider'
@@ -312,10 +312,10 @@ function ProviderSetupContent() {
                   </button>
                 </div>
 
-                <div className="text-center text-gray-500">
+                <div className="text-center text-gray-300">
                   <div className="flex items-center">
                     <div className="flex-1 border-t border-gray-700"></div>
-                    <span className="px-3 text-sm">or</span>
+                    <span className="px-3 text-base">or</span>
                     <div className="flex-1 border-t border-gray-700"></div>
                   </div>
                 </div>
@@ -323,8 +323,8 @@ function ProviderSetupContent() {
                 <div className="p-6 bg-gray-800/30 border border-gray-700 rounded-xl">
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <h3 className="font-semibold text-gray-300 mb-2">🔑 API Key</h3>
-                      <p className="text-sm text-gray-400">Use your existing API key</p>
+                      <h3 className="font-semibold text-white mb-2">🔑 API Key</h3>
+                      <p className="text-base text-gray-200">Use your existing API key</p>
                     </div>
                     <Key className="w-6 h-6 text-gray-400" />
                   </div>

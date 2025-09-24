@@ -139,14 +139,14 @@ function KeyCaptureContent() {
               </div>
 
               <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-6 mb-8">
-                <h3 className="font-semibold text-blue-400 mb-4">How it works:</h3>
-                <ol className="space-y-2 text-sm text-gray-300">
+                <h3 className="font-semibold text-blue-300 mb-4">How it works:</h3>
+                <ol className="space-y-3 text-base text-white">
                   {config.instructions.map((instruction, index) => (
                     <li key={index} className="flex items-start gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 bg-blue-600/20 text-blue-400 rounded-full flex items-center justify-center text-xs font-semibold">
+                      <span className="flex-shrink-0 w-7 h-7 bg-blue-500/30 text-blue-200 rounded-full flex items-center justify-center text-sm font-bold">
                         {index + 1}
                       </span>
-                      <span>{instruction}</span>
+                      <span className="pt-0.5">{instruction}</span>
                     </li>
                   ))}
                 </ol>
