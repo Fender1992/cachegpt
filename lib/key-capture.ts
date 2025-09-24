@@ -22,42 +22,42 @@ export const PROVIDER_CAPTURE_CONFIGS = {
     ]
   },
   openai: {
-    loginUrl: 'https://platform.openai.com/login',
-    keyPageUrl: 'https://platform.openai.com/api-keys',
+    loginUrl: 'https://platform.openai.com/',
+    keyPageUrl: 'https://platform.openai.com/',
     keySelector: '[data-testid="api-key-row"]',
     keyPattern: /^sk-[a-zA-Z0-9_-]+$/,
     name: 'OpenAI',
     instructions: [
       'You will be redirected to OpenAI Platform',
-      'Sign in with your OpenAI account',
-      'We will automatically capture your API key',
-      'The browser will close automatically'
+      'Sign in with your OpenAI account if needed',
+      'Navigate to API Keys if you have one, or we will redirect you',
+      'We will automatically capture your API key'
     ]
   },
   google: {
     loginUrl: 'https://makersuite.google.com/',
-    keyPageUrl: 'https://makersuite.google.com/app/apikey',
+    keyPageUrl: 'https://makersuite.google.com/',
     keySelector: '[data-testid="api-key"]',
     keyPattern: /^AIza[a-zA-Z0-9_-]+$/,
     name: 'Google AI Studio',
     instructions: [
       'You will be redirected to Google AI Studio',
-      'Sign in with your Google account',
-      'We will automatically capture your API key',
-      'The browser will close automatically'
+      'Sign in with your Google account if needed',
+      'Navigate to API Keys if you have one, or we will redirect you',
+      'We will automatically capture your API key'
     ]
   },
   perplexity: {
-    loginUrl: 'https://www.perplexity.ai/settings/api',
-    keyPageUrl: 'https://www.perplexity.ai/settings/api',
+    loginUrl: 'https://www.perplexity.ai/',
+    keyPageUrl: 'https://www.perplexity.ai/',
     keySelector: '[data-testid="api-key"]',
     keyPattern: /^pplx-[a-zA-Z0-9_-]+$/,
     name: 'Perplexity',
     instructions: [
-      'You will be redirected to Perplexity',
-      'Sign in with your Perplexity account',
-      'We will automatically capture your API key',
-      'The browser will close automatically'
+      'You will be redirected to Perplexity chat interface',
+      'Sign in with your Perplexity account if needed',
+      'Navigate to API settings if you have a key, or we will redirect you',
+      'We will automatically capture your API key'
     ]
   }
 };
@@ -114,52 +114,77 @@ export function generateKeyCaptureScript(provider: string) {
         console.log('Claude auth check error:', e);
       }
     } else {
-      // Standard API key capture for other providers
-      const selectors = [
-        config.keySelector,
-        '[data-testid*="api-key"]',
-        '[class*="api-key"]',
-        'input[value*="sk-"]',
-        'input[value*="AIza"]',
-        'input[value*="pplx-"]',
-        'code:contains("sk-")',
-        'pre:contains("sk-")'
-      ];
+      // Standard API key capture for other providers with intelligent redirect
+      try {
+        // First check if we're authenticated and need to redirect to API keys page
+        const isAuthenticated = checkProviderAuthentication(provider);
 
-      for (const selector of selectors) {
-        try {
-          const element = document.querySelector(selector);
-          if (element) {
-            let keyValue = '';
-
-            // Try different ways to get the key
-            if (element.value) {
-              keyValue = element.value;
-            } else if (element.textContent) {
-              keyValue = element.textContent.trim();
-            } else if (element.innerText) {
-              keyValue = element.innerText.trim();
-            }
-
-            // Validate key pattern
-            if (keyValue && config.keyPattern.test(keyValue)) {
-              // Found valid API key!
-              sendKeyToServer(keyValue);
-              return;
-            }
-          }
-        } catch (e) {
-          // Continue trying other selectors
+        if (isAuthenticated && !isOnApiKeysPage(provider)) {
+          // User is authenticated but not on API keys page - redirect them
+          redirectToApiKeysPage(provider);
+          return;
         }
-      }
 
-      // Also scan page text for keys (non-Claude providers)
-      const pageText = document.body.innerText || document.body.textContent || '';
-      const keyMatch = pageText.match(config.keyPattern);
+        // Look for existing API keys on the page
+        const selectors = [
+          config.keySelector,
+          '[data-testid*="api-key"]',
+          '[class*="api-key"]',
+          'input[value*="sk-"]',
+          'input[value*="AIza"]',
+          'input[value*="pplx-"]',
+          'code:contains("sk-")',
+          'pre:contains("sk-")',
+          '.api-key',
+          '[data-key]',
+          '[data-secret-key]'
+        ];
 
-      if (keyMatch) {
-        sendKeyToServer(keyMatch[0]);
-        return;
+        for (const selector of selectors) {
+          try {
+            const element = document.querySelector(selector);
+            if (element) {
+              let keyValue = '';
+
+              // Try different ways to get the key
+              if (element.value) {
+                keyValue = element.value;
+              } else if (element.textContent) {
+                keyValue = element.textContent.trim();
+              } else if (element.innerText) {
+                keyValue = element.innerText.trim();
+              }
+
+              // Validate key pattern
+              if (keyValue && config.keyPattern.test(keyValue)) {
+                // Found valid API key!
+                sendKeyToServer(keyValue);
+                return;
+              }
+            }
+          } catch (e) {
+            // Continue trying other selectors
+          }
+        }
+
+        // Also scan page text for keys (non-Claude providers)
+        const pageText = document.body.innerText || document.body.textContent || '';
+        const keyMatch = pageText.match(config.keyPattern);
+
+        if (keyMatch) {
+          sendKeyToServer(keyMatch[0]);
+          return;
+        }
+
+        // Check if user needs to sign in
+        const needsLogin = checkIfNeedsLogin(provider);
+        if (needsLogin && captureAttempts > 30) {
+          sendError(\`Please sign in to your \${config.name} account to continue authentication.\`);
+          return;
+        }
+
+      } catch (e) {
+        console.log(\`\${provider} auth check error:\`, e);
       }
     }
 
@@ -209,6 +234,76 @@ export function generateKeyCaptureScript(provider: string) {
     } catch (e) {
       console.error('Failed to extract Claude session token:', e);
       return null;
+    }
+  }
+
+  function checkProviderAuthentication(provider) {
+    try {
+      if (provider === 'openai') {
+        // Check for OpenAI dashboard elements
+        return document.querySelector('.dashboard') ||
+               document.querySelector('[data-testid="user-menu"]') ||
+               document.querySelector('.user-avatar') ||
+               !document.querySelector('.auth-form');
+      } else if (provider === 'google') {
+        // Check for Google AI Studio authenticated elements
+        return document.querySelector('.user-info') ||
+               document.querySelector('[data-testid="account-menu"]') ||
+               document.querySelector('.avatar') ||
+               !document.querySelector('.signin-button');
+      } else if (provider === 'perplexity') {
+        // Check for Perplexity authenticated elements
+        return document.querySelector('.user-menu') ||
+               document.querySelector('.profile') ||
+               document.querySelector('[data-testid="user-avatar"]') ||
+               !document.querySelector('.login-button');
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function isOnApiKeysPage(provider) {
+    const url = window.location.href;
+    if (provider === 'openai') {
+      return url.includes('/api-keys') || url.includes('/keys');
+    } else if (provider === 'google') {
+      return url.includes('/apikey') || url.includes('/api-key');
+    } else if (provider === 'perplexity') {
+      return url.includes('/settings/api') || url.includes('/api');
+    }
+    return false;
+  }
+
+  function redirectToApiKeysPage(provider) {
+    if (provider === 'openai') {
+      window.location.href = 'https://platform.openai.com/api-keys?' + new URLSearchParams(window.location.search).toString();
+    } else if (provider === 'google') {
+      window.location.href = 'https://makersuite.google.com/app/apikey?' + new URLSearchParams(window.location.search).toString();
+    } else if (provider === 'perplexity') {
+      window.location.href = 'https://www.perplexity.ai/settings/api?' + new URLSearchParams(window.location.search).toString();
+    }
+  }
+
+  function checkIfNeedsLogin(provider) {
+    try {
+      if (provider === 'openai') {
+        return document.querySelector('.auth-form') ||
+               document.querySelector('.login-form') ||
+               document.querySelector('input[type="email"]');
+      } else if (provider === 'google') {
+        return document.querySelector('.signin-button') ||
+               document.querySelector('.login-button') ||
+               document.querySelector('input[type="email"]');
+      } else if (provider === 'perplexity') {
+        return document.querySelector('.login-button') ||
+               document.querySelector('.auth-form') ||
+               document.querySelector('input[type="email"]');
+      }
+      return false;
+    } catch (e) {
+      return false;
     }
   }
 

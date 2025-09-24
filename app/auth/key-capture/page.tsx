@@ -31,11 +31,11 @@ function KeyCaptureContent() {
     setStatus('capturing')
     setMessage('Opening provider login...')
 
-    // Generate capture URL with session tracking
-    const captureUrl = `${config.keyPageUrl}?session=${sessionId}&auto_capture=true`
+    // Generate capture URL through our intermediate page
+    const captureUrl = `/auth/provider-capture?provider=${provider}&session=${sessionId}&target=${encodeURIComponent(config.keyPageUrl)}`
 
-    // Open the provider login in a new window
-    const captureWindow = window.open(captureUrl, 'key_capture', 'width=800,height=600,scrollbars=yes,resizable=yes')
+    // Open our capture page in a new window
+    const captureWindow = window.open(captureUrl, 'key_capture', 'width=900,height=700,scrollbars=yes,resizable=yes')
 
     if (!captureWindow) {
       setStatus('error')
