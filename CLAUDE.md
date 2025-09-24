@@ -30,3 +30,4 @@
 - Commands: Use `cachegpt` not `llm-cache`
 - Auth flow: OAuth → Provider Selection → Chat
 - No API key screens for individual users
+- STATUS_2025_09_24.md

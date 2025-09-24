@@ -10,14 +10,14 @@ const providers = [
   {
     id: 'chatgpt',
     name: 'ChatGPT',
-    description: 'OpenAI GPT-4 Turbo',
+    description: 'OpenAI GPT-5',
     icon: Bot,
     color: 'green'
   },
   {
     id: 'claude',
     name: 'Claude',
-    description: 'Anthropic Claude 3',
+    description: 'Anthropic Opus 4.1',
     icon: Brain,
     color: 'purple'
   },

@@ -11,25 +11,25 @@ export async function GET(request: NextRequest) {
         "name": "ChatGPT",
         "models": [
           {
-            "id": "gpt-4-turbo-preview",
-            "name": "GPT-4 Turbo",
+            "id": "gpt-5",
+            "name": "GPT-5",
             "default": true,
-            "maxTokens": 128000
+            "maxTokens": 256000
           },
           {
-            "id": "gpt-4-vision-preview",
-            "name": "GPT-4 Vision",
+            "id": "gpt-5-vision",
+            "name": "GPT-5 Vision",
+            "maxTokens": 256000
+          },
+          {
+            "id": "gpt-4-turbo-preview",
+            "name": "GPT-4 Turbo",
             "maxTokens": 128000
           },
           {
             "id": "gpt-4",
             "name": "GPT-4",
             "maxTokens": 8192
-          },
-          {
-            "id": "gpt-3.5-turbo",
-            "name": "GPT-3.5 Turbo",
-            "maxTokens": 16384
           }
         ]
       },
@@ -37,19 +37,19 @@ export async function GET(request: NextRequest) {
         "name": "Claude",
         "models": [
           {
+            "id": "claude-opus-4-1-20250805",
+            "name": "Claude Opus 4.1",
+            "default": true,
+            "maxTokens": 500000
+          },
+          {
             "id": "claude-3-opus-20240229",
             "name": "Claude 3 Opus",
-            "default": true,
             "maxTokens": 200000
           },
           {
             "id": "claude-3-sonnet-20240229",
             "name": "Claude 3 Sonnet",
-            "maxTokens": 200000
-          },
-          {
-            "id": "claude-3-haiku-20240307",
-            "name": "Claude 3 Haiku",
             "maxTokens": 200000
           }
         ]
