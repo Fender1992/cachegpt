@@ -439,7 +439,7 @@ export default function Home() {
               <div className="font-mono space-y-3">
                 <div className="flex items-start">
                   <span className="text-green-400 mr-2">$</span>
-                  <span className="text-white">npm install -g cachegpt-cli@latest && llm-cache chat</span>
+                  <span className="text-white">npm install -g cachegpt-cli@latest && cachegpt chat</span>
                 </div>
                 <div className="text-gray-400 ml-4">✓ That's it. You're now saving 80% on API costs.</div>
               </div>

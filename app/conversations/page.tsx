@@ -181,7 +181,7 @@ export default function ConversationsPage() {
                   <div className="p-4">Loading...</div>
                 ) : conversations.length === 0 ? (
                   <div className="p-4 text-muted-foreground">
-                    No conversations synced yet. Run `llm-cache sync-claude` to sync your Claude Code conversations.
+                    No conversations synced yet. Run `cachegpt sync-claude` to sync your Claude Code conversations.
                   </div>
                 ) : (
                   <div className="divide-y">
