@@ -4,5 +4,19 @@
   "buildCommand": "yarn build",
   "installCommand": "yarn install",
   "outputDirectory": ".next",
-  "public": true
+  "public": true,
+  "crons": [
+    {
+      "path": "/api/cron/model-update",
+      "schedule": "0 6 * * *"
+    }
+  ],
+  "functions": {
+    "app/api/chat/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/cron/model-update/route.ts": {
+      "maxDuration": 10
+    }
+  }
 }

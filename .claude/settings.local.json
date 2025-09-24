@@ -83,7 +83,8 @@
       "Bash(grep:*)",
       "Bash(sudo npm install:*)",
       "Bash(llm-cache:*)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(cachegpt:*)"
     ],
     "deny": [],
     "ask": []
