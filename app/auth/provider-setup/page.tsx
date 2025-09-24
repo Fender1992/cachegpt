@@ -29,25 +29,38 @@ function ProviderSetupContent() {
   }
 
   const checkProviderOAuth = async (provider: string): Promise<boolean> => {
-    // For now, most providers don't have OAuth - return false
-    // In the future, we can check which providers support OAuth
+    // Providers that support auto key capture (preferred over OAuth for now)
+    const autoCaptureProviders = ['claude', 'openai', 'perplexity']
     const oauthProviders = ['google'] // Only Google has proper OAuth for AI
-    return oauthProviders.includes(provider)
+
+    // Prefer auto-capture over OAuth for better UX
+    return autoCaptureProviders.includes(provider) || oauthProviders.includes(provider)
   }
 
   const handleProviderOAuth = async (provider: string) => {
     setIsLoading(true)
     try {
-      // Generate state parameter for OAuth security
-      const state = btoa(JSON.stringify({
-        provider,
-        userEmail,
-        returnTo: 'cli',
-        timestamp: Date.now()
-      }))
+      // Generate session ID for capture
+      const sessionId = `capture_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
-      // Redirect to provider OAuth
+      // Check if provider supports auto-capture
+      const autoCaptureProviders = ['claude', 'openai', 'perplexity']
+
+      if (autoCaptureProviders.includes(provider)) {
+        // Redirect to auto-capture flow
+        window.location.href = `/auth/key-capture?provider=${provider}&session=${sessionId}&source=cli`
+        return
+      }
+
+      // For Google, use OAuth
       if (provider === 'google') {
+        const state = btoa(JSON.stringify({
+          provider,
+          userEmail,
+          returnTo: 'cli',
+          timestamp: Date.now()
+        }))
+
         const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
         const redirectUri = encodeURIComponent(`${window.location.origin}/auth/provider-callback`)
         const scopes = encodeURIComponent('https://www.googleapis.com/auth/generative-language')
@@ -62,9 +75,11 @@ function ProviderSetupContent() {
           `prompt=consent`
 
         window.location.href = oauthUrl
+        return
       }
+
     } catch (error: any) {
-      setError('Failed to initiate OAuth: ' + error.message)
+      setError('Failed to initiate authentication: ' + error.message)
       setIsLoading(false)
     }
   }
@@ -270,21 +285,31 @@ function ProviderSetupContent() {
                 <div className="p-6 bg-gradient-to-r from-green-500/10 to-green-600/10 border border-green-500/20 rounded-xl">
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <h3 className="font-semibold text-green-400 mb-2">🔐 OAuth Authentication (Recommended)</h3>
-                      <p className="text-sm text-gray-300">Secure login directly through the provider</p>
+                      <h3 className="font-semibold text-green-400 mb-2">
+                        {['claude', 'openai', 'perplexity'].includes(selectedProvider!) ?
+                          '🔐 Auto-Capture (Recommended)' :
+                          '🔐 OAuth Authentication (Recommended)'
+                        }
+                      </h3>
+                      <p className="text-sm text-gray-300">
+                        {['claude', 'openai', 'perplexity'].includes(selectedProvider!) ?
+                          'Automatically capture your API key from the provider console' :
+                          'Secure login directly through the provider'
+                        }
+                      </p>
                     </div>
                     <ExternalLink className="w-6 h-6 text-green-400" />
                   </div>
                   <button
                     onClick={() => handleProviderOAuth(selectedProvider!)}
-                    disabled={isLoading || selectedProvider !== 'google'}
+                    disabled={isLoading}
                     className="w-full py-3 px-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
                   >
-                    {selectedProvider === 'google' ? 'Connect with Google OAuth' : 'Coming Soon'}
+                    {['claude', 'openai', 'perplexity'].includes(selectedProvider!) ?
+                      `Auto-Capture from ${selectedProvider === 'openai' ? 'OpenAI' : selectedProvider === 'claude' ? 'Anthropic' : 'Perplexity'}` :
+                      'Connect with Google OAuth'
+                    }
                   </button>
-                  {selectedProvider !== 'google' && (
-                    <p className="text-xs text-gray-500 mt-2">OAuth support coming soon for this provider</p>
-                  )}
                 </div>
 
                 <div className="text-center text-gray-500">

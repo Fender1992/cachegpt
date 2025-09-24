@@ -56,6 +56,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../app/auth/key-capture/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/auth/key-capture">> = Specific
+  const handler = {} as typeof import("../../app/auth/key-capture/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../app/auth/provider-callback/page.tsx
 {
   type __IsExpected<Specific extends AppPageConfig<"/auth/provider-callback">> = Specific
@@ -177,6 +186,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
 {
   type __IsExpected<Specific extends AppPageConfig<"/terms">> = Specific
   const handler = {} as typeof import("../../app/terms/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../app/api/auth/capture-key/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/auth/capture-key">> = Specific
+  const handler = {} as typeof import("../../app/api/auth/capture-key/route.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check
