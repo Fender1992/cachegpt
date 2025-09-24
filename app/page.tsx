@@ -238,9 +238,9 @@ export default function Home() {
             {/* One-line install */}
             <div className="glass-card rounded-xl p-4 inline-flex items-center space-x-4 mb-8">
               <Terminal className="w-5 h-5 text-gray-500" />
-              <code className="text-lg font-mono">npm install -g cachegpt</code>
+              <code className="text-lg font-mono">npm install -g cachegpt-cli</code>
               <button
-                onClick={() => navigator.clipboard.writeText('npm install -g cachegpt')}
+                onClick={() => navigator.clipboard.writeText('npm install -g cachegpt-cli')}
                 className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 rounded text-sm hover:bg-purple-200 dark:hover:bg-purple-900/50 transition"
               >
                 Copy
@@ -439,7 +439,7 @@ export default function Home() {
               <div className="font-mono space-y-3">
                 <div className="flex items-start">
                   <span className="text-green-400 mr-2">$</span>
-                  <span className="text-white">npm install -g cachegpt && cachegpt start</span>
+                  <span className="text-white">npm install -g cachegpt-cli && llm-cache start</span>
                 </div>
                 <div className="text-gray-400 ml-4">✓ That's it. You're now saving 80% on API costs.</div>
               </div>
