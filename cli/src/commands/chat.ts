@@ -119,7 +119,7 @@ export async function chatCommand(): Promise<void> {
 
     console.log();
     console.log(chalk.gray('1. Complete OAuth login (Google/GitHub)'));
-    console.log(chalk.gray('2. Select your LLM provider and complete authentication'));
+    console.log(chalk.gray('2. Select your LLM provider'));
     console.log(chalk.gray('3. Browser will automatically redirect back to CLI'));
     console.log();
     console.log(chalk.yellow('⏳ Waiting for authentication to complete...'));
