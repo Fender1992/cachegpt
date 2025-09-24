@@ -16,6 +16,7 @@ import { loginCommand } from './commands/login';
 import { authStatusCommand } from './commands/auth-status';
 import { templatesCommand } from './commands/templates';
 import { chatApiCommand } from './commands/chat-api';
+import { versionCommand } from './commands/version';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -45,8 +46,8 @@ process.on('unhandledRejection', (reason, promise) => {
 
 program
   .name('cachegpt')
-  .description('CacheGPT CLI - Intelligent LLM caching with browser authentication')
-  .version(getVersion());
+  .description('CacheGPT CLI - Intelligent LLM caching with automated provider authentication')
+  .version(getVersion(), '-v, --version', 'Display version number');
 
 program
   .command('init')
@@ -136,6 +137,12 @@ program
   .command('templates [action] [args...]')
   .description('Manage prompt templates for common tasks')
   .action(templatesCommand);
+
+program
+  .command('version')
+  .alias('v')
+  .description('Check version and update information')
+  .action(versionCommand);
 
 // Parse CLI arguments
 program.parse();

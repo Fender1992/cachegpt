@@ -2,12 +2,32 @@ import chalk from 'chalk';
 import { loadConfig } from '../lib/config';
 import { CredentialStore } from '../lib/credential-store';
 import { isTokenExpired } from '../lib/oauth';
+import * as fs from 'fs';
+import * as path from 'path';
+
+// Get version from package.json
+function getVersion(): string {
+  try {
+    const packageJsonPath = path.join(__dirname, '../../package.json');
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+    return packageJson.version;
+  } catch (error) {
+    return 'unknown';
+  }
+}
 
 export async function statusCommand(): Promise<void> {
   const config = loadConfig();
   const credentialStore = new CredentialStore();
+  const version = getVersion();
 
-  console.log(chalk.cyan.bold('\n📊 CacheGPT Status\n'));
+  console.log(chalk.cyan.bold('\n📊 CacheGPT CLI Status\n'));
+
+  // Display version info prominently
+  console.log(chalk.white('Version Information:'));
+  console.log(chalk.green(`  📦 CLI Version: v${version}`));
+  console.log(chalk.gray('  💡 Latest: npm install -g cachegpt-cli@latest'));
+  console.log();
 
   if (!config) {
     console.log(chalk.red('❌ Not configured'));

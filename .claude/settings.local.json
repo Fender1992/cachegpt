@@ -79,7 +79,8 @@
       "Bash(git log:*)",
       "Bash(npm version:*)",
       "Bash(xargs rm:*)",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []
