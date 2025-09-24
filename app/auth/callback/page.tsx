@@ -36,6 +36,7 @@ function AuthCallbackContent() {
 
       const source = urlSource || (cliState && cliState.source) || null
       const returnTo = urlReturnTo || (cliState && cliState.return_to) || null
+      const finalCallbackPort = callbackPort || (cliState && cliState.callback_port) || null
 
       try {
         // Get the code from URL
@@ -120,8 +121,8 @@ function AuthCallbackContent() {
               source: source || 'cli',
               return_to: returnTo || 'terminal'
             })
-            if (callbackPort) {
-              params.set('callback_port', callbackPort)
+            if (finalCallbackPort) {
+              params.set('callback_port', finalCallbackPort)
             }
             const successUrl = `/auth/success?${params.toString()}`
             router.push(successUrl)

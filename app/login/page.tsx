@@ -32,7 +32,10 @@ export default async function LoginPage({
 
       {/* Main Content */}
       <main className="flex-1 flex items-center justify-center p-6">
-        <AuthForm isFromCLI={isFromCLI} />
+        <AuthForm
+          isFromCLI={isFromCLI}
+          callbackPort={params?.callback_port}
+        />
       </main>
 
       {/* Footer */}

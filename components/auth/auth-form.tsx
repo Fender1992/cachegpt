@@ -9,9 +9,10 @@ import {
 
 interface AuthFormProps {
   isFromCLI?: boolean
+  callbackPort?: string
 }
 
-export function AuthForm({ isFromCLI = false }: AuthFormProps) {
+export function AuthForm({ isFromCLI = false, callbackPort }: AuthFormProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -81,9 +82,17 @@ export function AuthForm({ isFromCLI = false }: AuthFormProps) {
         }
 
         // Redirect to success page with CLI parameters if from CLI
-        const redirectUrl = isFromCLI
-          ? `/auth/success?source=cli&return_to=terminal`
-          : '/'
+        let redirectUrl = '/'
+        if (isFromCLI) {
+          const params = new URLSearchParams({
+            source: 'cli',
+            return_to: 'terminal'
+          })
+          if (callbackPort) {
+            params.set('callback_port', callbackPort)
+          }
+          redirectUrl = `/auth/success?${params.toString()}`
+        }
         window.location.href = redirectUrl
       }
     } catch (error: any) {
@@ -103,6 +112,7 @@ export function AuthForm({ isFromCLI = false }: AuthFormProps) {
         const cliState = {
           source: 'cli',
           return_to: 'terminal',
+          callback_port: callbackPort,
           timestamp: Date.now()
         }
         localStorage.setItem('cli_auth_flow', JSON.stringify(cliState))

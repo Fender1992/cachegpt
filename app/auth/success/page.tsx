@@ -105,9 +105,12 @@ function AuthSuccessContent() {
     localStorage.setItem('userEmail', userEmail)
 
     const params = new URLSearchParams({
-      provider: provider,
-      source: 'cli'
+      provider: provider
     })
+    // Only mark as CLI if actually from CLI
+    if (isFromCLI) {
+      params.set('source', 'cli')
+    }
     if (callbackPort) {
       params.set('callback_port', callbackPort)
     }
