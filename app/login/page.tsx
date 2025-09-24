@@ -5,7 +5,7 @@ import Link from 'next/link'
 export default async function LoginPage({
   searchParams
 }: {
-  searchParams: Promise<{ source?: string; return_to?: string }>
+  searchParams: Promise<{ source?: string; return_to?: string; callback_port?: string }>
 }) {
   const params = await searchParams;
   const isFromCLI = params?.source === 'cli' || params?.return_to === 'terminal';

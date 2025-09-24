@@ -82,7 +82,15 @@ function AuthSuccessContent() {
     localStorage.setItem('userEmail', userEmail)
 
     // Redirect to the provider setup page to get API key
-    window.location.href = `/auth/provider-setup?provider=${provider}&source=cli`
+    const params = new URLSearchParams({
+      provider: provider,
+      source: 'cli'
+    })
+    const callbackPort = searchParams.get('callback_port')
+    if (callbackPort) {
+      params.set('callback_port', callbackPort)
+    }
+    window.location.href = `/auth/provider-setup?${params.toString()}`
   }
 
 

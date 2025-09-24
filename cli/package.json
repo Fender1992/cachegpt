@@ -45,7 +45,7 @@
     "@supabase/supabase-js": "^2.57.4",
     "chalk": "^4.1.2",
     "commander": "^11.0.0",
-    "dotenv": "^16.6.1",
+    "dotenv": "^17.2.2",
     "inquirer": "^12.9.6",
     "open": "^10.2.0",
     "openai": "^5.23.0",

@@ -13,6 +13,7 @@ function AuthCallbackContent() {
       // Check for CLI parameters from URL or localStorage
       const urlSource = searchParams.get('source')
       const urlReturnTo = searchParams.get('return_to')
+      const callbackPort = searchParams.get('callback_port')
 
 
       // Also check localStorage for CLI state (preserved through OAuth)
@@ -115,7 +116,14 @@ function AuthCallbackContent() {
           // Redirect based on source
           if (isFromCLI) {
             // For CLI users, redirect to success page with CLI parameters
-            const successUrl = `/auth/success?source=${source || 'cli'}&return_to=${returnTo || 'terminal'}`
+            const params = new URLSearchParams({
+              source: source || 'cli',
+              return_to: returnTo || 'terminal'
+            })
+            if (callbackPort) {
+              params.set('callback_port', callbackPort)
+            }
+            const successUrl = `/auth/success?${params.toString()}`
             router.push(successUrl)
           } else {
             // For web users, redirect to home page

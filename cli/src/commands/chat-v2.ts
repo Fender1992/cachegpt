@@ -8,6 +8,12 @@ import * as os from 'os';
 import { createInterface } from 'readline';
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
+import { createServer, Server } from 'http';
+import { parse } from 'url';
+import { config } from 'dotenv';
+
+// Load environment variables
+config();
 
 interface LocalConfig {
   provider: 'openai' | 'anthropic' | 'google' | 'perplexity';
@@ -85,11 +91,23 @@ export async function chatV2Command(): Promise<void> {
       return;
     }
 
+    // Start local server to receive auth callback
+    console.log(chalk.cyan('\n🌐 Starting authentication server...'));
+
+    const authResult = await startAuthServer();
+    if (!authResult.success) {
+      console.log(chalk.red('Failed to start authentication server'));
+      return;
+    }
+
+    const { port, server } = authResult;
+    console.log(chalk.green(`✅ Auth server listening on port ${port}`));
+
     // Open browser for OAuth authentication
-    console.log(chalk.cyan('\n🌐 Opening browser for authentication...'));
+    console.log(chalk.cyan('🌐 Opening browser for authentication...'));
 
     const open = await import('open').catch(() => null);
-    const authUrl = `${process.env.CACHEGPT_APP_URL || 'https://cachegpt.app'}/login?source=cli&return_to=terminal`;
+    const authUrl = `${process.env.CACHEGPT_APP_URL || 'https://cachegpt.app'}/login?source=cli&return_to=terminal&callback_port=${port}`;
 
     if (open) {
       await open.default(authUrl);
@@ -101,34 +119,29 @@ export async function chatV2Command(): Promise<void> {
 
     console.log();
     console.log(chalk.gray('1. Complete OAuth login (Google/GitHub)'));
-    console.log(chalk.gray('2. Select your LLM provider'));
-    console.log(chalk.gray('3. Copy your session token'));
+    console.log(chalk.gray('2. Select your LLM provider and complete authentication'));
+    console.log(chalk.gray('3. Browser will automatically redirect back to CLI'));
     console.log();
+    console.log(chalk.yellow('⏳ Waiting for authentication to complete...'));
 
-    // Get session token from user
-    const { sessionToken } = await inquirer.prompt({
-      type: 'password',
-      name: 'sessionToken',
-      message: 'Paste your session token here:',
-      validate: (input) => input.length > 0 || 'Session token is required'
-    });
+    // Wait for authentication response
+    const authResponse = await waitForAuthCallback(server!, port!);
 
-    console.log(chalk.gray('✅ Session token received'));
-    console.log(chalk.gray('The browser will now guide you through provider selection and authentication...'));
-    console.log(chalk.yellow('🔄 Return here after completing the browser setup'));
-
-    // Wait for user confirmation that they completed browser setup
-    const { completed } = await inquirer.prompt({
-      type: 'confirm',
-      name: 'completed',
-      message: 'Have you completed the provider setup in the browser?',
-      default: false
-    });
-
-    if (!completed) {
-      console.log(chalk.gray('Please complete the browser setup and run the command again.'));
+    if (!authResponse.success) {
+      console.log(chalk.red('Authentication failed:', authResponse.error));
+      server!.close();
       return;
     }
+
+    console.log(chalk.green('✅ Authentication successful!'));
+
+    // Use the received credentials
+    config = {
+      provider: authResponse.provider as any,
+      apiKey: authResponse.apiKey || '',
+      model: authResponse.model,
+      user: authResponse.user
+    };
 
     // Now try to load provider credentials from the server
     console.log(chalk.cyan('🔍 Loading your provider credentials...'));
@@ -334,4 +347,112 @@ export async function chatV2Command(): Promise<void> {
   };
 
   prompt();
+}
+
+// Helper functions for local auth server
+async function startAuthServer(): Promise<{ success: boolean; port?: number; server?: Server; error?: string }> {
+  return new Promise((resolve) => {
+    const server = createServer((req, res) => {
+      const parsedUrl = parse(req.url || '', true);
+
+      if (parsedUrl.pathname === '/auth/callback') {
+        const { provider, apiKey, model, user, error } = parsedUrl.query;
+
+        // Send success response to browser
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(`
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Authentication Complete</title>
+            <style>
+              body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                     display: flex; align-items: center; justify-content: center; min-height: 100vh;
+                     margin: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+              .container { background: white; padding: 2rem; border-radius: 12px; text-align: center;
+                          box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-width: 400px; }
+              .success { color: #10B981; }
+              .error { color: #EF4444; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              ${error ? `
+                <h2 class="error">Authentication Failed</h2>
+                <p>Error: ${error}</p>
+              ` : `
+                <h2 class="success">Authentication Successful!</h2>
+                <p>You can now return to your terminal. This window will close automatically.</p>
+              `}
+            </div>
+            <script>
+              setTimeout(() => window.close(), ${error ? 5000 : 2000});
+            </script>
+          </body>
+          </html>
+        `);
+
+        // Trigger callback resolution
+        (server as any).authCallback = {
+          success: !error,
+          provider: provider as string,
+          apiKey: apiKey as string,
+          model: model as string,
+          user: user ? JSON.parse(user as string) : null,
+          error: error as string
+        };
+
+        return;
+      }
+
+      // 404 for other paths
+      res.writeHead(404);
+      res.end('Not found');
+    });
+
+    // Try to find an available port
+    const tryPort = (port: number) => {
+      server.listen(port, 'localhost', () => {
+        resolve({ success: true, port, server });
+      }).on('error', (err: any) => {
+        if (err.code === 'EADDRINUSE' && port < 9000) {
+          tryPort(port + 1);
+        } else {
+          resolve({ success: false, error: err.message });
+        }
+      });
+    };
+
+    tryPort(8787); // Start with port 8787
+  });
+}
+
+async function waitForAuthCallback(server: Server, port: number): Promise<{
+  success: boolean;
+  provider?: string;
+  apiKey?: string;
+  model?: string;
+  user?: any;
+  error?: string;
+}> {
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      server.close();
+      resolve({ success: false, error: 'Authentication timeout (5 minutes)' });
+    }, 5 * 60 * 1000); // 5 minute timeout
+
+    // Check for callback result every second
+    const checkCallback = () => {
+      const authCallback = (server as any).authCallback;
+      if (authCallback) {
+        clearTimeout(timeout);
+        server.close();
+        resolve(authCallback);
+        return;
+      }
+      setTimeout(checkCallback, 1000);
+    };
+
+    checkCallback();
+  });
 }

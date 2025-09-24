@@ -1,10 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
 
-export default function CLIAuthSuccess() {
+function CLIAuthSuccessContent() {
   const [provider, setProvider] = useState<string | null>(null)
+  const searchParams = useSearchParams()
+  const callbackPort = searchParams.get('callback_port')
 
   useEffect(() => {
     checkSession()
@@ -29,7 +32,32 @@ export default function CLIAuthSuccess() {
 
     const { data: { session } } = await supabase.auth.getSession()
     if (session) {
-      // Save provider selection
+      // Get provider credentials
+      const { data: credentials } = await supabase
+        .from('user_provider_credentials')
+        .select('api_key')
+        .eq('user_id', session.user.id)
+        .eq('provider', selectedProvider)
+        .single()
+
+      if (callbackPort && credentials?.api_key) {
+        // Redirect to CLI callback
+        const callbackUrl = `http://localhost:${callbackPort}/auth/callback?` +
+          new URLSearchParams({
+            provider: selectedProvider,
+            apiKey: atob(credentials.api_key), // Decode base64
+            model: getDefaultModel(selectedProvider),
+            user: JSON.stringify({
+              email: session.user.email || '',
+              name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User'
+            })
+          }).toString()
+
+        window.location.href = callbackUrl
+        return
+      }
+
+      // Fallback: Save provider selection and close
       await supabase.from('user_provider_credentials').upsert({
         user_id: session.user.id,
         provider: selectedProvider,
@@ -48,6 +76,16 @@ export default function CLIAuthSuccess() {
           // Can't close programmatically
         }
       }, 1000)
+    }
+  }
+
+  const getDefaultModel = (provider: string): string => {
+    switch (provider) {
+      case 'chatgpt': return 'gpt-3.5-turbo'
+      case 'claude': return 'claude-3-opus-20240229'
+      case 'gemini': return 'gemini-pro'
+      case 'perplexity': return 'llama-2-70b-chat'
+      default: return 'default'
     }
   }
 
@@ -116,5 +154,20 @@ export default function CLIAuthSuccess() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function CLIAuthSuccess() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p>Loading...</p>
+        </div>
+      </div>
+    }>
+      <CLIAuthSuccessContent />
+    </Suspense>
   )
 }

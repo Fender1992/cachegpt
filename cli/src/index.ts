@@ -8,6 +8,7 @@ import { statsCommand } from './commands/stats';
 import { clearCommand } from './commands/clear';
 import { configCommand } from './commands/config';
 import { chatCommand } from './commands/chat';
+import { chatV2Command } from './commands/chat-v2';
 import { statusCommand } from './commands/status';
 import { logoutCommand } from './commands/logout';
 import { syncClaude } from './commands/sync-claude';
@@ -90,6 +91,11 @@ program
   .command('chat-api')
   .description('Chat using Claude API directly (private, no web console logging)')
   .action(chatApiCommand);
+
+program
+  .command('chat-v2')
+  .description('Start local chat with OAuth-based authentication (no external logging)')
+  .action(chatV2Command);
 
 program
   .command('status')
