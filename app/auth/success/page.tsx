@@ -77,20 +77,51 @@ function AuthSuccessContent() {
   const handleProviderSelect = async (provider: string) => {
     setSelectedProvider(provider)
 
-    // Store provider selection in localStorage for the setup page
+    const callbackPort = searchParams.get('callback_port')
+
+    // For CLI users, redirect directly to CLI callback with session authentication
+    if (isFromCLI && callbackPort) {
+      // Get current session for CLI callback
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        const callbackUrl = `http://localhost:${callbackPort}/auth/callback?` +
+          new URLSearchParams({
+            provider: provider,
+            apiKey: session.access_token, // Use session token as "API key" for CLI
+            model: getDefaultModel(provider),
+            user: JSON.stringify({
+              email: session.user.email || '',
+              name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User'
+            })
+          }).toString()
+
+        window.location.href = callbackUrl
+        return
+      }
+    }
+
+    // Fallback for non-CLI users or if no callback port
     localStorage.setItem('selectedLLMProvider', provider)
     localStorage.setItem('userEmail', userEmail)
 
-    // Redirect to the provider setup page to get API key
     const params = new URLSearchParams({
       provider: provider,
       source: 'cli'
     })
-    const callbackPort = searchParams.get('callback_port')
     if (callbackPort) {
       params.set('callback_port', callbackPort)
     }
     window.location.href = `/auth/provider-setup?${params.toString()}`
+  }
+
+  const getDefaultModel = (provider: string): string => {
+    switch (provider) {
+      case 'chatgpt': return 'gpt-3.5-turbo'
+      case 'claude': return 'claude-3-opus-20240229'
+      case 'gemini': return 'gemini-pro'
+      case 'perplexity': return 'llama-2-70b-chat'
+      default: return 'default'
+    }
   }
 
 
