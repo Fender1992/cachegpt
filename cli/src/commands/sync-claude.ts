@@ -121,7 +121,7 @@ export async function syncClaude(options: { all?: boolean; recent?: boolean; api
           authToken = token;
         } else {
           spinner.warn('Not authenticated. Syncing without user association.');
-          console.log(chalk.dim('Use'), chalk.yellow('llm-cache login'), chalk.dim('to associate conversations with your account'));
+          console.log(chalk.dim('Use'), chalk.yellow('cachegpt login'), chalk.dim('to associate conversations with your account'));
         }
       } catch (error) {
         // Continue without auth

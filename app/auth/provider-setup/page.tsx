@@ -201,7 +201,11 @@ function ProviderSetupContent() {
       }
 
       // Success - redirect to success page
-      router.push('/cli-auth/success?setup=complete')
+      const callbackPort = searchParams.get('callback_port')
+      const successUrl = callbackPort
+        ? `/cli-auth/success?setup=complete&callback_port=${callbackPort}`
+        : '/cli-auth/success?setup=complete'
+      router.push(successUrl)
 
     } catch (error: any) {
       // Error handled through UI

@@ -32,7 +32,7 @@ async function showConfig(): Promise<void> {
 
   if (!configExists()) {
     console.log(chalk.yellow('No configuration file found.'));
-    console.log('Run `llm-cache init` to create a new configuration.');
+    console.log('Run `cachegpt init` to create a new configuration.');
     return;
   }
 
@@ -69,7 +69,7 @@ async function showConfig(): Promise<void> {
   if (validationErrors.length > 0) {
     console.log('\n' + chalk.red('❌ Configuration Issues:'));
     validationErrors.forEach(error => console.log(chalk.red('  • ' + error)));
-    console.log('\nRun `llm-cache init` or `llm-cache config` to fix these issues.');
+    console.log('\nRun `cachegpt init` or `cachegpt config` to fix these issues.');
   } else {
     logSuccess('Configuration is valid');
   }

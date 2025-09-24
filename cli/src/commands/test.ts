@@ -16,7 +16,7 @@ export async function testCommand(options: TestOptions): Promise<void> {
   // Validate configuration
   const validationErrors = validateConfig(config);
   if (validationErrors.length > 0) {
-    logError('Configuration is invalid. Run `llm-cache init` first.');
+    logError('Configuration is invalid. Run `cachegpt init` first.');
     validationErrors.forEach(error => console.log(chalk.red('  - ' + error)));
     return;
   }
@@ -148,6 +148,6 @@ export async function testCommand(options: TestOptions): Promise<void> {
     console.log('   1. Verify your base URL is correct and the server is running');
     console.log('   2. Check that your API key is valid and active');
     console.log('   3. Ensure the LLM Cache Proxy is properly configured');
-    console.log('   4. Run `llm-cache config --show` to verify your settings');
+    console.log('   4. Run `cachegpt config --show` to verify your settings');
   }
 }

@@ -80,7 +80,10 @@
       "Bash(npm version:*)",
       "Bash(xargs rm:*)",
       "Bash(git restore:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(sudo npm install:*)",
+      "Bash(llm-cache:*)",
+      "Bash(git rm:*)"
     ],
     "deny": [],
     "ask": []

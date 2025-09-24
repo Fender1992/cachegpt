@@ -285,7 +285,7 @@ export async function initCommand(): Promise<void> {
       ]);
 
       if (!proceed.continue) {
-        console.log(chalk.gray('\nConfiguration not saved. Run ') + chalk.cyan('llm-cache init') + chalk.gray(' to try again.'));
+        console.log(chalk.gray('\nConfiguration not saved. Run ') + chalk.cyan('cachegpt init') + chalk.gray(' to try again.'));
         return;
       }
     }
@@ -299,16 +299,16 @@ export async function initCommand(): Promise<void> {
     console.log(chalk.cyan('📚 Quick Start Guide:'));
     console.log();
     console.log(chalk.white('  Test your setup:'));
-    console.log(chalk.gray('  $ ') + chalk.cyan('llm-cache test'));
+    console.log(chalk.gray('  $ ') + chalk.cyan('cachegpt test'));
     console.log();
     console.log(chalk.white('  View cache statistics:'));
-    console.log(chalk.gray('  $ ') + chalk.cyan('llm-cache stats'));
+    console.log(chalk.gray('  $ ') + chalk.cyan('cachegpt stats'));
     console.log();
     console.log(chalk.white('  Clear old cache entries:'));
-    console.log(chalk.gray('  $ ') + chalk.cyan('llm-cache clear --older-than 24'));
+    console.log(chalk.gray('  $ ') + chalk.cyan('cachegpt clear --older-than 24'));
     console.log();
     console.log(chalk.white('  View all commands:'));
-    console.log(chalk.gray('  $ ') + chalk.cyan('llm-cache --help'));
+    console.log(chalk.gray('  $ ') + chalk.cyan('cachegpt --help'));
     console.log();
     console.log(chalk.gray('💡 Tip: Your API calls will now be automatically cached!'));
     console.log(chalk.gray('   Just point your application to: ') + chalk.cyan(baseUrl));

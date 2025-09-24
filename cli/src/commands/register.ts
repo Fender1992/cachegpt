@@ -93,8 +93,8 @@ export async function registerCommand() {
     }
 
     console.log(chalk.cyan('\nYou can now:'));
-    console.log('  • Use', chalk.yellow('llm-cache login'), 'to sign in');
-    console.log('  • Use', chalk.yellow('llm-cache sync-claude'), 'to sync your conversations');
+    console.log('  • Use', chalk.yellow('cachegpt login'), 'to sign in');
+    console.log('  • Use', chalk.yellow('cachegpt sync-claude'), 'to sync your conversations');
     console.log('  • Visit the web portal to view your data');
 
     // Check if email verification is required
@@ -105,7 +105,7 @@ export async function registerCommand() {
   } catch (error: any) {
     if (error.message?.includes('User already registered')) {
       console.error(chalk.red('\n❌ This email is already registered'));
-      console.log(chalk.dim('Use'), chalk.yellow('llm-cache login'), chalk.dim('to sign in'));
+      console.log(chalk.dim('Use'), chalk.yellow('cachegpt login'), chalk.dim('to sign in'));
     } else {
       console.error(chalk.red('\n❌ Registration failed:'), error.message || error);
     }

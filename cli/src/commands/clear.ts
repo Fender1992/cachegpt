@@ -17,7 +17,7 @@ export async function clearCommand(options: ClearOptions): Promise<void> {
   // Validate configuration
   const validationErrors = validateConfig(config);
   if (validationErrors.length > 0) {
-    logError('Configuration is invalid. Run `llm-cache init` first.');
+    logError('Configuration is invalid. Run `cachegpt init` first.');
     validationErrors.forEach(error => console.log(chalk.red('  - ' + error)));
     return;
   }

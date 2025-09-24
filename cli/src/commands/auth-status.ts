@@ -59,14 +59,14 @@ export async function authStatusCommand() {
       }
 
       console.log(chalk.cyan('\nAvailable commands:'));
-      console.log('  • Use', chalk.yellow('llm-cache sync-claude'), 'to sync conversations');
-      console.log('  • Use', chalk.yellow('llm-cache logout'), 'to sign out');
+      console.log('  • Use', chalk.yellow('cachegpt sync-claude'), 'to sync conversations');
+      console.log('  • Use', chalk.yellow('cachegpt logout'), 'to sign out');
 
     } else {
       console.log(chalk.yellow('⚠️  Not logged in'));
       console.log(chalk.dim('\nTo authenticate:'));
-      console.log('  • Use', chalk.yellow('llm-cache register'), 'to create a new account');
-      console.log('  • Use', chalk.yellow('llm-cache login'), 'to sign in');
+      console.log('  • Use', chalk.yellow('cachegpt register'), 'to create a new account');
+      console.log('  • Use', chalk.yellow('cachegpt login'), 'to sign in');
     }
 
   } catch (error: any) {

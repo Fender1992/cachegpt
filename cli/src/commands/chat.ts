@@ -87,7 +87,7 @@ export async function chatCommand(): Promise<void> {
     });
 
     if (!proceed) {
-      console.log(chalk.gray('Setup cancelled. Run "llm-cache chat" when ready.'));
+      console.log(chalk.gray('Setup cancelled. Run "cachegpt chat" when ready.'));
       return;
     }
 

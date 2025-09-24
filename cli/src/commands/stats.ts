@@ -98,7 +98,7 @@ export async function statsCommand(options: StatsOptions): Promise<void> {
   // Validate configuration for API mode
   const validationErrors = validateConfig(config);
   if (validationErrors.length > 0) {
-    logError('Configuration is invalid. Run `llm-cache init` first.');
+    logError('Configuration is invalid. Run `cachegpt init` first.');
     validationErrors.forEach(error => console.log(chalk.red('  - ' + error)));
     return;
   }

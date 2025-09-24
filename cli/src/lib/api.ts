@@ -11,7 +11,7 @@ export class ApiClient {
       headers: {
         'Authorization': `Bearer ${config.apiKey}`,
         'Content-Type': 'application/json',
-        'User-Agent': 'llm-cache-cli/1.0.0'
+        'User-Agent': 'cachegpt-cli/1.0.0'
       }
     });
 

@@ -3,7 +3,7 @@ import path from 'path';
 import os from 'os';
 import { Config } from '../types';
 
-const CONFIG_DIR = path.join(os.homedir(), '.llm-cache');
+const CONFIG_DIR = path.join(os.homedir(), '.cachegpt');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 const ENV_FILE = path.join(process.cwd(), '.env');
 
