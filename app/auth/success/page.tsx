@@ -13,6 +13,9 @@ function AuthSuccessContent() {
   const [isFromCLI, setIsFromCLI] = useState(false)
   const [showProviderSelection, setShowProviderSelection] = useState(false)
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null)
+  const [showApiKeyInput, setShowApiKeyInput] = useState(false)
+  const [apiKey, setApiKey] = useState('')
+  const [apiKeyError, setApiKeyError] = useState('')
   const searchParams = useSearchParams()
 
   useEffect(() => {
@@ -77,18 +80,42 @@ function AuthSuccessContent() {
   const handleProviderSelect = async (provider: string) => {
     setSelectedProvider(provider)
 
-    const callbackPort = searchParams.get('callback_port')
+    // For CLI users, show API key input for providers that need it
+    if (isFromCLI && searchParams.get('callback_port')) {
+      setShowApiKeyInput(true)
+      setShowProviderSelection(false)
+    } else {
+      // Non-CLI users go to provider setup page
+      const params = new URLSearchParams({ provider: provider })
+      window.location.href = `/auth/provider-setup?${params.toString()}`
+    }
+  }
 
-    // For CLI users, redirect directly to CLI callback with session authentication
-    if (isFromCLI && callbackPort) {
-      // Get current session for CLI callback
+  const handleApiKeySubmit = async () => {
+    if (!apiKey.trim()) {
+      setApiKeyError('Please enter your API key')
+      return
+    }
+
+    // Validate API key format based on provider
+    if (selectedProvider === 'claude' && !apiKey.startsWith('sk-ant-')) {
+      setApiKeyError('Claude API keys should start with "sk-ant-"')
+      return
+    }
+    if (selectedProvider === 'chatgpt' && !apiKey.startsWith('sk-')) {
+      setApiKeyError('OpenAI API keys should start with "sk-"')
+      return
+    }
+
+    const callbackPort = searchParams.get('callback_port')
+    if (callbackPort && selectedProvider) {
       const { data: { session } } = await supabase.auth.getSession()
       if (session) {
         const callbackUrl = `http://localhost:${callbackPort}/auth/callback?` +
           new URLSearchParams({
-            provider: provider,
-            apiKey: session.access_token, // Use session token as "API key" for CLI
-            model: getDefaultModel(provider),
+            provider: selectedProvider,
+            apiKey: apiKey,
+            model: getDefaultModel(selectedProvider),
             user: JSON.stringify({
               email: session.user.email || '',
               name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User'
@@ -96,25 +123,9 @@ function AuthSuccessContent() {
           }).toString()
 
         window.location.href = callbackUrl
-        return
       }
     }
 
-    // Fallback for non-CLI users or if no callback port
-    localStorage.setItem('selectedLLMProvider', provider)
-    localStorage.setItem('userEmail', userEmail)
-
-    const params = new URLSearchParams({
-      provider: provider
-    })
-    // Only mark as CLI if actually from CLI
-    if (isFromCLI) {
-      params.set('source', 'cli')
-    }
-    if (callbackPort) {
-      params.set('callback_port', callbackPort)
-    }
-    window.location.href = `/auth/provider-setup?${params.toString()}`
   }
 
   const getDefaultModel = (provider: string): string => {
@@ -152,8 +163,73 @@ function AuthSuccessContent() {
             {showProviderSelection ? 'Select your LLM provider to continue' : 'Successfully authenticated with CacheGPT'}
           </p>
 
-          {/* LLM Provider Selection for CLI users */}
-          {showProviderSelection && isFromCLI ? (
+          {/* API Key Input for CLI users */}
+          {showApiKeyInput && isFromCLI && selectedProvider ? (
+            <div className="mt-6">
+              <h3 className="text-lg font-semibold mb-4 text-gray-700">
+                Enter your {selectedProvider === 'chatgpt' ? 'OpenAI' : selectedProvider === 'claude' ? 'Claude' : selectedProvider === 'gemini' ? 'Gemini' : 'Perplexity'} API Key
+              </h3>
+
+              <div className="space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
+                  {selectedProvider === 'claude' && (
+                    <>Get your API key from <a href="https://console.anthropic.com/settings/keys" target="_blank" className="underline">console.anthropic.com</a></>
+                  )}
+                  {selectedProvider === 'chatgpt' && (
+                    <>Get your API key from <a href="https://platform.openai.com/api-keys" target="_blank" className="underline">platform.openai.com</a></>
+                  )}
+                  {selectedProvider === 'gemini' && (
+                    <>Get your API key from <a href="https://makersuite.google.com/app/apikey" target="_blank" className="underline">makersuite.google.com</a></>
+                  )}
+                  {selectedProvider === 'perplexity' && (
+                    <>Get your API key from <a href="https://www.perplexity.ai/settings/api" target="_blank" className="underline">perplexity.ai/settings</a></>
+                  )}
+                </div>
+
+                <div>
+                  <input
+                    type="password"
+                    value={apiKey}
+                    onChange={(e) => {
+                      setApiKey(e.target.value)
+                      setApiKeyError('')
+                    }}
+                    placeholder={
+                      selectedProvider === 'claude' ? 'sk-ant-...' :
+                      selectedProvider === 'chatgpt' ? 'sk-...' :
+                      selectedProvider === 'gemini' ? 'AIza...' :
+                      'pplx-...'
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  {apiKeyError && (
+                    <p className="mt-1 text-sm text-red-600">{apiKeyError}</p>
+                  )}
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleApiKeySubmit}
+                    className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  >
+                    Continue to Terminal
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowApiKeyInput(false)
+                      setShowProviderSelection(true)
+                      setSelectedProvider(null)
+                      setApiKey('')
+                      setApiKeyError('')
+                    }}
+                    className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors"
+                  >
+                    Back
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : showProviderSelection && isFromCLI ? (
             <div className="mt-6">
               <h3 className="text-lg font-semibold mb-4 text-gray-700">Choose Your LLM Provider</h3>
               <div className="grid grid-cols-2 gap-3">
