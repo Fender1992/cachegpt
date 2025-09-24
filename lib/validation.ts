@@ -62,7 +62,8 @@ export function validateRequest<T>(schema: z.ZodSchema<T>) {
       return await schema.parseAsync(data);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        throw new Error(`Validation error: ${error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`);
+        const zodError = error as z.ZodError<T>;
+        throw new Error(`Validation error: ${zodError.issues.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`);
       }
       throw error;
     }
