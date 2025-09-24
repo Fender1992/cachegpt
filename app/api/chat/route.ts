@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { HfInference } from '@huggingface/inference';
+import { chatRequestSchema, validateRequest } from '@/lib/validation';
+import { logger } from '@/lib/logger';
 
 // Initialize Hugging Face client with null check
 const hfApiKey = process.env.HUGGINGFACE_API_KEY;
@@ -39,6 +41,7 @@ export async function POST(req: NextRequest) {
   try {
     // Check if services are configured
     if (!supabase || !hf) {
+      logger.error('Service configuration missing');
       return NextResponse.json({
         error: 'Service configuration missing'
       }, { status: 503 });
@@ -47,6 +50,7 @@ export async function POST(req: NextRequest) {
     // Get API key from header for authentication
     const apiKey = req.headers.get('authorization')?.replace('Bearer ', '');
     if (!apiKey) {
+      logger.warn('Unauthorized request - missing API key');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

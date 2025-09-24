@@ -138,7 +138,7 @@ function ProviderSetupContent() {
       router.push('/cli-auth/success?setup=complete')
 
     } catch (error: any) {
-      console.error('Failed to save credentials:', error)
+      // Error handled through UI
       setError(error.message || 'Failed to save credentials')
     } finally {
       setIsLoading(false)

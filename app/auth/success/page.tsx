@@ -64,13 +64,9 @@ function AuthSuccessContent() {
                 created_at: new Date().toISOString()
               });
 
-            if (error) {
-              console.error('Failed to save CLI session:', error);
-            } else {
-              console.log('✅ CLI session saved for polling');
-            }
+            // Session saved silently
           } catch (error) {
-            console.error('Error saving CLI session:', error);
+            // Error handled silently
           }
         }
       }

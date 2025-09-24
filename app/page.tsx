@@ -20,21 +20,9 @@ export default function Home() {
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [monthlyCalls, setMonthlyCalls] = useState(10000)
   const [avgResponseSize, setAvgResponseSize] = useState(2)
-  const [debugInfo, setDebugInfo] = useState<string>('')
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    // Debug logging
-    const debugData = {
-      url: window.location.href,
-      search: window.location.search,
-      hash: window.location.hash,
-      timestamp: new Date().toISOString()
-    }
-
-    console.log('🏠 Home Page Mount:', debugData)
-    setDebugInfo(JSON.stringify(debugData, null, 2))
-
     // Check for CLI parameters in URL and redirect to login if present
     const urlParams = new URLSearchParams(window.location.search)
     const source = urlParams.get('source')
@@ -60,7 +48,6 @@ export default function Home() {
 
     // If we have OAuth callback parameters, redirect to callback page
     if (code && state) {
-      console.log('🔄 OAuth callback detected on home page, redirecting to callback...')
       // Include all URL parameters when redirecting
       const allParams = new URLSearchParams(window.location.search)
       const callbackUrl = `/auth/callback?${allParams.toString()}`
@@ -70,7 +57,6 @@ export default function Home() {
 
     // Also check for hash fragments (some OAuth providers use this)
     if (window.location.hash && window.location.hash.includes('access_token')) {
-      console.log('🔄 OAuth hash fragment detected, redirecting to callback...')
       const hashParams = new URLSearchParams(window.location.hash.substring(1))
       const callbackUrl = `/auth/callback#${window.location.hash.substring(1)}`
       router.push(callbackUrl)
@@ -78,7 +64,6 @@ export default function Home() {
     }
 
     if (source === 'cli' || returnTo === 'terminal' || isFromCLI) {
-      console.log('🔄 CLI params detected on home page, redirecting to login...')
       router.push(`/login?source=${source || 'cli'}&return_to=${returnTo || 'terminal'}`)
       return
     }
@@ -158,19 +143,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen overflow-x-hidden">
-      {/* Debug Panel */}
-      {debugInfo && (
-        <div className="fixed top-0 left-0 right-0 bg-yellow-500 text-black p-4 z-[9999] overflow-auto max-h-40">
-          <div className="font-bold mb-2">🔍 OAuth Debug Info:</div>
-          <pre className="text-xs">{debugInfo}</pre>
-          <button
-            onClick={() => setDebugInfo('')}
-            className="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 rounded text-sm"
-          >
-            Close
-          </button>
-        </div>
-      )}
       {/* Animated Background */}
       <div className="fixed inset-0 -z-10">
         <div className="absolute inset-0 mesh-gradient opacity-30"></div>

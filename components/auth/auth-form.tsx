@@ -36,7 +36,7 @@ export function AuthForm({ isFromCLI = false }: AuthFormProps) {
           }
         })
 
-        console.log('Signup response:', { data, error })
+        // Signup response handled
         if (error) throw error
 
         // Create user profile manually to ensure it exists
@@ -52,7 +52,7 @@ export function AuthForm({ isFromCLI = false }: AuthFormProps) {
             .select()
 
           if (profileError && profileError.code !== '23505') {
-            console.error('Error creating user profile:', profileError)
+            // Profile creation error handled silently
           }
 
           // Store signup event
@@ -106,15 +106,15 @@ export function AuthForm({ isFromCLI = false }: AuthFormProps) {
           timestamp: Date.now()
         }
         localStorage.setItem('cli_auth_flow', JSON.stringify(cliState))
-        console.log('💾 Stored CLI state in localStorage:', cliState)
+        // CLI state stored in localStorage
       } else {
-        console.log('🌐 Not from CLI, no localStorage needed')
+        // Web auth flow, no localStorage needed
       }
 
       // Use dynamic redirect URL based on current origin
       const baseUrl = `${window.location.origin}/auth/callback`
 
-      console.log('🔐 OAuth redirect URL:', baseUrl)
+      // OAuth redirect prepared
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider,

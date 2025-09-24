@@ -66,7 +66,7 @@ export async function parseClaudeConversation(filePath: string): Promise<ParsedC
 
       messages.push(data);
     } catch (error) {
-      console.error('Failed to parse line:', error);
+      // Skip malformed lines silently
     }
   }
 
@@ -95,7 +95,7 @@ export async function* parseClaudeConversationStream(filePath: string) {
       const data = JSON.parse(line);
       yield data;
     } catch (error) {
-      console.error('Failed to parse line:', error);
+      // Skip malformed lines silently
     }
   }
 }
