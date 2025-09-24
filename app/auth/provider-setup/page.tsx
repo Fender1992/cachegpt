@@ -37,10 +37,52 @@ function ProviderSetupContent() {
     return autoCaptureProviders.includes(provider) || oauthProviders.includes(provider)
   }
 
+  const getDefaultModel = (provider: string): string => {
+    switch (provider) {
+      case 'chatgpt':
+      case 'openai':
+        return 'gpt-3.5-turbo'
+      case 'claude':
+        return 'claude-3-opus-20240229'
+      case 'gemini':
+      case 'google':
+        return 'gemini-pro'
+      case 'perplexity':
+        return 'llama-2-70b-chat'
+      default:
+        return 'default'
+    }
+  }
+
   const handleProviderOAuth = async (provider: string) => {
     setIsLoading(true)
     try {
-      // Generate session ID for capture
+      // Check if this is CLI user with callback port - redirect directly to localhost
+      const callbackPort = searchParams.get('callback_port')
+      const source = searchParams.get('source')
+
+      if (source === 'cli' && callbackPort) {
+        // Get current session for CLI callback
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session) {
+          // Redirect directly to CLI callback with session token
+          const callbackUrl = `http://localhost:${callbackPort}/auth/callback?` +
+            new URLSearchParams({
+              provider: provider,
+              apiKey: session.access_token, // Use session token as API key
+              model: getDefaultModel(provider),
+              user: JSON.stringify({
+                email: session.user.email || '',
+                name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User'
+              })
+            }).toString()
+
+          window.location.href = callbackUrl
+          return
+        }
+      }
+
+      // Generate session ID for capture (non-CLI users)
       const sessionId = `capture_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
       // Check if provider supports auto-capture
