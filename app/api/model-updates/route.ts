@@ -43,13 +43,13 @@ export async function GET(request: NextRequest) {
             "maxTokens": 500000
           },
           {
-            "id": "claude-3-opus-20240229",
-            "name": "Claude 3 Opus",
-            "maxTokens": 200000
+            "id": "claude-sonnet-4-20250924",
+            "name": "Claude Sonnet 4",
+            "maxTokens": 300000
           },
           {
-            "id": "claude-3-sonnet-20240229",
-            "name": "Claude 3 Sonnet",
+            "id": "claude-3-haiku-20240307",
+            "name": "Claude 3 Haiku",
             "maxTokens": 200000
           }
         ]
@@ -58,20 +58,20 @@ export async function GET(request: NextRequest) {
         "name": "Gemini",
         "models": [
           {
-            "id": "gemini-1.5-pro-latest",
-            "name": "Gemini 1.5 Pro",
+            "id": "gemini-2.0-ultra",
+            "name": "Gemini 2.0 Ultra",
             "default": true,
+            "maxTokens": 5000000
+          },
+          {
+            "id": "gemini-2.0-pro",
+            "name": "Gemini 2.0 Pro",
             "maxTokens": 2000000
           },
           {
-            "id": "gemini-1.5-flash-latest",
+            "id": "gemini-1.5-flash",
             "name": "Gemini 1.5 Flash",
             "maxTokens": 1000000
-          },
-          {
-            "id": "gemini-pro",
-            "name": "Gemini Pro",
-            "maxTokens": 32000
           }
         ]
       },
@@ -79,20 +79,20 @@ export async function GET(request: NextRequest) {
         "name": "Perplexity",
         "models": [
           {
-            "id": "sonar-medium-online",
-            "name": "Sonar Medium Online",
+            "id": "pplx-pro-online",
+            "name": "Perplexity Pro Online",
             "default": true,
-            "maxTokens": 16384
+            "maxTokens": 32768
           },
           {
-            "id": "sonar-small-online",
-            "name": "Sonar Small Online",
-            "maxTokens": 16384
+            "id": "sonar-ultra-online",
+            "name": "Sonar Ultra Online",
+            "maxTokens": 32768
           },
           {
-            "id": "mixtral-8x7b-instruct",
-            "name": "Mixtral 8x7B",
-            "maxTokens": 16384
+            "id": "llama-3-405b-instruct",
+            "name": "Llama 3 405B",
+            "maxTokens": 32768
           }
         ]
       }

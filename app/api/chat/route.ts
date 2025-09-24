@@ -111,7 +111,7 @@ async function callOpenAI(apiKey: string, messages: any[], model: string): Promi
       model,
       messages,
       temperature: 0.7,
-      max_tokens: 1000
+      max_tokens: model.includes('gpt-5') ? 4096 : 2048
     })
   })
 
@@ -135,13 +135,13 @@ async function callAnthropic(apiKey: string, messages: any[], model: string): Pr
     method: 'POST',
     headers: {
       'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
+      'anthropic-version': '2025-09-01',
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
       model,
       messages: anthropicMessages,
-      max_tokens: 1000
+      max_tokens: model.includes('opus') ? 4096 : 2048
     })
   })
 
@@ -162,7 +162,7 @@ async function callGemini(apiKey: string, messages: any[], model: string): Promi
   }))
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v2/models/${model}:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: {

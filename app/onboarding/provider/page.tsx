@@ -24,14 +24,14 @@ const providers = [
   {
     id: 'gemini',
     name: 'Gemini',
-    description: 'Google Gemini 1.5 Pro',
+    description: 'Google Gemini 2.0 Ultra',
     icon: Sparkles,
     color: 'blue'
   },
   {
     id: 'perplexity',
     name: 'Perplexity',
-    description: 'Real-time AI Search',
+    description: 'Perplexity Pro with Real-time Search',
     icon: Zap,
     color: 'orange'
   }
