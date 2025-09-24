@@ -91,11 +91,16 @@ export async function initBrowserCommand(): Promise<void> {
 
     const authChoices = [];
 
+    // All providers now support CacheGPT web authentication
+    authChoices.push(
+      { name: '🌐 CacheGPT Web Login (No API Keys Required!)', value: 'cachegpt-web' }
+    );
+
     // Special handling for different providers
     if (provider === 'anthropic') {
-      // Anthropic supports web session (like Claude Code) or API keys
+      // Anthropic supports additional auth methods
       authChoices.push(
-        { name: '🌐 Claude Web Login (Like Claude Code!)', value: 'claude-web' },
+        { name: '🤖 Claude Web Session (Advanced)', value: 'claude-web' },
         { name: '🔑 API Key (From Anthropic Console)', value: 'api' }
       );
     } else if (oauthSupported) {
@@ -120,7 +125,10 @@ export async function initBrowserCommand(): Promise<void> {
 
     let config: BrowserConfig;
 
-    if (authMethod === 'claude-web') {
+    if (authMethod === 'cachegpt-web') {
+      // Use CacheGPT web authentication - connects to our keyless system
+      config = await handleCacheGPTWebAuth(provider);
+    } else if (authMethod === 'claude-web') {
       // Use persistent browser profile - exactly like Claude Code!
       // This maintains login between sessions and bypasses detection
       config = await initClaudePersistent();
@@ -141,6 +149,135 @@ export async function initBrowserCommand(): Promise<void> {
   } catch (error: any) {
     logError('Setup failed:', error);
   }
+}
+
+async function handleCacheGPTWebAuth(provider: string): Promise<BrowserConfig> {
+  console.log(chalk.cyan('\n🌐 CacheGPT Web Authentication\n'));
+  console.log(chalk.white('Connecting to CacheGPT keyless authentication system...'));
+  console.log(chalk.gray('No API keys required - everything handled server-side!\n'));
+
+  // This uses the same flow as the chat command but stores the config properly
+  const { createServer } = await import('http');
+  const { parse } = await import('url');
+
+  return new Promise((resolve, reject) => {
+    const server = createServer((req, res) => {
+      const parsedUrl = parse(req.url || '', true);
+
+      if (parsedUrl.pathname === '/auth/callback') {
+        const { provider: authProvider, model, user, error } = parsedUrl.query;
+
+        // Send success response to browser
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(`
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>CacheGPT Authentication</title>
+            <style>
+              body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                     display: flex; align-items: center; justify-content: center; min-height: 100vh;
+                     margin: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+              .container { background: white; padding: 2rem; border-radius: 12px; text-align: center;
+                          box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-width: 400px; }
+              .success { color: #10B981; }
+              .error { color: #EF4444; }
+              .logo { font-size: 2em; margin-bottom: 0.5em; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="logo">🚀</div>
+              ${error ? `
+                <h2 class="error">Authentication Failed</h2>
+                <p>Error: ${error}</p>
+                <p>Please try again or contact support.</p>
+              ` : `
+                <h2 class="success">Welcome to CacheGPT!</h2>
+                <p>Authentication successful. You can now return to your terminal.</p>
+                <p><strong>Provider:</strong> ${authProvider || provider}</p>
+                <p><strong>Model:</strong> ${model}</p>
+              `}
+            </div>
+            <script>
+              setTimeout(() => window.close(), ${error ? 5000 : 3000});
+            </script>
+          </body>
+          </html>
+        `);
+
+        server.close();
+
+        if (error) {
+          reject(new Error(error as string));
+        } else {
+          resolve({
+            mode: 'browser',
+            provider: (authProvider as string) || provider,
+            authMethod: 'web-session',
+            defaultModel: (model as string) || getDefaultModel(provider),
+            cacheEnabled: true,
+            cacheLocation: path.join(os.homedir(), '.cachegpt', 'cache'),
+            userId: crypto.randomBytes(16).toString('hex'),
+            userEmail: user ? JSON.parse(user as string).email : undefined
+          });
+        }
+        return;
+      }
+
+      // 404 for other paths
+      res.writeHead(404);
+      res.end('Not found');
+    });
+
+    // Find available port starting from 8787
+    const tryPort = (port: number) => {
+      server.listen(port, 'localhost', async () => {
+        console.log(chalk.green(`✅ Local server started on port ${port}`));
+
+        // Open CacheGPT authentication URL
+        const authUrl = `${process.env.CACHEGPT_APP_URL || 'https://cachegpt.app'}/login?source=cli&return_to=terminal&callback_port=${port}`;
+
+        console.log(chalk.cyan('🌐 Opening browser for authentication...'));
+
+        try {
+          const open = await import('open').catch(() => null);
+          if (open) {
+            await open.default(authUrl);
+            console.log(chalk.green('✅ Browser opened'));
+          } else {
+            console.log(chalk.yellow('Please open this URL in your browser:'));
+            console.log(chalk.blue.underline(authUrl));
+          }
+        } catch (err) {
+          console.log(chalk.yellow('Please open this URL in your browser:'));
+          console.log(chalk.blue.underline(authUrl));
+        }
+
+        console.log();
+        console.log(chalk.gray('1. Complete OAuth login (Google/GitHub)'));
+        console.log(chalk.gray('2. Select your LLM provider'));
+        console.log(chalk.gray('3. Browser will redirect back to CLI'));
+        console.log();
+        console.log(chalk.yellow('⏳ Waiting for authentication...'));
+
+      }).on('error', (err: any) => {
+        if (err.code === 'EADDRINUSE' && port < 9000) {
+          tryPort(port + 1);
+        } else {
+          reject(err);
+        }
+      });
+    };
+
+    tryPort(8787);
+
+    // Timeout after 5 minutes
+    setTimeout(() => {
+      server.close();
+      reject(new Error('Authentication timeout (5 minutes)'));
+    }, 5 * 60 * 1000);
+  });
 }
 
 async function handleOAuth2Auth(provider: string, credentialStore: CredentialStore): Promise<BrowserConfig> {
@@ -349,15 +486,15 @@ function saveConfiguration(config: BrowserConfig): void {
 function getDefaultModel(provider: string): string {
   switch (provider) {
     case 'openai':
-      return 'gpt-4-turbo-preview';
+      return 'gpt-5';
     case 'anthropic':
-      return 'claude-3-opus-20240229';
+      return 'claude-opus-4-1-20250805';
     case 'google':
-      return 'gemini-1.5-pro';
+      return 'gemini-2.0-ultra';
     case 'microsoft':
-      return 'gpt-4';
+      return 'gpt-5';
     case 'perplexity':
-      return 'llama-3-sonar-large-32k-online';
+      return 'pplx-pro-online';
     case 'cohere':
       return 'command-r-plus';
     default:

@@ -183,17 +183,55 @@ export async function chatCommand(): Promise<void> {
       const { selectedModel } = await inquirer.prompt({
         type: 'list',
         name: 'selectedModel',
-        message: 'Which model would you like to use?',
+        message: 'Which OpenAI model would you like to use?',
         choices: [
+          { name: 'GPT-5 (Latest)', value: 'gpt-5' },
+          { name: 'GPT-5 Vision', value: 'gpt-5-vision' },
           { name: 'GPT-4 Turbo', value: 'gpt-4-turbo-preview' },
-          { name: 'GPT-4', value: 'gpt-4' },
-          { name: 'GPT-3.5 Turbo', value: 'gpt-3.5-turbo' }
+          { name: 'GPT-4', value: 'gpt-4' }
         ],
-        default: 'gpt-3.5-turbo'
+        default: 'gpt-5'
       });
       model = selectedModel;
     } else if (provider === 'anthropic') {
-      model = 'claude-3-opus-20240229';
+      const { selectedModel } = await inquirer.prompt({
+        type: 'list',
+        name: 'selectedModel',
+        message: 'Which Claude model would you like to use?',
+        choices: [
+          { name: 'Claude Opus 4.1 (Latest)', value: 'claude-opus-4-1-20250805' },
+          { name: 'Claude Sonnet 4 (Fast)', value: 'claude-sonnet-4-20250924' },
+          { name: 'Claude 3 Haiku (Ultra Fast)', value: 'claude-3-haiku-20240307' }
+        ],
+        default: 'claude-opus-4-1-20250805'
+      });
+      model = selectedModel;
+    } else if (provider === 'google') {
+      const { selectedModel } = await inquirer.prompt({
+        type: 'list',
+        name: 'selectedModel',
+        message: 'Which Gemini model would you like to use?',
+        choices: [
+          { name: 'Gemini 2.0 Ultra (Latest)', value: 'gemini-2.0-ultra' },
+          { name: 'Gemini 2.0 Pro (Fast)', value: 'gemini-2.0-pro' },
+          { name: 'Gemini 1.5 Flash (Ultra Fast)', value: 'gemini-1.5-flash' }
+        ],
+        default: 'gemini-2.0-ultra'
+      });
+      model = selectedModel;
+    } else if (provider === 'perplexity') {
+      const { selectedModel } = await inquirer.prompt({
+        type: 'list',
+        name: 'selectedModel',
+        message: 'Which Perplexity model would you like to use?',
+        choices: [
+          { name: 'Perplexity Pro Online (Latest)', value: 'pplx-pro-online' },
+          { name: 'Sonar Ultra Online', value: 'sonar-ultra-online' },
+          { name: 'Llama 3 405B', value: 'llama-3-405b-instruct' }
+        ],
+        default: 'pplx-pro-online'
+      });
+      model = selectedModel;
     }
 
     // Save configuration
@@ -305,8 +343,8 @@ export async function chatCommand(): Promise<void> {
           response = completion.choices[0]?.message?.content || 'No response';
         } else if (config.provider === 'anthropic') {
           const completion = await llmClient.messages.create({
-            model: config.model || 'claude-3-opus-20240229',
-            max_tokens: 1000,
+            model: config.model || 'claude-opus-4-1-20250805',
+            max_tokens: 4000,
             messages: session.messages.map(m => ({
               role: m.role === 'user' ? 'user' : 'assistant',
               content: m.content
