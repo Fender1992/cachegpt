@@ -217,7 +217,7 @@ export function AuthForm({ isFromCLI = false }: AuthFormProps) {
                 <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                 <span className="text-sm text-gray-600">Remember me</span>
               </label>
-              <button type="button" className="text-sm text-blue-600 hover:text-blue-700 transition"
+              <button type="button" className="text-sm text-blue-600 hover:text-blue-700 transition">
                 Forgot password?
               </button>
             </div>
