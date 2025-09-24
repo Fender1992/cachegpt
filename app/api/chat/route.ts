@@ -16,9 +16,40 @@ const ENTERPRISE_MODE = process.env.FEATURE_ENTERPRISE_USER_KEYS === 'true'
 
 export async function POST(request: NextRequest) {
   try {
-    // Authenticate user
+    // Try cookie-based authentication first (web users)
     const supabase = createRouteHandlerClient({ cookies })
-    const { data: { session } } = await supabase.auth.getSession()
+    let session = null
+
+    try {
+      const result = await supabase.auth.getSession()
+      session = result.data.session
+    } catch (e) {
+      // Cookie auth failed, try Bearer token
+    }
+
+    // If no session from cookies, try Bearer token authentication (CLI users)
+    if (!session) {
+      const authHeader = request.headers.get('authorization')
+      if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.substring(7)
+
+        // Validate the Bearer token with Supabase
+        const { createClient } = await import('@supabase/supabase-js')
+        const supabaseAdmin = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_KEY!
+        )
+
+        const { data: user, error } = await supabaseAdmin.auth.getUser(token)
+        if (user?.user) {
+          // Create a session-like object for consistency
+          session = {
+            user: user.user,
+            access_token: token
+          }
+        }
+      }
+    }
 
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
