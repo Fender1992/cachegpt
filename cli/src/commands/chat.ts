@@ -16,13 +16,18 @@ import { config } from 'dotenv';
 config();
 
 interface LocalConfig {
-  provider: 'openai' | 'anthropic' | 'google' | 'perplexity';
-  apiKey: string;
+  provider: 'openai' | 'chatgpt' | 'anthropic' | 'claude' | 'google' | 'perplexity';
+  apiKey?: string;
+  authMethod?: 'api' | 'web-session' | 'cachegpt-web';
   model?: string;
   user?: {
     email: string;
     name: string;
   };
+  userEmail?: string;
+  userId?: string;
+  sessionToken?: string;
+  authToken?: string;
 }
 
 interface ChatMessage {
@@ -138,7 +143,8 @@ export async function chatCommand(): Promise<void> {
     // Use the received credentials
     config = {
       provider: authResponse.provider as any,
-      apiKey: authResponse.apiKey || '',
+      authMethod: 'cachegpt-web',
+      sessionToken: authResponse.sessionToken || authResponse.authToken,
       model: authResponse.model,
       user: authResponse.user
     };
@@ -266,14 +272,32 @@ export async function chatCommand(): Promise<void> {
     model: config.model || 'default'
   };
 
-  // Initialize LLM client
-  let llmClient: any;
-  if (config.provider === 'openai') {
-    llmClient = new OpenAI({ apiKey: config.apiKey });
-  } else if (config.provider === 'anthropic') {
-    llmClient = new Anthropic({ apiKey: config.apiKey });
+  // Initialize LLM client or prepare for server-side calls
+  let llmClient: any = null;
+  let useServerAPI = false;
+
+  // Determine authentication method
+  if (config.authMethod === 'cachegpt-web' || config.authMethod === 'web-session' || !config.apiKey || config.apiKey === '') {
+    // Use CacheGPT server API for keyless authentication
+    // This includes cases where authMethod is explicitly set or when no API key is available
+    useServerAPI = true;
+    console.log(chalk.green(`✅ Using CacheGPT server API for ${config.provider} (keyless authentication)`));
+  } else if (config.apiKey && config.apiKey.length > 0) {
+    // Use direct API calls with user's API key
+    try {
+      if (config.provider === 'openai' || config.provider === 'chatgpt') {
+        llmClient = new OpenAI({ apiKey: config.apiKey });
+      } else if (config.provider === 'anthropic' || config.provider === 'claude') {
+        llmClient = new Anthropic({ apiKey: config.apiKey });
+      }
+      console.log(chalk.green(`✅ Using direct ${config.provider} API with your API key`));
+    } catch (error) {
+      console.log(chalk.yellow(`⚠️  Failed to initialize ${config.provider} client, falling back to server API`));
+      useServerAPI = true;
+    }
   } else {
-    console.log(chalk.red('Provider not yet implemented. Please use OpenAI or Anthropic.'));
+    console.log(chalk.red(`No authentication method available for "${config.provider}".`));
+    console.log(chalk.yellow('Please run "cachegpt init" to set up authentication.'));
     return;
   }
 
@@ -284,7 +308,8 @@ export async function chatCommand(): Promise<void> {
   });
 
   const prompt = () => {
-    rl.question(chalk.cyan('You: '), async (input) => {
+    const userName = config.user?.name || config.user?.email?.split('@')[0] || 'You';
+    rl.question(chalk.cyan(`${userName}: `), async (input) => {
       if (input.toLowerCase() === 'exit') {
         // Save session to history
         const sessionFile = path.join(historyPath, `${sessionId}.json`);
@@ -331,26 +356,74 @@ export async function chatCommand(): Promise<void> {
       try {
         let response = '';
 
-        if (config.provider === 'openai') {
-          const completion = await llmClient.chat.completions.create({
-            model: config.model || 'gpt-3.5-turbo',
+        if (useServerAPI) {
+          // Use CacheGPT server API with session authentication
+          const fetch = await import('node-fetch').then(m => m.default).catch(() => null);
+          if (!fetch) {
+            throw new Error('node-fetch not available. Please install it: npm install node-fetch@2');
+          }
+
+          // Check if we have session credentials stored locally
+          const sessionToken = config.sessionToken || config.authToken;
+          if (!sessionToken) {
+            throw new Error('No session token available. Please run "cachegpt init" to authenticate.');
+          }
+
+          const apiUrl = `${process.env.CACHEGPT_APP_URL || 'https://cachegpt.app'}/api/chat`;
+          const requestBody = {
             messages: session.messages.map(m => ({
               role: m.role,
               content: m.content
             })),
-            temperature: 0.7
+            model: config.model,
+            provider: config.provider
+          };
+
+          const res = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${sessionToken}`,
+              'User-Agent': 'CacheGPT-CLI/10.4.0'
+            },
+            body: JSON.stringify(requestBody)
           });
-          response = completion.choices[0]?.message?.content || 'No response';
-        } else if (config.provider === 'anthropic') {
-          const completion = await llmClient.messages.create({
-            model: config.model || 'claude-opus-4-1-20250805',
-            max_tokens: 4000,
-            messages: session.messages.map(m => ({
-              role: m.role === 'user' ? 'user' : 'assistant',
-              content: m.content
-            }))
-          });
-          response = completion.content[0]?.text || 'No response';
+
+          if (!res.ok) {
+            if (res.status === 401) {
+              throw new Error('Session expired. Please run "cachegpt init" to re-authenticate.');
+            }
+            throw new Error(`Server API error: ${res.status} ${res.statusText}`);
+          }
+
+          const data = await res.json() as any;
+          response = data.response || data.content || 'No response from server';
+
+        } else {
+          // Use direct API calls with user's API key
+          if (config.provider === 'openai' || config.provider === 'chatgpt') {
+            const completion = await llmClient.chat.completions.create({
+              model: config.model || 'gpt-5',
+              messages: session.messages.map(m => ({
+                role: m.role,
+                content: m.content
+              })),
+              temperature: 0.7
+            });
+            response = completion.choices[0]?.message?.content || 'No response';
+          } else if (config.provider === 'anthropic' || config.provider === 'claude') {
+            const completion = await llmClient.messages.create({
+              model: config.model || 'claude-opus-4-1-20250805',
+              max_tokens: 4000,
+              messages: session.messages.map(m => ({
+                role: m.role === 'user' ? 'user' : 'assistant',
+                content: m.content
+              }))
+            });
+            response = completion.content[0]?.text || 'No response';
+          } else {
+            throw new Error(`Provider "${config.provider}" not yet implemented. Please use OpenAI or Anthropic.`);
+          }
         }
 
         spinner.stop();
@@ -394,7 +467,7 @@ async function startAuthServer(): Promise<{ success: boolean; port?: number; ser
       const parsedUrl = parse(req.url || '', true);
 
       if (parsedUrl.pathname === '/auth/callback') {
-        const { provider, apiKey, model, user, error } = parsedUrl.query;
+        const { provider, sessionToken, authToken, model, user, error } = parsedUrl.query;
 
         // Send success response to browser
         res.writeHead(200, { 'Content-Type': 'text/html' });
@@ -434,7 +507,8 @@ async function startAuthServer(): Promise<{ success: boolean; port?: number; ser
         (server as any).authCallback = {
           success: !error,
           provider: provider as string,
-          apiKey: apiKey as string,
+          sessionToken: sessionToken as string,
+          authToken: authToken as string,
           model: model as string,
           user: user ? JSON.parse(user as string) : null,
           error: error as string
@@ -468,7 +542,8 @@ async function startAuthServer(): Promise<{ success: boolean; port?: number; ser
 async function waitForAuthCallback(server: Server, port: number): Promise<{
   success: boolean;
   provider?: string;
-  apiKey?: string;
+  sessionToken?: string;
+  authToken?: string;
   model?: string;
   user?: any;
   error?: string;

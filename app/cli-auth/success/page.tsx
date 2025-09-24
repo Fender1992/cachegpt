@@ -32,20 +32,24 @@ function CLIAuthSuccessContent() {
 
     const { data: { session } } = await supabase.auth.getSession()
     if (session) {
-      // Get provider credentials
-      const { data: credentials } = await supabase
-        .from('user_provider_credentials')
-        .select('api_key')
-        .eq('user_id', session.user.id)
-        .eq('provider', selectedProvider)
-        .single()
+      // Save provider selection to user profile
+      await supabase
+        .from('user_profiles')
+        .upsert({
+          user_id: session.user.id,
+          selected_provider: selectedProvider,
+          selected_model: getDefaultModel(selectedProvider),
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id'
+        })
 
-      if (callbackPort && credentials?.api_key) {
-        // Redirect to CLI callback
+      if (callbackPort) {
+        // Send session token for keyless authentication
         const callbackUrl = `http://localhost:${callbackPort}/auth/callback?` +
           new URLSearchParams({
             provider: selectedProvider,
-            apiKey: atob(credentials.api_key), // Decode base64
+            sessionToken: session.access_token,
             model: getDefaultModel(selectedProvider),
             user: JSON.stringify({
               email: session.user.email || '',
@@ -81,10 +85,10 @@ function CLIAuthSuccessContent() {
 
   const getDefaultModel = (provider: string): string => {
     switch (provider) {
-      case 'chatgpt': return 'gpt-3.5-turbo'
-      case 'claude': return 'claude-3-opus-20240229'
-      case 'gemini': return 'gemini-pro'
-      case 'perplexity': return 'llama-2-70b-chat'
+      case 'chatgpt': return 'gpt-5'
+      case 'claude': return 'claude-opus-4-1-20250805'
+      case 'gemini': return 'gemini-2.0-ultra'
+      case 'perplexity': return 'pplx-pro-online'
       default: return 'default'
     }
   }

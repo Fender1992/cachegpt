@@ -144,7 +144,23 @@ export async function initBrowserCommand(): Promise<void> {
     saveConfiguration(config);
 
     console.log(chalk.green.bold('\n✅ Setup complete!\n'));
-    displayQuickStart();
+
+    // Ask if user wants to start chatting immediately
+    const { startChat } = await inquirer.prompt({
+      type: 'confirm',
+      name: 'startChat',
+      message: 'Would you like to start chatting now?',
+      default: true
+    });
+
+    if (startChat) {
+      console.log(chalk.cyan('\n💬 Starting chat session...\n'));
+      // Import and run chat command
+      const { chatCommand } = await import('./chat');
+      await chatCommand();
+    } else {
+      displayQuickStart();
+    }
 
   } catch (error: any) {
     logError('Setup failed:', error);
@@ -165,7 +181,7 @@ async function handleCacheGPTWebAuth(provider: string): Promise<BrowserConfig> {
       const parsedUrl = parse(req.url || '', true);
 
       if (parsedUrl.pathname === '/auth/callback') {
-        const { provider: authProvider, model, user, error } = parsedUrl.query;
+        const { provider: authProvider, model, user, error, sessionToken, authToken, token } = parsedUrl.query;
 
         // Send success response to browser
         res.writeHead(200, { 'Content-Type': 'text/html' });
@@ -215,6 +231,8 @@ async function handleCacheGPTWebAuth(provider: string): Promise<BrowserConfig> {
             mode: 'browser',
             provider: (authProvider as string) || provider,
             authMethod: 'web-session',
+            authToken: (sessionToken || authToken || token) as string,
+            sessionKey: (sessionToken || authToken || token) as string,
             defaultModel: (model as string) || getDefaultModel(provider),
             cacheEnabled: true,
             cacheLocation: path.join(os.homedir(), '.cachegpt', 'cache'),
@@ -480,7 +498,21 @@ function saveConfiguration(config: BrowserConfig): void {
     fs.mkdirSync(configDir, { recursive: true });
   }
 
-  fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+  // Save in the format that the chat command expects (overwrite the browser config format)
+  const chatConfig = {
+    provider: config.provider,
+    authMethod: config.authMethod === 'web-session' ? 'cachegpt-web' : config.authMethod,
+    sessionToken: config.authToken || config.sessionKey,
+    model: config.defaultModel,
+    user: {
+      email: config.userEmail || 'user@cachegpt.local',
+      name: 'CacheGPT User'
+    },
+    userId: config.userId,
+    userEmail: config.userEmail
+  };
+
+  fs.writeFileSync(configPath, JSON.stringify(chatConfig, null, 2));
 }
 
 function getDefaultModel(provider: string): string {
