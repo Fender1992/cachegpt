@@ -161,9 +161,9 @@ export class TokenManager {
    * Web session management
    */
   setClaudeWebSession(sessionKey: string, organizationId?: string): void {
-    if (!this.isValidClaudeSessionKey(sessionKey)) {
-      throw new Error('Invalid Claude session key format');
-    }
+    // Skip validation - let the actual Claude API validate the session
+    // We accept any session key and let it fail at the API level if invalid
+    console.log(`Storing Claude session (${sessionKey.length} chars)`);
 
     this.storage.web_sessions.claude = {
       type: 'claude_web_session',

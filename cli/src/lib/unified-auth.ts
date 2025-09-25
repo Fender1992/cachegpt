@@ -197,6 +197,10 @@ export class UnifiedAuthManager {
       await page.goto(config.url, { waitUntil: 'domcontentloaded' });
       spinner.stop();
 
+      // Debug: Show current URL
+      const currentUrl = page.url();
+      console.log(chalk.gray(`Current URL: ${currentUrl}`));
+
       // Check if already logged in
       const isLoggedIn = await this.checkIfLoggedIn(page, config);
 
@@ -218,6 +222,8 @@ export class UnifiedAuthManager {
       }
 
       console.log(chalk.green('✅ Session captured successfully!'));
+      console.log(chalk.gray(`Session type: ${typeof sessionCookie}, Length: ${sessionCookie.length} chars`));
+      console.log(chalk.gray(`Preview: ${sessionCookie.substring(0, 30)}...`))
 
       // Give user a moment to see the success message before closing
       console.log(chalk.gray('Closing browser in 3 seconds...'));
@@ -327,20 +333,43 @@ export class UnifiedAuthManager {
    */
   private async checkIfLoggedIn(page: Page, config: ProviderConfig): Promise<boolean> {
     try {
-      // Check URL first
       const url = page.url();
-      if (url.includes('/chat') || url.includes('/c/')) {
-        return true;
+
+      // For Claude, check if we're on the chat page
+      if (config.name === 'Claude') {
+        // Not logged in if we're on login/register pages
+        if (url.includes('/login') || url.includes('/register') || url === 'https://claude.ai/') {
+          console.log(chalk.gray('Detected login page - not logged in'));
+          return false;
+        }
+        // Logged in if we're on chat pages
+        if (url.includes('/chat') || url.includes('/new')) {
+          console.log(chalk.gray('Detected chat page - already logged in'));
+          return true;
+        }
       }
 
-      // Check for login selectors
-      for (const selector of config.loginSelectors) {
-        try {
-          const element = await page.$(selector);
-          if (element) {
-            return true;
-          }
-        } catch {}
+      // For ChatGPT
+      if (config.name === 'ChatGPT') {
+        if (url.includes('auth.openai.com') || url.includes('/login')) {
+          return false;
+        }
+        if (url.includes('/chat') || url.includes('/c/')) {
+          return true;
+        }
+      }
+
+      // Default: if we can find a chat input, we're likely logged in
+      // But only after checking we're not on a login page
+      if (!url.includes('/login') && !url.includes('/register') && !url.includes('/auth')) {
+        for (const selector of config.loginSelectors) {
+          try {
+            const element = await page.$(selector);
+            if (element) {
+              return true;
+            }
+          } catch {}
+        }
       }
 
       return false;
