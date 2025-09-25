@@ -162,11 +162,18 @@ async function callAnthropic(apiKey: string, messages: any[], model: string): Pr
     content: m.content
   }))
 
+  console.log('[DEBUG] Calling Anthropic API:', {
+    model,
+    messageCount: anthropicMessages.length,
+    hasApiKey: !!apiKey,
+    apiKeyPrefix: apiKey ? apiKey.substring(0, 10) + '...' : 'MISSING'
+  })
+
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'x-api-key': apiKey,
-      'anthropic-version': '2025-09-01',
+      'anthropic-version': '2023-06-01',  // Use stable version
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
@@ -178,7 +185,11 @@ async function callAnthropic(apiKey: string, messages: any[], model: string): Pr
 
   if (!response.ok) {
     const error = await response.text()
-    throw new Error(`Anthropic API error: ${error}`)
+    console.error('[ERROR] Anthropic API failed:', {
+      status: response.status,
+      error: error.substring(0, 500)
+    })
+    throw new Error(`Anthropic API error (${response.status}): ${error}`)
   }
 
   const data = await response.json()

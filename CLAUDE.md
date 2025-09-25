@@ -32,3 +32,10 @@
 - No API key screens for individual users
 - STATUS_2025_09_24.md
 - Make sure to update the traking file after every code change.
+
+## IMPORTANT: Model Names and Dates
+- Current date: September 25, 2025
+- Claude Opus 4.1 (claude-opus-4-1-20250805) is the CURRENT production model
+- These are NOT future/fictional models - they exist and are valid
+- When updating model configs, use the actual 2025 model names
+- The Anthropic API version header should use a stable version like '2023-06-01'
