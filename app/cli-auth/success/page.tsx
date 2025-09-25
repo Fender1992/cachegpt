@@ -10,28 +10,152 @@ function CLIAuthSuccessContent() {
   const callbackPort = searchParams.get('callback_port')
 
   useEffect(() => {
-    checkSession()
+    // Add a small delay to ensure session is ready
+    const timer = setTimeout(() => {
+      checkSession()
+    }, 500)
+
+    return () => clearTimeout(timer)
   }, [])
 
   const checkSession = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session) {
-      // Auto-close after 3 seconds
-      setTimeout(() => {
-        try {
-          window.close()
-        } catch (e) {
-          // Can't close programmatically
+    let { data: { session }, error } = await supabase.auth.getSession()
+
+    // Debug logging
+    console.log('[DEBUG] Initial session check:', {
+      hasSession: !!session,
+      hasAccessToken: !!session?.access_token,
+      error: error,
+      userId: session?.user?.id,
+      email: session?.user?.email,
+      callbackPort: callbackPort
+    })
+
+    // If no session, try to get it from localStorage or URL hash
+    if (!session || !session.access_token) {
+      console.log('[DEBUG] No session found, checking for auth hash...')
+
+      // Check if we have auth data in the URL hash (from OAuth redirect)
+      const hash = window.location.hash
+      if (hash && hash.includes('access_token')) {
+        console.log('[DEBUG] Found auth hash, attempting to get session from URL')
+
+        // Try to set session from URL (this is important!)
+        const { data, error: urlError } = await supabase.auth.setSession({
+          access_token: '', // This will trigger Supabase to read from URL
+          refresh_token: ''
+        }).catch(async () => {
+          // If setSession fails, try to exchange code for session
+          return await supabase.auth.exchangeCodeForSession(window.location.href)
+        })
+
+        if (data?.session) {
+          console.log('[DEBUG] Successfully set session from URL:', {
+            hasAccessToken: !!data.session.access_token,
+            userId: data.session.user?.id
+          })
+          // Update our local session variable
+          session = data.session
+        } else {
+          console.error('[ERROR] Failed to get session from URL:', urlError)
         }
-      }, 3000)
+      }
+
+      // If still no session, try one more time to get it
+      if (!session || !session.access_token) {
+        console.log('[DEBUG] Making final attempt to get session...')
+        const { data: { session: finalSession }, error: finalError } = await supabase.auth.getSession()
+        if (finalSession && finalSession.access_token) {
+          console.log('[DEBUG] Got session on final attempt!')
+          session = finalSession
+        } else {
+          console.error('[ERROR] Final attempt failed:', finalError)
+        }
+      }
+    }
+
+    if (session) {
+      // Auto-close after 3 seconds (only if no callback port)
+      if (!callbackPort) {
+        setTimeout(() => {
+          try {
+            window.close()
+          } catch (e) {
+            // Can't close programmatically
+          }
+        }, 3000)
+      }
     }
   }
 
   const selectProvider = async (selectedProvider: string) => {
     setProvider(selectedProvider)
 
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session) {
+    // Debug: Check what's in localStorage
+    console.log('[DEBUG] Checking localStorage for Supabase session...')
+    if (typeof window !== 'undefined') {
+      const keys = Object.keys(localStorage)
+      console.log('[DEBUG] All localStorage keys:', keys)
+
+      // Look for Supabase auth token
+      const authKey = keys.find(k => k.includes('auth-token'))
+      if (authKey) {
+        const authData = localStorage.getItem(authKey)
+        console.log('[DEBUG] Found auth data in key:', authKey)
+        try {
+          const parsed = JSON.parse(authData || '{}')
+          console.log('[DEBUG] Auth data contains:', {
+            hasAccessToken: !!parsed.access_token,
+            hasRefreshToken: !!parsed.refresh_token,
+            hasUser: !!parsed.user,
+            expiresAt: parsed.expires_at,
+            expiresIn: parsed.expires_in
+          })
+        } catch (e) {
+          console.error('[DEBUG] Could not parse auth data')
+        }
+      } else {
+        console.error('[DEBUG] No Supabase auth token found in localStorage!')
+      }
+    }
+
+    const { data: { session }, error } = await supabase.auth.getSession()
+
+    // Debug logging
+    console.log('[DEBUG] Session check:', {
+      hasSession: !!session,
+      hasAccessToken: !!session?.access_token,
+      accessTokenValue: session?.access_token ? session.access_token.substring(0, 30) + '...' : 'UNDEFINED',
+      sessionError: error,
+      userId: session?.user?.id,
+      email: session?.user?.email,
+      fullSession: session
+    })
+
+    // CRITICAL FIX: Even if session exists but no access_token, we can't proceed
+    if (!session || !session.access_token) {
+      console.error('[ERROR] No session or no access token available!')
+
+      // Try to get it from the database as a fallback
+      if (session?.user?.id) {
+        console.log('[DEBUG] Attempting to fetch token from cli_auth_sessions table...')
+        const { data: cliSession } = await supabase
+          .from('cli_auth_sessions')
+          .select('access_token')
+          .eq('user_id', session.user.id)
+          .single()
+
+        if (cliSession?.access_token) {
+          console.log('[DEBUG] Found token in database!')
+          // Use the token from database
+          session.access_token = cliSession.access_token
+        } else {
+          console.error('[ERROR] No token in database either!')
+        }
+      }
+    }
+
+    if (session && session.access_token) {
       // Save provider selection to user profile
       await supabase
         .from('user_profiles')
@@ -45,18 +169,32 @@ function CLIAuthSuccessContent() {
         })
 
       if (callbackPort) {
-        // Send session token for keyless authentication
-        const callbackUrl = `http://localhost:${callbackPort}/auth/callback?` +
-          new URLSearchParams({
-            provider: selectedProvider,
-            sessionToken: session.access_token,
-            model: getDefaultModel(selectedProvider),
-            user: JSON.stringify({
-              email: session.user.email || '',
-              name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User'
-            })
-          }).toString()
+        // Build callback parameters
+        const params: Record<string, string> = {
+          provider: selectedProvider,
+          model: getDefaultModel(selectedProvider),
+          user: JSON.stringify({
+            email: session.user.email || '',
+            name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User'
+          })
+        }
 
+        // Add token with fallback options
+        if (session.access_token) {
+          params.sessionToken = session.access_token
+          params.authToken = session.access_token // Send as both for compatibility
+        } else {
+          console.error('[ERROR] No access token in session!')
+          params.error = 'No access token available'
+        }
+
+        // Debug: log what we're sending
+        console.log('[DEBUG] Sending callback with params:', params)
+
+        // Send session token for keyless authentication
+        const callbackUrl = `http://localhost:${callbackPort}/auth/callback?` + new URLSearchParams(params).toString()
+
+        console.log('[DEBUG] Redirecting to:', callbackUrl)
         window.location.href = callbackUrl
         return
       }
@@ -108,6 +246,7 @@ function CLIAuthSuccessContent() {
           {!provider ? (
             <>
               <p className="text-gray-400 mb-8">Select your LLM provider:</p>
+              <p className="text-xs text-gray-500 mb-4">Callback port: {callbackPort || 'Not specified'}</p>
 
               <div className="grid grid-cols-2 gap-3">
                 <button

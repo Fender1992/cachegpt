@@ -39,8 +39,34 @@ function AuthCallbackContent() {
       const finalCallbackPort = callbackPort || (cliState && cliState.callback_port) || null
 
       try {
-        // Get the code from URL
-        const { data: { session }, error } = await supabase.auth.getSession()
+        // IMPORTANT: First check if we have a code in the URL that needs to be exchanged
+        const code = searchParams.get('code')
+
+        let session = null
+        let error = null
+
+        if (code) {
+          console.log('[DEBUG] Found OAuth code in URL, exchanging for session...')
+          // Exchange the OAuth code for a session
+          const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+          session = data?.session
+          error = exchangeError
+
+          if (session) {
+            console.log('[DEBUG] Successfully exchanged code for session!', {
+              hasAccessToken: !!session.access_token,
+              userId: session.user?.id
+            })
+          } else {
+            console.error('[ERROR] Failed to exchange code:', exchangeError)
+          }
+        } else {
+          console.log('[DEBUG] No code in URL, trying to get existing session...')
+          // No code, try to get existing session
+          const result = await supabase.auth.getSession()
+          session = result.data.session
+          error = result.error
+        }
 
         if (error) {
           if (isFromCLI) {

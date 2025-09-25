@@ -11,7 +11,27 @@ function CLIAuthCallbackContent() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession()
+        // First check if there's a code to exchange
+        const code = searchParams.get('code')
+
+        let session = null
+        let error = null
+
+        if (code) {
+          console.log('[DEBUG] Found OAuth code, exchanging for session...')
+          const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+          session = data?.session
+          error = exchangeError
+
+          if (session) {
+            console.log('[DEBUG] Successfully got session from code exchange!')
+          }
+        } else {
+          console.log('[DEBUG] No code, trying to get existing session...')
+          const result = await supabase.auth.getSession()
+          session = result.data.session
+          error = result.error
+        }
 
         if (error) {
           console.error('Auth error:', error)

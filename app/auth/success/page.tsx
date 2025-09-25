@@ -41,16 +41,18 @@ function AuthSuccessContent() {
     if (profile?.selected_provider) {
       // User has provider, go to chat
       if (source === 'cli' && callbackPort) {
-        // CLI user - redirect back to local callback
+        // CLI user - redirect back to local callback WITH SESSION TOKEN
         const callbackUrl = `http://localhost:${callbackPort}/auth/callback?` +
           new URLSearchParams({
             provider: profile.selected_provider,
+            sessionToken: session.access_token,  // Add the actual session token!
             user: JSON.stringify({
               email: session.user.email || '',
               name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User'
             })
           }).toString()
 
+        console.log('[DEBUG] Redirecting to CLI with token:', session.access_token ? 'Present' : 'Missing')
         window.location.href = callbackUrl
       } else {
         router.push('/chat')

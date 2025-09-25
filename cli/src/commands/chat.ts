@@ -469,6 +469,15 @@ async function startAuthServer(): Promise<{ success: boolean; port?: number; ser
       if (parsedUrl.pathname === '/auth/callback') {
         const { provider, sessionToken, authToken, model, user, error } = parsedUrl.query;
 
+        // Debug logging
+        console.log(chalk.yellow('\n[DEBUG] Auth Callback Received:'));
+        console.log(chalk.gray(`  Provider: ${provider}`));
+        console.log(chalk.gray(`  SessionToken: ${sessionToken ? 'Present (' + String(sessionToken).substring(0, 20) + '...)' : 'Missing'}`));
+        console.log(chalk.gray(`  AuthToken: ${authToken ? 'Present (' + String(authToken).substring(0, 20) + '...)' : 'Missing'}`));
+        console.log(chalk.gray(`  Model: ${model || 'Not specified'}`));
+        console.log(chalk.gray(`  User: ${user ? 'Present' : 'Missing'}`));
+        console.log(chalk.gray(`  Error: ${error || 'None'}`));
+
         // Send success response to browser
         res.writeHead(200, { 'Content-Type': 'text/html' });
         res.end(`
@@ -495,6 +504,17 @@ async function startAuthServer(): Promise<{ success: boolean; port?: number; ser
                 <h2 class="success">Authentication Successful!</h2>
                 <p>You can now return to your terminal. This window will close automatically.</p>
               `}
+
+              <!-- Debug Information -->
+              <div style="margin-top: 20px; padding: 15px; background: #f3f4f6; border-radius: 8px; text-align: left; font-family: monospace; font-size: 12px;">
+                <h4 style="margin-top: 0; color: #6b7280;">Debug Information:</h4>
+                <p style="margin: 5px 0;"><strong>Provider:</strong> ${provider || 'Not received'}</p>
+                <p style="margin: 5px 0;"><strong>Session Token:</strong> ${sessionToken ? 'Received (' + String(sessionToken).substring(0, 30) + '...)' : 'NOT RECEIVED'}</p>
+                <p style="margin: 5px 0;"><strong>Auth Token:</strong> ${authToken ? 'Received (' + String(authToken).substring(0, 30) + '...)' : 'NOT RECEIVED'}</p>
+                <p style="margin: 5px 0;"><strong>Model:</strong> ${model || 'Not specified'}</p>
+                <p style="margin: 5px 0;"><strong>User:</strong> ${user ? 'Received' : 'NOT RECEIVED'}</p>
+                <p style="margin: 5px 0;"><strong>Query String:</strong> ${req.url || 'Empty'}</p>
+              </div>
             </div>
             <script>
               setTimeout(() => window.close(), ${error ? 5000 : 2000});

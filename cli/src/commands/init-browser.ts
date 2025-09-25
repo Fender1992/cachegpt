@@ -183,6 +183,18 @@ async function handleCacheGPTWebAuth(provider: string): Promise<BrowserConfig> {
       if (parsedUrl.pathname === '/auth/callback') {
         const { provider: authProvider, model, user, error, sessionToken, authToken, token } = parsedUrl.query;
 
+        // Debug logging to console
+        console.log(chalk.yellow('\n[DEBUG] Auth Callback Received:'));
+        console.log(chalk.gray(`  URL: ${req.url}`));
+        console.log(chalk.gray(`  Provider: ${authProvider || provider || 'MISSING'}`));
+        console.log(chalk.gray(`  SessionToken: ${sessionToken ? 'Present (' + String(sessionToken).substring(0, 20) + '...)' : 'MISSING'}`));
+        console.log(chalk.gray(`  AuthToken: ${authToken ? 'Present (' + String(authToken).substring(0, 20) + '...)' : 'MISSING'}`));
+        console.log(chalk.gray(`  Token: ${token ? 'Present (' + String(token).substring(0, 20) + '...)' : 'MISSING'}`));
+        console.log(chalk.gray(`  Model: ${model || 'Not specified'}`));
+        console.log(chalk.gray(`  User: ${user ? 'Present' : 'MISSING'}`));
+        console.log(chalk.gray(`  Error: ${error || 'None'}`));
+        console.log();
+
         // Send success response to browser
         res.writeHead(200, { 'Content-Type': 'text/html' });
         res.end(`
@@ -214,6 +226,19 @@ async function handleCacheGPTWebAuth(provider: string): Promise<BrowserConfig> {
                 <p><strong>Provider:</strong> ${authProvider || provider}</p>
                 <p><strong>Model:</strong> ${model}</p>
               `}
+
+              <!-- Debug Information -->
+              <div style="margin-top: 20px; padding: 15px; background: #f3f4f6; border-radius: 8px; text-align: left; font-family: monospace; font-size: 12px;">
+                <h4 style="margin-top: 0; color: #6b7280;">Debug Information:</h4>
+                <p style="margin: 5px 0;"><strong>Provider:</strong> ${authProvider || provider || 'NOT RECEIVED'}</p>
+                <p style="margin: 5px 0;"><strong>Session Token:</strong> ${sessionToken ? 'Received (' + String(sessionToken).substring(0, 30) + '...)' : 'NOT RECEIVED'}</p>
+                <p style="margin: 5px 0;"><strong>Auth Token:</strong> ${authToken ? 'Received (' + String(authToken).substring(0, 30) + '...)' : 'NOT RECEIVED'}</p>
+                <p style="margin: 5px 0;"><strong>Token:</strong> ${token ? 'Received (' + String(token).substring(0, 30) + '...)' : 'NOT RECEIVED'}</p>
+                <p style="margin: 5px 0;"><strong>Model:</strong> ${model || 'Not specified'}</p>
+                <p style="margin: 5px 0;"><strong>User:</strong> ${user ? 'Received' : 'NOT RECEIVED'}</p>
+                <p style="margin: 5px 0; color: #ef4444;"><strong>Any Token Present:</strong> ${(sessionToken || authToken || token) ? 'YES' : 'NO - AUTHENTICATION WILL FAIL!'}</p>
+                <p style="margin: 5px 0;"><strong>Full Query String:</strong> ${req.url || 'Empty'}</p>
+              </div>
             </div>
             <script>
               setTimeout(() => window.close(), ${error ? 5000 : 3000});
