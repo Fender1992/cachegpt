@@ -251,7 +251,22 @@ async function handleAPIKey(provider: string, messages: any[], model: string, ap
 
 // Web session implementations
 async function callClaudeWeb(sessionKey: string, messages: any[]): Promise<string> {
-  // Implementation for Claude web API
+  // Claude's web API requires complex authentication that changes frequently
+  // The session key alone is not sufficient - it also needs:
+  // - Organization ID
+  // - CSRF tokens
+  // - Proper cookie formatting
+  // - Conversation IDs
+
+  throw new Error(
+    'Claude web sessions are not currently supported. ' +
+    'Please use a Claude API key instead. ' +
+    'Get your API key from: https://console.anthropic.com/settings/keys ' +
+    'Then run: cachegpt logout && cachegpt init (and choose API key option)'
+  );
+
+  // Previous implementation kept for reference but doesn't work with current Claude.ai
+  /*
   const response = await fetch('https://claude.ai/api/append_message', {
     method: 'POST',
     headers: {
@@ -271,7 +286,6 @@ async function callClaudeWeb(sessionKey: string, messages: any[]): Promise<strin
   }
 
   const text = await response.text();
-  // Parse the SSE stream response
   const lines = text.split('\n');
   let fullResponse = '';
 
@@ -287,6 +301,7 @@ async function callClaudeWeb(sessionKey: string, messages: any[]): Promise<strin
   }
 
   return fullResponse || 'No response from Claude';
+  */
 }
 
 async function callChatGPTWeb(sessionToken: string, messages: any[]): Promise<string> {
