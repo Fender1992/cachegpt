@@ -277,18 +277,41 @@ export class UnifiedAuthManager {
       console.log(chalk.gray(config.apiKeyInstructions));
     }
 
+    // Special handling for Claude - can accept either API key or session key
+    const isClaudeProvider = provider === 'claude';
+    const promptMessage = isClaudeProvider
+      ? `Enter your Claude API key (sk-ant-api-...) OR session key from browser:`
+      : `Enter your ${config.name} API key:`;
+
     const { apiKey } = await inquirer.prompt({
       type: 'password',
       name: 'apiKey',
-      message: `Enter your ${config.name} API key:`,
+      message: promptMessage,
       mask: '*',
       validate: (input) => {
         if (!input || input.trim().length < 10) {
-          return 'Please enter a valid API key';
+          return 'Please enter a valid API key or session key';
         }
         return true;
       }
     });
+
+    // For Claude, check if this looks like a session key instead of an API key
+    if (isClaudeProvider && !apiKey.startsWith('sk-ant-api')) {
+      console.log(chalk.yellow('📝 Detected Claude session key (not API key)'));
+      console.log(chalk.yellow('Storing as web session...'));
+
+      // Store as web session instead of API key
+      this.tokenManager.setClaudeWebSession(apiKey);
+      console.log(chalk.green('✅ Session key stored successfully!'));
+
+      return {
+        provider,
+        authMethod: 'web-session',
+        credential: apiKey,
+        model: config.defaultModel
+      };
+    }
 
     // Validate the API key by making a test request
     const isValid = await this.validateAPIKey(provider, apiKey);
