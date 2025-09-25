@@ -46,7 +46,7 @@ process.on('unhandledRejection', (reason, promise) => {
 
 program
   .name('cachegpt')
-  .description('CacheGPT CLI - Intelligent LLM caching with automated provider authentication')
+  .description('Zero-setup free AI chat - login with Google/GitHub and start chatting!')
   .version(getVersion(), '-v, --version', 'Display version number');
 
 program
@@ -83,8 +83,24 @@ program
 
 program
   .command('chat')
-  .description('Start interactive chat with your LLM')
+  .description('Start free AI chat (no API keys needed - just login!)')
   .action(chatCommand);
+
+program
+  .command('claude')
+  .description('Simple Claude chat - just paste your API key and go')
+  .action(async () => {
+    const { claudeCommand } = await import('./commands/claude');
+    await claudeCommand();
+  });
+
+program
+  .command('free')
+  .description('Free chat using OAuth + rotating free providers (no API keys needed!)')
+  .action(async () => {
+    const { freeChatCommand } = await import('./commands/free-chat');
+    await freeChatCommand();
+  });
 
 
 program
@@ -96,6 +112,7 @@ program
   .command('logout')
   .description('Log out from authenticated accounts')
   .action(logoutCommand);
+
 
 program
   .command('register')

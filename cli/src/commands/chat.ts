@@ -1,8 +1,8 @@
-import { chatUnifiedCommand } from './chat-unified';
+import { freeChatCommand } from './free-chat';
 
 /**
- * Main chat command - uses unified authentication
+ * Main chat command - now uses free providers with OAuth (zero setup!)
  */
 export async function chatCommand(): Promise<void> {
-  return await chatUnifiedCommand();
+  return await freeChatCommand();
 }
