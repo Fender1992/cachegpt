@@ -219,21 +219,31 @@ export class UnifiedAuthManager {
 
       console.log(chalk.green('✅ Session captured successfully!'));
 
+      // Give user a moment to see the success message before closing
+      console.log(chalk.gray('Closing browser in 3 seconds...'));
+      await new Promise(resolve => setTimeout(resolve, 3000));
       await context.close();
 
       // Save using the TokenManager
-      switch (provider) {
-        case 'claude':
-          this.tokenManager.setClaudeWebSession(sessionCookie);
-          break;
-        case 'chatgpt':
-          this.tokenManager.setChatGPTWebSession(sessionCookie);
-          break;
-        case 'gemini':
-          // Gemini web session not implemented yet
-          throw new Error('Gemini web sessions not supported yet');
-        default:
-          throw new Error(`Web sessions not supported for ${provider}`);
+      try {
+        switch (provider) {
+          case 'claude':
+            this.tokenManager.setClaudeWebSession(sessionCookie);
+            break;
+          case 'chatgpt':
+            this.tokenManager.setChatGPTWebSession(sessionCookie);
+            break;
+          case 'gemini':
+            // Gemini web session not implemented yet
+            throw new Error('Gemini web sessions not supported yet');
+          default:
+            throw new Error(`Web sessions not supported for ${provider}`);
+        }
+        console.log(chalk.green('✅ Session stored successfully!'));
+      } catch (error: any) {
+        console.error(chalk.red('❌ Failed to store session:'), error.message);
+        console.log(chalk.gray('Session captured:', sessionCookie.substring(0, 20) + '...'));
+        throw new Error(`Session validation failed: ${error.message}`);
       }
 
       // Return config

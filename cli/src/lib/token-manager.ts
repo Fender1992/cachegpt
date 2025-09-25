@@ -374,8 +374,12 @@ export class TokenManager {
   }
 
   private isValidClaudeSessionKey(sessionKey: string): boolean {
-    // Claude session keys are typically long strings without JWT structure
-    return sessionKey.length > 50 && !sessionKey.includes('.');
+    // Claude session keys can have various formats - be more permissive
+    // They're typically long strings that start with 'sk-ant-sid' or similar
+    return sessionKey.length > 20 &&
+           (sessionKey.startsWith('sk-ant-') ||
+            sessionKey.startsWith('sess-') ||
+            sessionKey.length > 50); // Accept any long string as fallback
   }
 
   private isValidAPIKey(provider: string, apiKey: string): boolean {
