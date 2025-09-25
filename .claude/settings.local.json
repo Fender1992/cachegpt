@@ -85,7 +85,8 @@
       "Bash(llm-cache:*)",
       "Bash(git rm:*)",
       "Bash(cachegpt:*)",
-      "Bash(npm unpublish:*)"
+      "Bash(npm unpublish:*)",
+      "Bash(CACHEGPT_API_URL=http://localhost:3004 ./bin/llm-cache status)"
     ],
     "deny": [],
     "ask": []

@@ -29,23 +29,60 @@ import { generateEmbedding, findSimilarCachedResponse, cacheResponse } from '@/l
  */
 export async function POST(request: NextRequest) {
   try {
-    // Step 1: Resolve authentication using unified resolver
-    const authResult = await resolveAuthentication(request);
+    // Step 1: Parse request body once
+    const body = await request.json();
+    const { directSession, credential, authMethod, provider, message, model, messages } = body;
 
-    if (isAuthError(authResult)) {
-      return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+    console.log('[unified-chat] Request received:', {
+      directSession,
+      authMethod,
+      provider,
+      hasCredential: !!credential,
+      credentialLength: credential?.length,
+      messagesCount: messages?.length
+    });
+
+    let session: UnifiedSession;
+
+    // Check if this is a direct session request (CLI with session key, no OAuth)
+    if (directSession === true && authMethod === 'web-session' && credential) {
+      // Create a pseudo-session for CLI users with session keys
+      // This bypasses OAuth but still allows session-based auth
+      session = {
+        user: {
+          id: 'cli-session-user',
+          email: 'cli-user@cachegpt.app'
+        },
+        authMethod: 'bearer', // Treat as bearer for consistency
+        token: credential, // The session key itself
+        issuedAt: Date.now()
+      };
+
+      console.log('[unified-chat] Using direct session authentication for CLI user');
+    } else {
+      // Standard authentication flow - check for Bearer token or cookie
+      const authHeader = request.headers.get('authorization');
+      console.log('[unified-chat] Standard auth flow, has Bearer token:', !!authHeader);
+
+      const authResult = await resolveAuthentication(request);
+
+      if (isAuthError(authResult)) {
+        console.log('[unified-chat] Auth failed. Debug info:', {
+          directSession,
+          authMethod,
+          hasCredential: !!credential,
+          hasBearerToken: !!authHeader
+        });
+        return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+      }
+
+      session = authResult as UnifiedSession;
     }
-
-    const session = authResult as UnifiedSession;
 
     // Log auth method for debugging
     logAuthMethodUsage(session, '/api/v2/unified-chat');
 
-    // Step 2: Parse request body
-    const body = await request.json();
-    const { message, provider, model, messages, authMethod, credential } = body;
-
-    // Validate provider
+    // Step 2: Validate provider
     const validProviders = ['chatgpt', 'claude', 'gemini', 'perplexity'];
     if (!provider || !validProviders.includes(provider)) {
       return NextResponse.json({ error: 'Invalid provider' }, { status: 400 });
