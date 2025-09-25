@@ -47,7 +47,7 @@ export class ApiClient {
   }
 
   async chat(request: any): Promise<any> {
-    const response = await this.client.post('/api/chat', request);
+    const response = await this.client.post('/api/v2/unified-chat', request);
     return response.data;
   }
 

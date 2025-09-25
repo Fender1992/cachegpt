@@ -1,3 +1,15 @@
+/**
+ * 🚨 IMPORTANT: READ STATUS FILE FIRST!
+ * Before making ANY changes to CLI browser authentication, read:
+ * /root/cachegpt/STATUS_2025_09_24.md
+ *
+ * This handles the critical OAuth flow between CLI and web browser.
+ * After making changes, update STATUS file with:
+ * - Changes to OAuth callback handling
+ * - Impact on CLI initialization flow
+ * - Any changes to browser integration
+ */
+
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 import open from 'open';
@@ -12,10 +24,125 @@ import { OAuth2Client, OAUTH_PROVIDERS } from '../lib/oauth';
 import { CredentialStore } from '../lib/credential-store';
 import { initClaudePersistent } from './init-claude-persistent';
 
+interface ParsedAuthTokens {
+  supabase_jwt?: string;
+  claude_session?: string;
+  oauth_token?: string;
+  api_key?: string;
+  sessionToken?: string;
+  authToken?: string;
+  token?: string;
+}
+
+interface AuthResult {
+  method: 'supabase_jwt' | 'claude_session' | 'api_key' | 'legacy_unknown';
+  tokenType: string;
+  credential: string;
+}
+
+/**
+ * Parse authentication tokens and determine the correct type and usage
+ */
+function parseAuthTokens(tokens: ParsedAuthTokens): AuthResult {
+  // Priority order: explicit parameters first, then legacy fallbacks
+
+  if (tokens.supabase_jwt) {
+    return {
+      method: 'supabase_jwt',
+      tokenType: 'Supabase JWT',
+      credential: tokens.supabase_jwt
+    };
+  }
+
+  if (tokens.claude_session) {
+    return {
+      method: 'claude_session',
+      tokenType: 'Claude Session Key',
+      credential: tokens.claude_session
+    };
+  }
+
+  if (tokens.api_key) {
+    return {
+      method: 'api_key',
+      tokenType: 'API Key',
+      credential: tokens.api_key
+    };
+  }
+
+  // Legacy fallbacks (with best guess at token type)
+  if (tokens.sessionToken) {
+    // Try to determine token type based on content
+    if (isJWT(tokens.sessionToken)) {
+      return {
+        method: 'supabase_jwt',
+        tokenType: 'Supabase JWT (legacy param)',
+        credential: tokens.sessionToken
+      };
+    } else if (tokens.sessionToken.length > 100) {
+      return {
+        method: 'claude_session',
+        tokenType: 'Claude Session (legacy param)',
+        credential: tokens.sessionToken
+      };
+    }
+
+    return {
+      method: 'legacy_unknown',
+      tokenType: 'Unknown (sessionToken)',
+      credential: tokens.sessionToken
+    };
+  }
+
+  if (tokens.authToken) {
+    return {
+      method: 'legacy_unknown',
+      tokenType: 'Unknown (authToken)',
+      credential: tokens.authToken
+    };
+  }
+
+  if (tokens.token) {
+    return {
+      method: 'legacy_unknown',
+      tokenType: 'Unknown (token)',
+      credential: tokens.token
+    };
+  }
+
+  throw new Error('No authentication token found in callback');
+}
+
+/**
+ * Simple JWT detection based on format
+ */
+function isJWT(token: string): boolean {
+  const parts = token.split('.');
+  return parts.length === 3 && parts.every(part => part.length > 0);
+}
+
+/**
+ * Map auth method to config format
+ */
+function mapAuthMethodToConfig(method: AuthResult['method']): BrowserConfig['authMethod'] {
+  switch (method) {
+    case 'supabase_jwt':
+      return 'web-session';
+    case 'claude_session':
+      return 'claude-web';
+    case 'api_key':
+      return 'api-key';
+    case 'legacy_unknown':
+      return 'web-session'; // Default fallback
+    default:
+      return 'web-session';
+  }
+}
+
 interface BrowserConfig {
   mode: 'browser';
   provider: string;
-  authMethod: 'oauth' | 'api' | 'token' | 'web-session' | 'claude-web';
+  authMethod: 'oauth' | 'api' | 'token' | 'web-session' | 'claude-web' | 'api-key';
   authToken?: string;
   apiKey?: string;
   sessionKey?: string;
@@ -39,10 +166,9 @@ const PROVIDER_URLS = {
 };
 
 export async function initBrowserCommand(): Promise<void> {
-  console.clear();
   console.log(chalk.cyan.bold('\n🌐 CacheGPT - Web Authentication Setup\n'));
-  console.log(chalk.white('Authenticate with your favorite LLM providers.'));
-  console.log(chalk.gray('Secure OAuth 2.0 with PKCE - just like Claude Code!\n'));
+  console.log(chalk.white('Login with your existing Claude or ChatGPT account.'));
+  console.log(chalk.gray('No API keys needed - works just like Claude Code!\n'));
 
   const credentialStore = new CredentialStore();
 
@@ -91,53 +217,21 @@ export async function initBrowserCommand(): Promise<void> {
 
     const authChoices = [];
 
-    // All providers now support CacheGPT web authentication
+    // All providers use web authentication - no API keys
     authChoices.push(
-      { name: '🌐 CacheGPT Web Login (No API Keys Required!)', value: 'cachegpt-web' }
+      { name: '🌐 Web Login (No API Keys Required!)', value: 'cachegpt-web' }
     );
 
-    // Special handling for different providers
-    if (provider === 'anthropic') {
-      // Anthropic supports additional auth methods
-      authChoices.push(
-        { name: '🤖 Claude Web Session (Advanced)', value: 'claude-web' },
-        { name: '🔑 API Key (From Anthropic Console)', value: 'api' }
-      );
-    } else if (oauthSupported) {
-      authChoices.push({ name: '🔐 OAuth 2.0 Web Login (Recommended)', value: 'oauth' });
-      authChoices.push(
-        { name: '🔑 API Key', value: 'api' },
-        { name: '🍪 Browser Session Token', value: 'token' }
-      );
-    } else {
-      authChoices.push(
-        { name: '🔑 API Key', value: 'api' },
-        { name: '🍪 Browser Session Token', value: 'token' }
-      );
-    }
-
-    const { authMethod } = await inquirer.prompt({
-      type: 'list',
-      name: 'authMethod',
-      message: 'How would you like to authenticate?',
-      choices: authChoices
-    });
-
+    // Always use web authentication - no API keys
     let config: BrowserConfig;
 
-    if (authMethod === 'cachegpt-web') {
-      // Use CacheGPT web authentication - connects to our keyless system
+    if (provider === 'anthropic' || provider === 'claude') {
+      // Claude requires special web session handling
+      console.log(chalk.cyan('\n🤖 Setting up Claude web session...\n'));
       config = await handleCacheGPTWebAuth(provider);
-    } else if (authMethod === 'claude-web') {
-      // Use persistent browser profile - exactly like Claude Code!
-      // This maintains login between sessions and bypasses detection
-      config = await initClaudePersistent();
-    } else if (authMethod === 'oauth') {
-      config = await handleOAuth2Auth(provider, credentialStore);
-    } else if (authMethod === 'api') {
-      config = await handleAPIAuth(provider);
     } else {
-      config = await handleTokenAuth(provider, providerUrl);
+      // Other providers use standard OAuth
+      config = await handleCacheGPTWebAuth(provider);
     }
 
     // Save configuration
@@ -181,15 +275,41 @@ async function handleCacheGPTWebAuth(provider: string): Promise<BrowserConfig> {
       const parsedUrl = parse(req.url || '', true);
 
       if (parsedUrl.pathname === '/auth/callback') {
-        const { provider: authProvider, model, user, error, sessionToken, authToken, token } = parsedUrl.query;
+        // Parse tokens with explicit parameter names to avoid confusion
+        const {
+          provider: authProvider,
+          model,
+          user,
+          error,
+          supabase_jwt,    // Supabase JWT access token
+          claude_session,  // Claude sessionKey
+          oauth_token,     // Temporary OAuth token
+          api_key,         // User's API key
+          // Legacy parameter names for backwards compatibility
+          sessionToken,
+          authToken,
+          token
+        } = parsedUrl.query;
+
+        // Determine auth method and select appropriate token
+        const authResult = parseAuthTokens({
+          supabase_jwt: supabase_jwt as string,
+          claude_session: claude_session as string,
+          oauth_token: oauth_token as string,
+          api_key: api_key as string,
+          // Legacy fallbacks
+          sessionToken: sessionToken as string,
+          authToken: authToken as string,
+          token: token as string
+        });
 
         // Debug logging to console
         console.log(chalk.yellow('\n[DEBUG] Auth Callback Received:'));
         console.log(chalk.gray(`  URL: ${req.url}`));
         console.log(chalk.gray(`  Provider: ${authProvider || provider || 'MISSING'}`));
-        console.log(chalk.gray(`  SessionToken: ${sessionToken ? 'Present (' + String(sessionToken).substring(0, 20) + '...)' : 'MISSING'}`));
-        console.log(chalk.gray(`  AuthToken: ${authToken ? 'Present (' + String(authToken).substring(0, 20) + '...)' : 'MISSING'}`));
-        console.log(chalk.gray(`  Token: ${token ? 'Present (' + String(token).substring(0, 20) + '...)' : 'MISSING'}`));
+        console.log(chalk.gray(`  Auth Method: ${authResult.method}`));
+        console.log(chalk.gray(`  Token Type: ${authResult.tokenType}`));
+        console.log(chalk.gray(`  Token Present: ${authResult.credential ? 'YES (' + authResult.credential.substring(0, 20) + '...)' : 'NO'}`));
         console.log(chalk.gray(`  Model: ${model || 'Not specified'}`));
         console.log(chalk.gray(`  User: ${user ? 'Present' : 'MISSING'}`));
         console.log(chalk.gray(`  Error: ${error || 'None'}`));
@@ -252,18 +372,32 @@ async function handleCacheGPTWebAuth(provider: string): Promise<BrowserConfig> {
         if (error) {
           reject(new Error(error as string));
         } else {
-          resolve({
+          // Map parsed auth result to appropriate config format
+          const config: BrowserConfig = {
             mode: 'browser',
             provider: (authProvider as string) || provider,
-            authMethod: 'web-session',
-            authToken: (sessionToken || authToken || token) as string,
-            sessionKey: (sessionToken || authToken || token) as string,
+            authMethod: mapAuthMethodToConfig(authResult.method),
             defaultModel: (model as string) || getDefaultModel(provider),
             cacheEnabled: true,
             cacheLocation: path.join(os.homedir(), '.cachegpt', 'cache'),
             userId: crypto.randomBytes(16).toString('hex'),
             userEmail: user ? JSON.parse(user as string).email : undefined
-          });
+          };
+
+          // Set the appropriate token field based on auth method
+          if (authResult.method === 'supabase_jwt') {
+            config.authToken = authResult.credential;
+          } else if (authResult.method === 'claude_session') {
+            config.sessionKey = authResult.credential;
+          } else if (authResult.method === 'api_key') {
+            config.apiKey = authResult.credential;
+          } else {
+            // Legacy unknown - make best guess
+            config.authToken = authResult.credential;
+            config.sessionKey = authResult.credential;
+          }
+
+          resolve(config);
         }
         return;
       }
@@ -367,107 +501,13 @@ async function handleOAuth2Auth(provider: string, credentialStore: CredentialSto
 
   } catch (error: any) {
     console.log(chalk.red('\n❌ OAuth authentication failed'));
-    console.log(chalk.yellow('Falling back to API key authentication...\n'));
-    return await handleAPIAuth(provider);
+    throw new Error(`Authentication failed: ${error.message}`);
   }
 }
 
-async function handleAPIAuth(provider: string): Promise<BrowserConfig> {
-  console.log(chalk.cyan('\n🔑 API Key Authentication\n'));
+// API authentication removed - we only use web sessions now
 
-  const providerInstructions: Record<string, string> = {
-    openai: 'Get your API key from: https://platform.openai.com/api-keys',
-    anthropic: 'Get your API key from: https://console.anthropic.com/settings/keys',
-    google: 'Get your API key from: https://makersuite.google.com/app/apikey',
-    microsoft: 'Get your Azure OpenAI key from: https://portal.azure.com',
-    perplexity: 'Get your API key from: https://www.perplexity.ai/settings/api',
-    cohere: 'Get your API key from: https://dashboard.cohere.ai/api-keys'
-  };
-
-  console.log(chalk.gray(providerInstructions[provider] || 'Get your API key from the provider\'s dashboard'));
-  console.log();
-
-  const { apiKey } = await inquirer.prompt({
-    type: 'password',
-    name: 'apiKey',
-    message: 'Enter your API key:',
-    mask: '*',
-    validate: (input) => input.length > 0 || 'API key is required'
-  });
-
-  // Additional config for Azure OpenAI
-  let azureConfig = {};
-  if (provider === 'microsoft') {
-    const endpointAnswer = await inquirer.prompt({
-        type: 'input',
-        name: 'endpoint',
-        message: 'Enter your Azure OpenAI endpoint:',
-        validate: (input) => input.length > 0 || 'Endpoint is required'
-      });
-
-    const deploymentAnswer = await inquirer.prompt({
-        type: 'input',
-        name: 'deployment',
-        message: 'Enter your deployment name:',
-        default: 'gpt-4'
-      });
-
-    const { endpoint, deployment } = { ...endpointAnswer, ...deploymentAnswer };
-    azureConfig = { endpoint, deployment };
-  }
-
-  // Save configuration
-  const config: BrowserConfig = {
-    mode: 'browser',
-    provider,
-    authMethod: 'api',
-    apiKey: encryptData(apiKey),
-    defaultModel: getDefaultModel(provider),
-    cacheEnabled: true,
-    cacheLocation: path.join(os.homedir(), '.cachegpt', 'cache'),
-    userId: crypto.randomBytes(16).toString('hex'),
-    ...azureConfig
-  };
-
-  return config;
-}
-
-async function handleTokenAuth(provider: string, providerUrl: string): Promise<BrowserConfig> {
-  console.log(chalk.cyan('\n🍪 Browser Session Token Authentication\n'));
-
-  console.log(chalk.yellow('Instructions:'));
-  console.log('1. Your browser will open to ' + providerUrl);
-  console.log('2. Log in to your account');
-  console.log('3. Open Developer Tools (F12)');
-  console.log('4. Go to Application/Storage → Cookies');
-  console.log('5. Find and copy the session token');
-  console.log(chalk.gray('   (Usually named: __Secure-next-auth.session-token, sessionKey, or similar)\n'));
-
-  // Open browser
-  await open(providerUrl);
-
-  const { token } = await inquirer.prompt({
-    type: 'password',
-    name: 'token',
-    message: 'Paste your session token here:',
-    mask: '*',
-    validate: (input) => input.length > 0 || 'Session token is required'
-  });
-
-  // Save configuration
-  const config: BrowserConfig = {
-    mode: 'browser',
-    provider,
-    authMethod: 'token',
-    authToken: encryptData(token),
-    defaultModel: getDefaultModel(provider),
-    cacheEnabled: true,
-    cacheLocation: path.join(os.homedir(), '.cachegpt', 'cache'),
-    userId: crypto.randomBytes(16).toString('hex')
-  };
-
-  return config;
-}
+// Token authentication removed - we only use OAuth/web sessions now
 
 async function getUserEmail(provider: string, accessToken: string): Promise<string | undefined> {
   try {

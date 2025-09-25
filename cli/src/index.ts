@@ -15,8 +15,8 @@ import { registerCommand } from './commands/register';
 import { loginCommand } from './commands/login';
 import { authStatusCommand } from './commands/auth-status';
 import { templatesCommand } from './commands/templates';
-import { chatApiCommand } from './commands/chat-api';
 import { versionCommand } from './commands/version';
+import { modelsCommand } from './commands/models';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -86,10 +86,6 @@ program
   .description('Start interactive chat with your LLM')
   .action(chatCommand);
 
-program
-  .command('chat-api')
-  .description('Chat using Claude API directly (private, no web console logging)')
-  .action(chatApiCommand);
 
 program
   .command('status')
@@ -143,6 +139,11 @@ program
   .alias('v')
   .description('Check version and update information')
   .action(versionCommand);
+
+program
+  .command('models [action]')
+  .description('Manage and validate AI models (list, validate, update, check)')
+  .action(modelsCommand);
 
 // Parse CLI arguments
 program.parse();

@@ -148,18 +148,38 @@ export default function ProviderSelectionPage() {
       const source = urlParams.get('source')
       const callbackPort = urlParams.get('callback_port')
 
+      // For Claude, require session setup
+      if (selectedProvider === 'claude') {
+        const params = new URLSearchParams()
+        if (source) params.set('source', source)
+        if (callbackPort) params.set('callback_port', callbackPort)
+        const queryString = params.toString() ? `?${params.toString()}` : ''
+        router.push(`/auth/claude-setup${queryString}`)
+        return
+      }
+
       if (source === 'cli' && callbackPort) {
-        // CLI user - redirect back to local callback WITH SESSION TOKEN
-        const callbackUrl = `http://localhost:${callbackPort}/auth/callback?` +
-          new URLSearchParams({
-            provider: selectedProvider,
-            model: await getMostAdvancedModel(selectedProvider),
-            sessionToken: session.access_token,  // Add the actual session token!
-            user: JSON.stringify({
-              email: session.user.email || '',
-              name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User'
-            })
-          }).toString()
+        // CLI user - redirect back to local callback with explicit token parameter names
+        const params = new URLSearchParams({
+          provider: selectedProvider,
+          model: await getMostAdvancedModel(selectedProvider),
+          user: JSON.stringify({
+            email: session.user.email || '',
+            name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User'
+          })
+        });
+
+        // Use explicit parameter name based on token type
+        if (selectedProvider === 'claude') {
+          // For Claude, we'll eventually use claude_session when user sets up web session
+          // For now, use supabase_jwt for CacheGPT API access
+          params.set('supabase_jwt', session.access_token);
+        } else {
+          // Other providers use Supabase JWT for CacheGPT API access
+          params.set('supabase_jwt', session.access_token);
+        }
+
+        const callbackUrl = `http://localhost:${callbackPort}/auth/callback?${params.toString()}`
 
         console.log('[DEBUG] Redirecting to CLI with token:', session.access_token ? 'Present' : 'Missing')
         window.location.href = callbackUrl

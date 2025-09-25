@@ -1,11 +1,18 @@
 # CRITICAL INSTRUCTIONS FOR CLAUDE
 
-## MUST READ FIRST
+## 🚨 MANDATORY: READ STATUS FILE FIRST
 **ALWAYS** read `/root/cachegpt/STATUS_2025_09_24.md` BEFORE making any changes to understand:
 - Current system state
 - Completed implementations
 - Known issues
 - What NOT to re-implement
+
+## 📝 MANDATORY: UPDATE STATUS FILE AFTER CHANGES
+**IMMEDIATELY** after making significant changes, update `/root/cachegpt/STATUS_2025_09_24.md` with:
+- What was changed and why
+- Impact on authentication, chat, or database systems
+- Any breaking changes or new requirements
+- Test results and validation status
 
 ## Development Rules
 - Use yarn for all package management

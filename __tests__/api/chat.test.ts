@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { POST } from '@/app/api/chat/route'
+import { POST } from '@/app/api/v2/unified-chat/route'
 
 // Mock Supabase
 jest.mock('@supabase/supabase-js', () => ({
@@ -36,13 +36,13 @@ jest.mock('@huggingface/inference', () => ({
   }))
 }))
 
-describe('/api/chat', () => {
+describe('/api/v2/unified-chat', () => {
   beforeEach(() => {
     jest.clearAllMocks()
   })
 
   it('should require authentication', async () => {
-    const request = new NextRequest('http://localhost/api/chat', {
+    const request = new NextRequest('http://localhost/api/v2/unified-chat', {
       method: 'POST',
       body: JSON.stringify({
         messages: [{ role: 'user', content: 'Hello' }]
@@ -57,7 +57,7 @@ describe('/api/chat', () => {
   })
 
   it('should handle cache hits', async () => {
-    const request = new NextRequest('http://localhost/api/chat', {
+    const request = new NextRequest('http://localhost/api/v2/unified-chat', {
       method: 'POST',
       headers: {
         'authorization': 'Bearer test-api-key'
@@ -78,7 +78,7 @@ describe('/api/chat', () => {
   })
 
   it('should track token usage', async () => {
-    const request = new NextRequest('http://localhost/api/chat', {
+    const request = new NextRequest('http://localhost/api/v2/unified-chat', {
       method: 'POST',
       headers: {
         'authorization': 'Bearer test-api-key'
@@ -100,7 +100,7 @@ describe('/api/chat', () => {
   })
 
   it('should handle invalid requests', async () => {
-    const request = new NextRequest('http://localhost/api/chat', {
+    const request = new NextRequest('http://localhost/api/v2/unified-chat', {
       method: 'POST',
       headers: {
         'authorization': 'Bearer test-api-key'
@@ -121,7 +121,7 @@ describe('/api/chat', () => {
     const models = ['gpt-3.5-turbo', 'gpt-4', 'claude-3-opus']
 
     for (const model of models) {
-      const request = new NextRequest('http://localhost/api/chat', {
+      const request = new NextRequest('http://localhost/api/v2/unified-chat', {
         method: 'POST',
         headers: {
           'authorization': 'Bearer test-api-key'

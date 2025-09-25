@@ -222,9 +222,9 @@ export async function loginCommandOld() {
       sessionToken = require('crypto').randomBytes(32).toString('hex');
     }
 
-    // Import and run the provider authentication
-    const { authProviderCommand } = await import('./auth-provider');
-    await authProviderCommand(provider, userEmail, sessionToken!);
+    // Provider authentication now handled via web flow
+    console.log(chalk.green('✅ Authentication successful!'));
+    console.log(chalk.gray('Use cachegpt chat to start chatting'));
 
     // Store Claude user ID if available
     const claudeConfigPath = path.join(os.homedir(), '.claude.json');

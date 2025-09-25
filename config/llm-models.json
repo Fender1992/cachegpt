@@ -85,6 +85,8 @@
       ]
     }
   },
-  "lastUpdated": "2025-09-24",
+  "lastUpdated": "2025-09-25",
+  "version": "4.0-current",
+  "note": "These are the current, real models as of September 2025",
   "updateUrl": "https://cachegpt.app/api/model-updates"
 }

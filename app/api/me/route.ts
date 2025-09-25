@@ -1,55 +1,32 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import {
+  resolveAuthentication,
+  isUnifiedSession,
+  isAuthError,
+  logAuthMethodUsage
+} from '@/lib/unified-auth-resolver';
+import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    // Use unified authentication resolver
+    const authResult = await resolveAuthentication(request);
 
-    // Check authorization header for Bearer token
-    const authHeader = request.headers.get('Authorization');
-
-    if (authHeader?.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
-
-      // Validate token with Supabase
-      const { data: { user }, error } = await supabase.auth.getUser(token);
-
-      if (error || !user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-
-      // Get additional user profile data
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      // Return UserInfo format
-      const userInfo = {
-        sub: user.id,
-        email: user.email,
-        email_verified: user.email_confirmed_at ? true : false,
-        name: profile?.full_name || user.user_metadata?.full_name || user.user_metadata?.name,
-        picture: profile?.avatar_url || user.user_metadata?.avatar_url || user.user_metadata?.picture,
-        preferred_username: user.email?.split('@')[0],
-        updated_at: profile?.updated_at || user.updated_at
-      };
-
-      return NextResponse.json(userInfo);
+    if (isAuthError(authResult)) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status });
     }
 
-    // Fallback to session cookie
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    const session = authResult as any;
+    logAuthMethodUsage(session, '/api/me');
 
-    if (sessionError || !session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Get additional user profile data using service key
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    );
 
-    // Get additional user profile data
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('*')
@@ -60,15 +37,19 @@ export async function GET(request: Request) {
     const userInfo = {
       sub: session.user.id,
       email: session.user.email,
-      email_verified: session.user.email_confirmed_at ? true : false,
+      email_verified: !!session.user.email_verified_at || !!session.user.email_confirmed_at,
       name: profile?.full_name || session.user.user_metadata?.full_name || session.user.user_metadata?.name,
       picture: profile?.avatar_url || session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture,
       preferred_username: session.user.email?.split('@')[0],
-      updated_at: profile?.updated_at || session.user.updated_at
+      updated_at: profile?.updated_at || session.user.updated_at,
+      // Add session health info
+      session_expires_at: session.expiresAt,
+      auth_method: session.authMethod
     };
 
     return NextResponse.json(userInfo);
   } catch (error: any) {
+    console.error('User info endpoint error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

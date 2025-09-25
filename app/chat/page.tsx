@@ -69,7 +69,7 @@ export default function ChatPage() {
 
     try {
       // Send message to our API which will use server-side credentials
-      const response = await fetch('/api/chat', {
+      const response = await fetch('/api/v2/unified-chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

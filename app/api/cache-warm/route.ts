@@ -10,8 +10,9 @@ const supabase = supabaseUrl && supabaseServiceKey
   : null;
 
 /**
- * Cache pre-warming endpoint
+ * Cache pre-warming endpoint - ADMIN ONLY
  * Call this periodically to pre-cache popular queries
+ * Requires CRON_SECRET or admin authentication
  */
 export async function POST(req: NextRequest) {
   try {
@@ -20,6 +21,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         error: 'Database configuration missing'
       }, { status: 503 });
+    }
+
+    // Require admin authentication
+    const cronSecret = req.headers.get('authorization') || req.headers.get('x-cron-secret');
+    const validCronSecret = process.env.CRON_SECRET;
+
+    if (!cronSecret || !validCronSecret || cronSecret.replace('Bearer ', '') !== validCronSecret) {
+      return NextResponse.json({
+        error: 'Unauthorized - Admin access required'
+      }, { status: 401 });
     }
 
     // Get queries that need warming
@@ -155,7 +166,7 @@ function generateSimpleEmbedding(text: string): number[] {
   return magnitude > 0 ? embedding.map(val => val / magnitude) : embedding;
 }
 
-// GET endpoint to check warming status
+// GET endpoint to check warming status - ADMIN ONLY
 export async function GET(req: NextRequest) {
   try {
     // Check if Supabase is configured
@@ -163,6 +174,16 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({
         error: 'Database configuration missing'
       }, { status: 503 });
+    }
+
+    // Require admin authentication
+    const cronSecret = req.headers.get('authorization') || req.headers.get('x-cron-secret');
+    const validCronSecret = process.env.CRON_SECRET;
+
+    if (!cronSecret || !validCronSecret || cronSecret.replace('Bearer ', '') !== validCronSecret) {
+      return NextResponse.json({
+        error: 'Unauthorized - Admin access required'
+      }, { status: 401 });
     }
 
     const { data, error } = await supabase
