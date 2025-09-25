@@ -379,7 +379,39 @@ export class UnifiedAuthManager {
   private async extractSessionCookie(context: BrowserContext, config: ProviderConfig): Promise<string | null> {
     const cookies = await context.cookies();
 
-    // Try to find the specific session cookie
+    // Debug: Log all cookies to understand what's available
+    console.log(chalk.gray('Available cookies:'));
+    cookies.forEach(c => {
+      const preview = c.value.substring(0, 20);
+      console.log(chalk.gray(`  - ${c.name}: ${preview}...`));
+    });
+
+    // Special handling for Claude - look for the actual session key
+    if (config.name === 'Claude') {
+      // Look for cookies that match Claude's session key patterns
+      const claudeSession = cookies.find(c =>
+        c.value.startsWith('sk-ant-sid') ||
+        c.value.startsWith('sk-ant-') ||
+        (c.name === 'sessionKey' && c.value.length > 50)
+      );
+
+      if (claudeSession) {
+        console.log(chalk.green(`Found Claude session cookie: ${claudeSession.name}`));
+        return claudeSession.value;
+      }
+
+      // If no typical Claude session found, look for the longest cookie value
+      // Claude sessions are typically very long strings
+      const sortedByLength = cookies.sort((a, b) => b.value.length - a.value.length);
+      const longestCookie = sortedByLength[0];
+
+      if (longestCookie && longestCookie.value.length > 100) {
+        console.log(chalk.yellow(`Using longest cookie as Claude session: ${longestCookie.name} (${longestCookie.value.length} chars)`));
+        return longestCookie.value;
+      }
+    }
+
+    // Try to find the specific session cookie for other providers
     if (config.sessionCookieName) {
       const sessionCookie = cookies.find(c => c.name === config.sessionCookieName);
       if (sessionCookie) {

@@ -374,12 +374,10 @@ export class TokenManager {
   }
 
   private isValidClaudeSessionKey(sessionKey: string): boolean {
-    // Claude session keys can have various formats - be more permissive
-    // They're typically long strings that start with 'sk-ant-sid' or similar
-    return sessionKey.length > 20 &&
-           (sessionKey.startsWith('sk-ant-') ||
-            sessionKey.startsWith('sess-') ||
-            sessionKey.length > 50); // Accept any long string as fallback
+    // Claude session keys can have various formats - be very permissive
+    // Accept UUIDs, sk-ant-* keys, or any reasonably long string
+    // The actual validation happens when trying to use the key with Claude's API
+    return !!sessionKey && sessionKey.length >= 20;
   }
 
   private isValidAPIKey(provider: string, apiKey: string): boolean {
