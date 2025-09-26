@@ -58,9 +58,13 @@ function AuthSuccessContent() {
         // Many browsers block HTTPS -> HTTP localhost redirects for security
         // Show a UI with manual click option as fallback
 
+        // Log the callback URL for debugging
+        console.log('[CLI-REDIRECT] Callback URL:', callbackUrl)
+
         // First, update the UI to show we're redirecting
         const redirectUI = document.getElementById('redirect-status')
         if (redirectUI) {
+          // Create button with onclick handler instead of href
           redirectUI.innerHTML = `
             <div style="text-align: center; padding: 20px;">
               <h2 style="font-size: 28px; font-weight: bold; color: white; margin-bottom: 16px;">
@@ -79,24 +83,38 @@ function AuthSuccessContent() {
                   👇 Click the button below to complete authentication:
                 </p>
 
-                <a
-                  href="${callbackUrl}"
-                  style="display: inline-block; padding: 16px 32px; background: #22c55e; color: white; font-weight: bold; font-size: 18px; border-radius: 8px; text-decoration: none; cursor: pointer; border: 2px solid #16a34a; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); transition: all 0.2s;"
+                <button
+                  onclick="window.location.href='${callbackUrl}'"
+                  style="padding: 16px 32px; background: #22c55e; color: white; font-weight: bold; font-size: 18px; border-radius: 8px; text-decoration: none; cursor: pointer; border: 2px solid #16a34a; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); transition: all 0.2s;"
                   onmouseover="this.style.background='#16a34a'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 8px rgba(0, 0, 0, 0.15)';"
                   onmouseout="this.style.background='#22c55e'; this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px rgba(0, 0, 0, 0.1)';"
                 >
                   🔐 CLICK HERE TO COMPLETE AUTHENTICATION
-                </a>
+                </button>
+
+                <div style="margin-top: 20px;">
+                  <p style="color: #9ca3af; font-size: 14px; margin-bottom: 10px;">
+                    If the button doesn't work, copy and paste this URL in a new tab:
+                  </p>
+                  <div style="background: rgba(0, 0, 0, 0.3); padding: 12px; border-radius: 6px; word-break: break-all;">
+                    <code style="color: #60a5fa; font-size: 12px; font-family: monospace;">
+                      ${callbackUrl}
+                    </code>
+                  </div>
+                </div>
               </div>
 
               <p style="color: #6b7280; font-size: 12px;">
-                This will redirect you to: <br/>
-                <code style="background: rgba(31, 41, 55, 0.5); padding: 4px 8px; border-radius: 4px; font-size: 11px;">
-                  ${callbackUrl.substring(0, 50)}...
-                </code>
+                This will complete authentication with your terminal on port ${callbackPort}
               </p>
             </div>
           `
+
+          // Also add a global function as backup
+          ;(window as any).completeCliAuth = () => {
+            console.log('[CLI-REDIRECT] Manual redirect triggered')
+            window.location.href = callbackUrl
+          }
         }
 
         // Try automatic redirect
