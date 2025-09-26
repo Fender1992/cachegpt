@@ -122,9 +122,23 @@ export function AuthForm({ isFromCLI = false, callbackPort }: AuthFormProps) {
       }
 
       // Use dynamic redirect URL based on current origin
-      const baseUrl = `${window.location.origin}/auth/callback`
+      // Add CLI parameters to the redirect URL (though Supabase may not preserve them)
+      let baseUrl = `${window.location.origin}/auth/callback`
 
-      // OAuth redirect prepared
+      // Try to pass params in URL as backup to localStorage
+      const urlParams = new URLSearchParams()
+      if (isFromCLI) {
+        urlParams.set('source', 'cli')
+        urlParams.set('return_to', 'terminal')
+      }
+      if (callbackPort) {
+        urlParams.set('callback_port', callbackPort)
+      }
+
+      if (urlParams.toString()) {
+        baseUrl = `${baseUrl}?${urlParams.toString()}`
+      }
+
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider,

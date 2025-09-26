@@ -88,19 +88,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid provider' }, { status: 400 });
     }
 
-    // Step 3: Handle credentials - require user to provide their own credentials
+    // Step 3: Handle authentication - use free providers for authenticated users
+    // If user is authenticated via OAuth but has no API key, use free providers
+    const useFreeTier = !credential && authMethod !== 'web-session';
     let apiCredential = credential;
-
-    if (!apiCredential && authMethod !== 'web-session') {
-      return NextResponse.json(
-        {
-          error: `No API key provided for ${provider}. Please provide your own API key.`,
-          details: 'CacheGPT no longer uses server API keys to prevent cost issues. You must provide your own credentials.',
-          authMethod: 'api-key-required'
-        },
-        { status: 401 }
-      );
-    }
 
     // Step 4: Check ranking-based cache for performance optimization
     const startTime = Date.now();
@@ -130,18 +121,26 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Step 5: If no cache hit, route to appropriate handler with retry mechanism
+    // Step 5: If no cache hit, get response from appropriate provider
     if (!cacheHit) {
       try {
-        if (authMethod === 'web-session') {
-          // Handle web session-based requests with retry
+        if (useFreeTier) {
+          // Use free provider rotation system for OAuth users without API keys
+          const { callFreeProvider } = await import('@/lib/free-providers');
+          const result = await callFreeProvider(getUserId(session), messages, provider);
+          response = result.response;
+
+          console.log(`[FREE] Response from ${result.provider}${result.cached ? ' (cached)' : ''}`);
+
+        } else if (authMethod === 'web-session') {
+          // Handle web session-based requests (deprecated - will show error)
           response = await retryWithBackoff(
             () => handleWebSession(provider, messages, credential),
             session,
             'web session call'
           );
         } else {
-          // Handle API key-based requests with retry
+          // Handle user's own API key
           response = await retryWithBackoff(
             () => handleAPIKey(provider, messages, model, apiCredential),
             session,
@@ -149,18 +148,20 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        // Cache the new response for future optimization
-        const responseTime = Date.now() - startTime;
-        if (userMessage && response && response.length > 10) {
-          await cacheResponse(
-            userMessage,
-            response,
-            model || `${provider}-default`,
-            provider,
-            getUserId(session),
-            responseTime
-          );
-          console.log(`[CACHE] Stored new response (${responseTime}ms) for future use`);
+        // Cache the new response for future optimization (if not from free provider - they cache themselves)
+        if (!useFreeTier) {
+          const responseTime = Date.now() - startTime;
+          if (userMessage && response && response.length > 10) {
+            await cacheResponse(
+              userMessage,
+              response,
+              model || `${provider}-default`,
+              provider,
+              getUserId(session),
+              responseTime
+            );
+            console.log(`[CACHE] Stored new response (${responseTime}ms) for future use`);
+          }
         }
 
       } catch (error: any) {
@@ -249,75 +250,34 @@ async function handleAPIKey(provider: string, messages: any[], model: string, ap
   }
 }
 
-// Web session implementations
+// Web session implementations - DEPRECATED
+// These are kept for backward compatibility but will show deprecation errors
 async function callClaudeWeb(sessionKey: string, messages: any[]): Promise<string> {
-  // Claude's web API requires complex authentication that changes frequently
-  // The session key alone is not sufficient - it also needs:
-  // - Organization ID
-  // - CSRF tokens
-  // - Proper cookie formatting
-  // - Conversation IDs
-
   throw new Error(
-    'Claude web sessions are not currently supported. ' +
-    'Please use a Claude API key instead. ' +
-    'Get your API key from: https://console.anthropic.com/settings/keys ' +
-    'Then run: cachegpt logout && cachegpt init (and choose API key option)'
+    'Web sessions are deprecated. CacheGPT now uses free LLM providers for authenticated users. ' +
+    'Simply login with Google/GitHub and start chatting - no API keys needed!'
   );
-
-  // Previous implementation kept for reference but doesn't work with current Claude.ai
-  /*
-  const response = await fetch('https://claude.ai/api/append_message', {
-    method: 'POST',
-    headers: {
-      'Cookie': `sessionKey=${sessionKey}`,
-      'Content-Type': 'application/json',
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
-    },
-    body: JSON.stringify({
-      prompt: messages[messages.length - 1].content,
-      timezone: 'UTC',
-      attachments: []
-    })
-  });
-
-  if (!response.ok) {
-    throw new Error(`Claude web API error: ${response.status}`);
-  }
-
-  const text = await response.text();
-  const lines = text.split('\n');
-  let fullResponse = '';
-
-  for (const line of lines) {
-    if (line.startsWith('data: ')) {
-      try {
-        const data = JSON.parse(line.slice(6));
-        if (data.completion) {
-          fullResponse += data.completion;
-        }
-      } catch {}
-    }
-  }
-
-  return fullResponse || 'No response from Claude';
-  */
 }
 
 async function callChatGPTWeb(sessionToken: string, messages: any[]): Promise<string> {
-  // ChatGPT web implementation would go here
-  // This would require reverse engineering the ChatGPT web API
-  throw new Error('ChatGPT web sessions not yet implemented. Please provide your own OpenAI API key.');
+  throw new Error(
+    'Web sessions are deprecated. CacheGPT now uses free LLM providers for authenticated users. ' +
+    'Simply login with Google/GitHub and start chatting - no API keys needed!'
+  );
 }
 
 async function callGeminiWeb(sessionCookie: string, messages: any[]): Promise<string> {
-  // Gemini web implementation would go here
-  throw new Error('Gemini web sessions not yet implemented. Please provide your own Google AI API key.');
+  throw new Error(
+    'Web sessions are deprecated. CacheGPT now uses free LLM providers for authenticated users. ' +
+    'Simply login with Google/GitHub and start chatting - no API keys needed!'
+  );
 }
 
 async function callPerplexityWeb(sessionCookie: string, messages: any[]): Promise<string> {
-  // Perplexity web implementation would go here
-  throw new Error('Perplexity web sessions not yet implemented. Please provide your own Perplexity API key.');
+  throw new Error(
+    'Web sessions are deprecated. CacheGPT now uses free LLM providers for authenticated users. ' +
+    'Simply login with Google/GitHub and start chatting - no API keys needed!'
+  );
 }
 
 // API key implementations

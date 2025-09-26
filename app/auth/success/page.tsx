@@ -14,7 +14,7 @@ function AuthSuccessContent() {
   }, [])
 
   const handlePostAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
     if (!session) {
       router.push('/login')
@@ -22,7 +22,7 @@ function AuthSuccessContent() {
     }
 
     // Check if user already has a provider selected
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('user_profiles')
       .select('selected_provider')
       .eq('id', session.user.id)
@@ -41,23 +41,26 @@ function AuthSuccessContent() {
     if (profile?.selected_provider) {
       // User has provider, go to chat
       if (source === 'cli' && callbackPort) {
+
         // CLI user - redirect back to local callback WITH SESSION TOKEN
         const callbackUrl = `http://localhost:${callbackPort}/auth/callback?` +
           new URLSearchParams({
             provider: profile.selected_provider,
-            sessionToken: session.access_token,  // Add the actual session token!
+            supabase_jwt: session.access_token,  // Use same parameter name as CLI expects
             user: JSON.stringify({
               email: session.user.email || '',
-              name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User'
+              name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+              id: session.user.id
             })
           }).toString()
 
-        console.log('[DEBUG] Redirecting to CLI with token:', session.access_token ? 'Present' : 'Missing')
+        // Redirect to CLI callback
         window.location.href = callbackUrl
       } else {
         router.push('/chat')
       }
     } else {
+
       // No provider selected, go to onboarding
       router.push(`/onboarding/provider${queryString}`)
     }

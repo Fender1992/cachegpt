@@ -24,9 +24,9 @@ function AuthCallbackContent() {
           cliState = JSON.parse(stored)
           // Clear it after reading
           localStorage.removeItem('cli_auth_flow')
-        } else {
         }
       } catch (e) {
+        // Ignore localStorage errors
       }
 
       const isFromCLI =
@@ -151,6 +151,7 @@ function AuthCallbackContent() {
               params.set('callback_port', finalCallbackPort)
             }
             const successUrl = `/auth/success?${params.toString()}`
+
             router.push(successUrl)
           } else {
             // For web users, redirect to home page

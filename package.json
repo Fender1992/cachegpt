@@ -24,6 +24,7 @@
     "date-fns": "^2.30.0",
     "lucide-react": "^0.290.0",
     "next": "^15.5.3",
+    "node-fetch": "^3.3.2",
     "rate-limiter-flexible": "^7.3.1",
     "react": "^18",
     "react-dom": "^18",

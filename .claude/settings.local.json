@@ -87,7 +87,9 @@
       "Bash(cachegpt:*)",
       "Bash(npm unpublish:*)",
       "Bash(CACHEGPT_API_URL=http://localhost:3004 ./bin/llm-cache status)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(yarn:*)",
+      "Bash(CACHEGPT_API_URL=http://localhost:3004 ./bin/llm-cache login)"
     ],
     "deny": [],
     "ask": []

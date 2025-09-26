@@ -33,11 +33,37 @@ export async function loginCommandSimple() {
       console.log(chalk.dim('Logged out successfully\n'));
     }
 
+    // Start local callback server first
+    const express = await import('express').catch(() => null);
+    let callbackPort = 3001;
+    let server: any = null;
+
+    if (express) {
+      const app = express.default();
+      app.use(express.default.json());
+
+      // Find available port
+      const findPort = async (port: number): Promise<number> => {
+        return new Promise((resolve) => {
+          const testServer = app.listen(port, () => {
+            testServer.close();
+            resolve(port);
+          }).on('error', () => {
+            resolve(findPort(port + 1));
+          });
+        });
+      };
+
+      callbackPort = await findPort(3001);
+      console.log(chalk.gray(`Starting local callback server on port ${callbackPort}...`));
+    }
+
     // Open browser for OAuth login
     console.log(chalk.cyan('🌐 Opening browser for authentication...\n'));
 
     const open = await import('open').catch(() => null);
-    const authUrl = 'https://cachegpt.app/login?source=cli&return_to=terminal';
+
+    const authUrl = `https://cachegpt.app/login?source=cli&return_to=terminal&callback_port=${callbackPort}`;
 
     if (open) {
       await open.default(authUrl);
@@ -54,32 +80,71 @@ export async function loginCommandSimple() {
     console.log(chalk.white('3. Your credentials will automatically sync to this terminal\n'));
 
     // First wait for OAuth authentication to complete
+    // Set up callback server if possible
+    if (express && server === null) {
+      const app = express.default();
+      app.use(express.default.json());
+      app.use(express.default.urlencoded({ extended: true }));
+
+      // Handle callback from web app
+      app.get('/auth/callback', (req: any, res: any) => {
+        console.log(chalk.green('\n✅ Received authentication callback from web app!'));
+
+        const { provider, supabase_jwt, user } = req.query;
+
+        if (supabase_jwt && user) {
+          const userData = JSON.parse(user);
+
+          // Store in CLI auth storage using token manager
+          const { TokenManager } = require('../lib/token-manager');
+          const tokenManager = new TokenManager();
+
+          // Store Supabase JWT for CacheGPT authentication
+          try {
+            tokenManager.setCacheGPTAuth(supabase_jwt, null, userData.id || 'cli-user', userData.email);
+            console.log(chalk.green(`✅ Authenticated as: ${userData.email}`));
+            console.log(chalk.green(`Provider: ${provider}`));
+          } catch (error: any) {
+            console.log(chalk.yellow(`⚠️ Auth storage error: ${error.message}`));
+          }
+        }
+
+        res.send(`
+          <html>
+            <head><title>Authentication Success</title></head>
+            <body style="font-family: Arial, sans-serif; text-align: center; margin-top: 50px;">
+              <h2>✅ Authentication Successful!</h2>
+              <p>You can now close this window and return to your terminal.</p>
+              <script>setTimeout(() => window.close(), 3000);</script>
+            </body>
+          </html>
+        `);
+
+        setTimeout(() => {
+          if (server) server.close();
+        }, 1000);
+      });
+
+      server = app.listen(callbackPort, () => {
+        console.log(chalk.gray(`Callback server listening on port ${callbackPort}`));
+      });
+    }
+
     console.log(chalk.cyan('⏳ Step 1: Waiting for OAuth authentication...'));
-    const isAuthenticated = await waitForOAuthAuth(authService);
+    const isAuthenticated = await waitForOAuthAuth(authService, server, callbackPort);
 
     if (!isAuthenticated) {
       console.log(chalk.yellow('⚠️ OAuth authentication timed out. Please try again.'));
+      if (server) server.close();
       return;
     }
 
-    console.log(chalk.green('✅ OAuth authentication successful!'));
-    console.log(chalk.cyan('⏳ Step 2: Waiting for your LLM provider selection...'));
-    console.log(chalk.gray('✨ Automatic credential sync in progress...'));
-    console.log();
+    console.log(chalk.green('✅ Authentication complete!'));
 
-    const credentials = await pollForCredentials(authService);
-
-    if (!credentials) {
-      console.log(chalk.yellow('⚠️ No credentials received. Please try again.'));
-      return;
+    // Clean up server if still running
+    if (server) {
+      server.close();
     }
-
-    console.log(chalk.green(`\n✅ Automatically received ${credentials.provider.toUpperCase()} credentials!`));
-    console.log(chalk.gray(`Email: ${credentials.user_email}`));
-    console.log();
-
-    // Save credentials locally as backup
-    await saveCredentialsLocally(credentials);
 
     // Store Claude user ID if available
     const claudeConfigPath = path.join(os.homedir(), '.claude.json');
@@ -237,65 +302,25 @@ function encrypt(text: string): string {
   return Buffer.from(text, 'utf8').toString('base64');
 }
 
-async function waitForOAuthAuth(authService: any, timeoutMs: number = 180000): Promise<boolean> {
+async function waitForOAuthAuth(authService: any, server: any, callbackPort: number, timeoutMs: number = 180000): Promise<boolean> {
   const startTime = Date.now();
-  const pollInterval = 3000; // Check every 3 seconds
+  const pollInterval = 1000; // Check every second
 
   while (Date.now() - startTime < timeoutMs) {
     try {
-      // Load environment variables from .env.defaults if needed
-      if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-        const dotenv = await import('dotenv');
-        const defaultsPath = path.join(__dirname, '../../.env.defaults');
-        if (fs.existsSync(defaultsPath)) {
-          dotenv.config({ path: defaultsPath });
+      // Check if token manager has auth data (set by callback server)
+      const { TokenManager } = require('../lib/token-manager');
+      const tokenManager = new TokenManager();
+
+      try {
+        const auth = tokenManager.getCacheGPTAuth();
+        if (auth && auth.value) {
+          return true; // Authentication successful
         }
+      } catch {
+        // Not authenticated yet, continue waiting
       }
 
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-      if (supabaseUrl && supabaseKey) {
-        const { createClient } = await import('@supabase/supabase-js');
-        const supabase = createClient(supabaseUrl, supabaseKey);
-
-        // Check for CLI auth sessions from recent web login
-        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-
-        const { data, error } = await supabase
-          .from('cli_auth_sessions')
-          .select('*')
-          .eq('status', 'authenticated')
-          .gte('created_at', fiveMinutesAgo)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-
-        if (data && !error) {
-          // Store the session in CLI auth service
-          await authService.saveCredentials({
-            email: data.user_email,
-            access_token: data.access_token,
-            refresh_token: data.refresh_token,
-            user_id: data.user_id,
-            expires_at: data.expires_at
-          });
-
-          // Mark session as consumed
-          await supabase
-            .from('cli_auth_sessions')
-            .update({ status: 'consumed' })
-            .eq('user_id', data.user_id);
-
-          return true; // OAuth authentication successful
-        }
-      }
-
-      // Fallback: Check if auth service has valid session
-      const currentUser = await authService.getCurrentUser();
-      if (currentUser && currentUser.id) {
-        return true; // OAuth authentication successful
-      }
     } catch (error: any) {
       console.log(chalk.gray(`Auth polling: ${error.message || error}`));
     }
