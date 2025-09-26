@@ -179,21 +179,33 @@ export async function cacheResponse(
   responseTimeMs: number = 0
 ): Promise<void> {
   try {
+    console.log(`[CACHE] Attempting to store response - model: ${model}, provider: ${provider}, userId: ${userId}`);
+
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      console.error('[CACHE] ERROR: NEXT_PUBLIC_SUPABASE_URL is not set');
+      return;
+    }
+    if (!process.env.SUPABASE_SERVICE_KEY) {
+      console.error('[CACHE] ERROR: SUPABASE_SERVICE_KEY is not set');
+      return;
+    }
+
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_KEY!
     );
 
     // Generate embedding and initial ranking data
+    console.log('[CACHE] Generating embedding...');
     const embedding = await generateEmbedding(query);
+    console.log(`[CACHE] Embedding generated, length: ${embedding.length}`);
+
     const queryHash = crypto.createHash('sha256').update(query + model + provider).digest('hex');
     const initialScore = calculateInitialPopularityScore();
     const tier = assignTier(initialScore);
 
     // Insert into cache with ranking data
-    const { error } = await supabase
-      .from('cached_responses')
-      .insert({
+    const insertData = {
         query_hash: queryHash,
         query,
         response,
@@ -215,12 +227,24 @@ export async function cacheResponse(
         created_at: new Date().toISOString(),
         last_accessed: new Date().toISOString(),
         last_score_update: new Date().toISOString()
-      });
+    };
+
+    console.log('[CACHE] Insert data prepared, query length:', query.length, 'response length:', response.length);
+
+    const { error } = await supabase
+      .from('cached_responses')
+      .insert(insertData);
 
     if (error) {
-      console.error('Failed to cache response:', error);
+      console.error('[CACHE] DATABASE INSERT FAILED:', {
+        error: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
+      console.error('[CACHE] Full error object:', error);
     } else {
-      console.log(`[CACHE] Stored response in ${tier} tier (score: ${initialScore})`);
+      console.log(`[CACHE] ✅ Successfully stored response in ${tier} tier (score: ${initialScore}, hash: ${queryHash.substring(0, 8)}...)`);
     }
   } catch (error) {
     console.error('Cache storage failed:', error);
