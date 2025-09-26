@@ -218,22 +218,25 @@ export async function callFreeProvider(
 
     try {
       console.log(`[FREE] Trying ${provider.name} for user ${userId}`);
+      const startTime = Date.now();
       const response = await callProvider(provider, messages);
+      const responseTime = Date.now() - startTime;
 
       // Increment usage on success
       incrementUsage(userId, provider.name);
 
-      // Cache the response
+      // Cache the response with consistent model name
       if (userMessage && response) {
         const { cacheResponse } = await import('./ranking-cache');
         await cacheResponse(
           userMessage,
           response,
-          provider.model,
-          provider.name,
+          'free-model',  // Use consistent model name for all free providers
+          'mixed',       // Use 'mixed' as provider to match cache checking
           userId,
-          Date.now() - Date.now() // Simple timing
+          responseTime
         );
+        console.log(`[FREE] Response cached with mixed provider (${responseTime}ms)`);
       }
 
       return {

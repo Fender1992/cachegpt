@@ -104,10 +104,12 @@ export async function POST(request: NextRequest) {
     if (userMessage) {
       console.log(`[CACHE] Checking for similar responses to: "${userMessage.substring(0, 100)}..."`);
 
+      // For auto provider, check cache across all free providers
+      const cacheProvider = provider === 'auto' ? 'mixed' : provider;
       const cachedMatch = await findSimilarCachedResponse(
         userMessage,
-        model || `${provider}-default`,
-        provider,
+        model || 'free-model',
+        cacheProvider,
         0.85 // 85% similarity threshold
       );
 
