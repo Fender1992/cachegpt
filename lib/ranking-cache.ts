@@ -181,6 +181,19 @@ export async function cacheResponse(
   try {
     console.log(`[CACHE] Attempting to store response - model: ${model}, provider: ${provider}, userId: ${userId}`);
 
+    // Validate userId
+    if (!userId) {
+      console.error('[CACHE] ERROR: userId is missing or empty');
+      return;
+    }
+
+    // Check if userId is a valid UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(userId)) {
+      console.error(`[CACHE] ERROR: userId is not a valid UUID: ${userId}`);
+      return;
+    }
+
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
       console.error('[CACHE] ERROR: NEXT_PUBLIC_SUPABASE_URL is not set');
       return;
@@ -229,11 +242,21 @@ export async function cacheResponse(
         last_score_update: new Date().toISOString()
     };
 
-    console.log('[CACHE] Insert data prepared, query length:', query.length, 'response length:', response.length);
+    console.log('[CACHE] Insert data prepared:', {
+      queryLength: query.length,
+      responseLength: response.length,
+      model,
+      provider,
+      userId,
+      tier,
+      score: initialScore,
+      hashPrefix: queryHash.substring(0, 8)
+    });
 
-    const { error } = await supabase
+    const { data: insertedData, error } = await supabase
       .from('cached_responses')
-      .insert(insertData);
+      .insert(insertData)
+      .select('id');
 
     if (error) {
       console.error('[CACHE] DATABASE INSERT FAILED:', {
@@ -243,8 +266,9 @@ export async function cacheResponse(
         code: error.code
       });
       console.error('[CACHE] Full error object:', error);
+      console.error('[CACHE] Failed insert data:', JSON.stringify(insertData, null, 2));
     } else {
-      console.log(`[CACHE] ✅ Successfully stored response in ${tier} tier (score: ${initialScore}, hash: ${queryHash.substring(0, 8)}...)`);
+      console.log(`[CACHE] ✅ Successfully stored response in ${tier} tier (id: ${insertedData?.[0]?.id}, score: ${initialScore}, hash: ${queryHash.substring(0, 8)}...)`);
     }
   } catch (error) {
     console.error('Cache storage failed:', error);
