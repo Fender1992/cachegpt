@@ -191,6 +191,8 @@ export async function callFreeProvider(
   // Try preferred provider first if specified
   let providers = [...FREE_PROVIDERS].filter(p => p.apiKey && p.isAvailable);
 
+  console.log(`[FREE] Available providers: ${providers.map(p => p.name).join(', ')}`);
+
   if (preferredProvider) {
     const preferred = providers.find(p => p.name === preferredProvider);
     if (preferred && await isProviderAvailableForUser(userId, preferred)) {
@@ -202,8 +204,15 @@ export async function callFreeProvider(
 
   // Try each provider until one works
   for (const provider of providers) {
+    // Check if provider has API key
+    if (!provider.apiKey) {
+      console.log(`[FREE] ${provider.name} has no API key configured`);
+      continue;
+    }
+
     if (!await isProviderAvailableForUser(userId, provider)) {
-      console.log(`[FREE] ${provider.name} rate limited for user ${userId}`);
+      const usage = getUserUsage(userId, provider.name);
+      console.log(`[FREE] ${provider.name} rate limited for user ${userId} (minute: ${usage.minuteCount}/${provider.rateLimit.requestsPerMinute}, day: ${usage.dayCount}/${provider.rateLimit.requestsPerDay})`);
       continue;
     }
 
