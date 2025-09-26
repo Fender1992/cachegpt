@@ -36,7 +36,7 @@ export async function freeChatCommand(): Promise<void> {
     return;
   }
 
-  console.log(chalk.gray('🤖 Using: Groq (Llama 3.1 70B) → Together → OpenRouter → HuggingFace'));
+  console.log(chalk.gray('🤖 Using: Groq (Llama 3.1 70B) → OpenRouter → HuggingFace'));
   console.log(chalk.gray('📦 Smart caching: Repeated questions return instantly'));
   console.log();
 

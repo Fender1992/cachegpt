@@ -83,8 +83,8 @@ export async function POST(request: NextRequest) {
     logAuthMethodUsage(session, '/api/v2/unified-chat');
 
     // Step 2: Validate provider
-    const validProviders = ['chatgpt', 'claude', 'gemini', 'perplexity'];
-    if (!provider || !validProviders.includes(provider)) {
+    const validProviders = ['chatgpt', 'claude', 'gemini', 'perplexity', 'auto'];
+    if (provider && !validProviders.includes(provider)) {
       return NextResponse.json({ error: 'Invalid provider' }, { status: 400 });
     }
 
