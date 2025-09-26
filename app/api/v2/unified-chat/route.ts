@@ -132,6 +132,12 @@ export async function POST(request: NextRequest) {
           const result = await callFreeProvider(getUserId(session), messages, provider);
           response = result.response;
 
+          // Update metadata with actual provider used
+          if (!cacheHit && result.provider) {
+            // Store actual provider name for client display
+            provider = result.provider;
+          }
+
           console.log(`[FREE] Response from ${result.provider}${result.cached ? ' (cached)' : ''}`);
 
         } else if (authMethod === 'web-session') {
@@ -205,7 +211,16 @@ export async function POST(request: NextRequest) {
       // Continue without logging - don't fail the request
     }
 
-    return NextResponse.json({ response });
+    // Return response with metadata about caching
+    return NextResponse.json({
+      response,
+      metadata: {
+        cacheHit,
+        provider: useFreeTier ? 'free-provider' : provider,
+        timeSavedMs: cacheHit ? timeSavedMs : 0,
+        costSaved: cacheHit ? costSaved : 0
+      }
+    });
 
   } catch (error: any) {
     console.error('Unified Chat API Error:', error);

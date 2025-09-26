@@ -22,9 +22,11 @@ export async function freeChatCommand(): Promise<void> {
 
   // Check if user is authenticated
   let authToken = null;
+  let userEmail = 'You';  // Default to "You" for anonymous users
   try {
     authToken = tokenManager.getCacheGPTAuth();
-    console.log(chalk.green('✅ Authenticated as:'), authToken.userEmail || 'Unknown user');
+    userEmail = authToken.userEmail || 'You';  // Use email if available, otherwise "You"
+    console.log(chalk.green('✅ Authenticated as:'), userEmail);
   } catch (error) {
     console.log(chalk.yellow('🔐 Not authenticated. Let\'s fix that!\n'));
 
@@ -50,7 +52,9 @@ export async function freeChatCommand(): Promise<void> {
   console.log(chalk.cyan('💬 Start chatting! Type "exit" to quit.\n'));
 
   const chat = async () => {
-    rl.question(chalk.green('You: '), async (input) => {
+    // Use the user's email (or "You" for anonymous) in the prompt
+    const promptName = userEmail === 'You' ? 'You' : userEmail.split('@')[0];  // Use first part of email
+    rl.question(chalk.green(`${promptName}: `), async (input) => {
       if (input.toLowerCase() === 'exit') {
         console.log(chalk.yellow('\n👋 Goodbye!\n'));
         rl.close();
@@ -75,12 +79,17 @@ export async function freeChatCommand(): Promise<void> {
         messages.push({ role: 'assistant', content: response.response });
 
         // Show response with provider info
+        console.log(chalk.blue('\\nAssistant: ') + response.response);
+
         if (response.cached) {
-          console.log(chalk.blue('\\nAssistant: ') + response.response);
-          console.log(chalk.gray('   ⚡ From cache'));
+          let cacheInfo = '   ⚡ From cache';
+          if (response.timeSaved && response.costSaved) {
+            cacheInfo += chalk.green(` (saved ${response.timeSaved}ms, $${response.costSaved.toFixed(4)})`);
+          }
+          console.log(chalk.gray(cacheInfo));
         } else {
-          console.log(chalk.blue('\\nAssistant: ') + response.response);
           console.log(chalk.gray(`   🤖 From ${response.provider}`));
+          console.log(chalk.gray(`   📝 Response cached for future use`));
         }
         console.log();
 
@@ -95,6 +104,7 @@ export async function freeChatCommand(): Promise<void> {
         console.log();
       }
 
+      // Continue the chat loop after response or error
       chat();
     });
   };
@@ -106,6 +116,8 @@ async function callFreeProviderAPI(bearerToken: string, messages: ChatMessage[])
   response: string;
   provider: string;
   cached: boolean;
+  timeSaved?: number;
+  costSaved?: number;
 }> {
   const apiUrl = process.env.CACHEGPT_API_URL || 'https://cachegpt.app';
 
@@ -133,10 +145,19 @@ async function callFreeProviderAPI(bearerToken: string, messages: ChatMessage[])
   // Extract provider info from response metadata if available
   const provider = data.metadata?.provider || 'free-provider';
   const cached = data.metadata?.cacheHit || false;
+  const timeSaved = data.metadata?.timeSavedMs || 0;
+  const costSaved = data.metadata?.costSaved || 0;
+
+  // Log cache debugging info
+  if (process.env.DEBUG_CACHE === 'true') {
+    console.log(chalk.gray(`\\n[DEBUG] Cache hit: ${cached}, Time saved: ${timeSaved}ms, Cost saved: $${costSaved}`));
+  }
 
   return {
     response: data.response,
     provider,
-    cached
+    cached,
+    timeSaved,
+    costSaved
   };
 }
