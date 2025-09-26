@@ -51,61 +51,80 @@ export async function freeChatCommand(): Promise<void> {
 
   console.log(chalk.cyan('💬 Start chatting! Type "exit" to quit.\n'));
 
-  const chat = async () => {
+  // Handle process termination gracefully
+  process.on('SIGINT', () => {
+    console.log(chalk.yellow('\n\n👋 Goodbye!\n'));
+    rl.close();
+    process.exit(0);
+  });
+
+  // Prevent unexpected exits
+  process.on('uncaughtException', (error) => {
+    console.error('Unexpected error:', error.message);
+    console.log('Chat will continue...\n');
+  });
+
+  const chat = () => {
     // Use the user's email (or "You" for anonymous) in the prompt
     const promptName = userEmail === 'You' ? 'You' : userEmail.split('@')[0];  // Use first part of email
     rl.question(chalk.green(`${promptName}: `), async (input) => {
-      if (input.toLowerCase() === 'exit') {
-        console.log(chalk.yellow('\n👋 Goodbye!\n'));
-        rl.close();
-        return;
-      }
-
-      if (!input.trim()) {
-        chat();
-        return;
-      }
-
-      // Add user message
-      messages.push({ role: 'user', content: input });
-
-      const spinner = ora('Thinking...').start();
-
       try {
-        const response = await callFreeProviderAPI(authToken.value, messages);
-        spinner.stop();
+        if (input.toLowerCase() === 'exit') {
+          console.log(chalk.yellow('\n👋 Goodbye!\n'));
+          rl.close();
+          process.exit(0);
+        }
 
-        // Add assistant response
-        messages.push({ role: 'assistant', content: response.response });
+        if (!input.trim()) {
+          setImmediate(chat); // Use setImmediate to avoid stack overflow
+          return;
+        }
 
-        // Show response with provider info
-        console.log(chalk.blue('\\nAssistant: ') + response.response);
+        // Add user message
+        messages.push({ role: 'user', content: input });
 
-        if (response.cached) {
-          let cacheInfo = '   ⚡ From cache';
-          if (response.timeSaved && response.costSaved) {
-            cacheInfo += chalk.green(` (saved ${response.timeSaved}ms, $${response.costSaved.toFixed(4)})`);
+        const spinner = ora('Thinking...').start();
+
+        try {
+          const response = await callFreeProviderAPI(authToken.value, messages);
+          spinner.stop();
+
+          // Add assistant response
+          messages.push({ role: 'assistant', content: response.response });
+
+          // Show response with provider info
+          console.log(chalk.blue('\\nAssistant: ') + response.response);
+
+          if (response.cached) {
+            let cacheInfo = '   ⚡ From cache';
+            if (response.timeSaved && response.costSaved) {
+              cacheInfo += chalk.green(` (saved ${response.timeSaved}ms, $${response.costSaved.toFixed(4)})`);
+            }
+            console.log(chalk.gray(cacheInfo));
+          } else {
+            console.log(chalk.gray(`   🤖 From ${response.provider}`));
+            console.log(chalk.gray(`   📝 Response cached for future use`));
           }
-          console.log(chalk.gray(cacheInfo));
-        } else {
-          console.log(chalk.gray(`   🤖 From ${response.provider}`));
-          console.log(chalk.gray(`   📝 Response cached for future use`));
-        }
-        console.log();
+          console.log();
 
-      } catch (error: any) {
-        spinner.stop();
-        console.log(chalk.red('\\n❌ Error: ') + error.message);
+        } catch (error: any) {
+          spinner.stop();
+          console.log(chalk.red('\\n❌ Error: ') + error.message);
 
-        // If it's an auth error, suggest re-authentication
-        if (error.message.includes('401') || error.message.includes('authentication')) {
-          console.log(chalk.yellow('\\n💡 Try: cachegpt logout && cachegpt login'));
+          // If it's an auth error, suggest re-authentication
+          if (error.message.includes('401') || error.message.includes('authentication')) {
+            console.log(chalk.yellow('\\n💡 Try: cachegpt logout && cachegpt login'));
+          }
+          console.log();
         }
-        console.log();
+
+        // Continue the chat loop after response or error
+        setImmediate(chat); // Use setImmediate to avoid stack overflow and ensure proper continuation
+
+      } catch (outerError: any) {
+        console.error('Unexpected error in chat loop:', outerError);
+        setImmediate(chat); // Continue even if there's an unexpected error
       }
-
-      // Continue the chat loop after response or error
-      chat();
     });
   };
 
