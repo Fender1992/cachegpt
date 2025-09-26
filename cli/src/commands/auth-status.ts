@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import chalk from 'chalk';
-import { AuthService } from '../lib/auth-service';
+import { TokenManager } from '../lib/token-manager';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -8,35 +8,21 @@ export async function authStatusCommand() {
   console.log(chalk.cyan('🔍 Authentication Status\n'));
 
   try {
-    // Load environment config if available
-    const envPath = path.join(process.cwd(), '.env.local');
-    if (fs.existsSync(envPath)) {
-      const envContent = fs.readFileSync(envPath, 'utf-8');
-      envContent.split('\n').forEach(line => {
-        const [key, value] = line.split('=');
-        if (key && value) {
-          process.env[key.trim()] = value.trim().replace(/["']/g, '');
-        }
-      });
-    }
+    const tokenManager = new TokenManager();
 
-    // Initialize auth service
-    const authService = new AuthService();
+    // Check authentication status
+    try {
+      const auth = tokenManager.getCacheGPTAuth();
 
-    // Get current user
-    const user = await authService.getCurrentUser();
-
-    if (user) {
       console.log(chalk.green('✅ Logged in'));
-      console.log(chalk.dim('Email:'), user.email);
-      console.log(chalk.dim('User ID:'), user.id);
-      console.log(chalk.dim('Created:'), new Date(user.created_at).toLocaleDateString());
+      console.log(chalk.dim('Email:'), auth.userEmail || 'Unknown');
+      console.log(chalk.dim('User ID:'), auth.userId);
+      console.log(chalk.dim('Created:'), new Date(auth.createdAt).toLocaleDateString());
+      console.log(chalk.dim('Expires:'), new Date(auth.expiresAt).toLocaleDateString());
 
-      if (user.email_confirmed_at) {
-        console.log(chalk.dim('Email verified:'), chalk.green('Yes'));
-      } else {
-        console.log(chalk.dim('Email verified:'), chalk.yellow('No - check your email'));
-      }
+      // Show token preview
+      console.log(chalk.dim('\nAccess token:'), chalk.green('Valid'));
+      console.log(chalk.dim('Token preview:'), auth.value.substring(0, 20) + '...');
 
       // Check for Claude user ID
       const userConfigPath = path.join(process.env.HOME || '~', '.cachegpt', 'user-config.json');
@@ -51,18 +37,12 @@ export async function authStatusCommand() {
         }
       }
 
-      // Get access token info
-      const token = await authService.getAccessToken();
-      if (token) {
-        console.log(chalk.dim('\nAccess token:'), chalk.green('Valid'));
-        console.log(chalk.dim('Token preview:'), token.substring(0, 20) + '...');
-      }
-
       console.log(chalk.cyan('\nAvailable commands:'));
+      console.log('  • Use', chalk.yellow('cachegpt chat'), 'to start chatting');
       console.log('  • Use', chalk.yellow('cachegpt sync-claude'), 'to sync conversations');
       console.log('  • Use', chalk.yellow('cachegpt logout'), 'to sign out');
 
-    } else {
+    } catch (error) {
       console.log(chalk.yellow('⚠️  Not logged in'));
       console.log(chalk.dim('\nTo authenticate:'));
       console.log('  • Use', chalk.yellow('cachegpt register'), 'to create a new account');

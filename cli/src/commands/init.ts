@@ -1,8 +1,18 @@
-import { initUnifiedCommand } from './init-unified';
+#!/usr/bin/env node
+import chalk from 'chalk';
 
 /**
- * Main initialization command - uses unified auth with Playwright + API key fallback
+ * Deprecated initialization command - redirects to login
  */
 export async function initCommand(): Promise<void> {
-  return await initUnifiedCommand();
+  console.log(chalk.cyan('🔧 CacheGPT Setup'));
+  console.log(chalk.yellow('💡 The init command is deprecated. Use login instead:'));
+  console.log(chalk.white('   cachegpt login --console   (console-based login)'));
+  console.log(chalk.white('   cachegpt login             (browser-based login)'));
+  console.log(chalk.white('   cachegpt signup            (create new account)'));
+  console.log(chalk.dim('\nStarting login process...\n'));
+
+  // Import and run the login command
+  const { loginCommand } = await import('./login');
+  await loginCommand();
 }

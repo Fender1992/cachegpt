@@ -108,6 +108,19 @@ async function validateBearerToken(token: string): Promise<UnifiedSession | null
 
     // Return unified session object with expiry tracking
     const now = Math.floor(Date.now() / 1000);
+
+    // Parse the JWT to get actual expiry time
+    let expiresAt = now + 3600; // Default to 1 hour
+    try {
+      const tokenPayload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+      if (tokenPayload.exp) {
+        expiresAt = tokenPayload.exp;
+      }
+    } catch (e) {
+      // If we can't parse the JWT, use default expiry
+      console.log('[AUTH] Could not parse JWT expiry, using default');
+    }
+
     return {
       user: {
         id: user.user.id,
@@ -118,10 +131,7 @@ async function validateBearerToken(token: string): Promise<UnifiedSession | null
       token: token,
       issuedAt: now,
       lastValidated: now,
-      // Supabase JWT typically expires in 1 hour (3600 seconds)
-      expiresAt: user.user.created_at ?
-        Math.floor(new Date(user.user.created_at).getTime() / 1000) + 3600 :
-        now + 3600
+      expiresAt: expiresAt
     };
 
   } catch (error) {

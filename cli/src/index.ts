@@ -120,9 +120,29 @@ program
   .action(registerCommand);
 
 program
+  .command('signup')
+  .description('Create a new CacheGPT account (console-based)')
+  .action(async () => {
+    const { signupConsoleCommand } = await import('./commands/signup-console');
+    await signupConsoleCommand();
+  });
+
+program
   .command('login')
-  .description('Login to your CacheGPT account')
-  .action(loginCommand);
+  .description('Login to your CacheGPT account (6-digit email code)')
+  .option('--advanced', 'Use advanced login options (password setup, etc.)')
+  .option('--browser', 'Use browser-based OAuth login')
+  .action(async (options) => {
+    if (options.advanced) {
+      const { loginConsoleCommand } = await import('./commands/login-console');
+      await loginConsoleCommand();
+    } else if (options.browser) {
+      const { loginCommandSimple } = await import('./commands/login-simple');
+      await loginCommandSimple();
+    } else {
+      await loginCommand();
+    }
+  });
 
 program
   .command('auth-status')
