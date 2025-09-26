@@ -23,7 +23,10 @@ CREATE INDEX IF NOT EXISTS idx_cached_responses_model_provider ON cached_respons
 CREATE INDEX IF NOT EXISTS idx_cached_responses_popularity ON cached_responses(popularity_score DESC) WHERE is_archived = false;
 CREATE INDEX IF NOT EXISTS idx_cached_responses_tier ON cached_responses(tier) WHERE is_archived = false;
 
--- Add RPC function for updating popularity score if missing
+-- Drop existing function if it exists (in case of signature change)
+DROP FUNCTION IF EXISTS calculate_and_update_popularity_score(UUID);
+
+-- Add RPC function for updating popularity score
 CREATE OR REPLACE FUNCTION calculate_and_update_popularity_score(
   p_cached_response_id UUID
 ) RETURNS VOID AS $$
