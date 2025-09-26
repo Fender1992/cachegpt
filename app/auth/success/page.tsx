@@ -62,23 +62,38 @@ function AuthSuccessContent() {
         const redirectUI = document.getElementById('redirect-status')
         if (redirectUI) {
           redirectUI.innerHTML = `
-            <div className="text-center">
-              <h2 className="text-2xl font-bold text-white mb-4">Authentication Successful!</h2>
-              <p className="text-gray-300 mb-6">Completing setup with your terminal...</p>
+            <div style="text-align: center; padding: 20px;">
+              <h2 style="font-size: 28px; font-weight: bold; color: white; margin-bottom: 16px;">
+                ✅ Authentication Successful!
+              </h2>
+              <p style="color: #d1d5db; margin-bottom: 24px; font-size: 18px;">
+                Completing setup with your terminal...
+              </p>
 
-              <div className="bg-gray-800/50 rounded-lg p-6 mb-6">
-                <p className="text-sm text-gray-400 mb-4">If you're not redirected automatically:</p>
+              <div style="background: rgba(31, 41, 55, 0.5); border-radius: 12px; padding: 30px; margin-bottom: 24px; border: 2px solid rgba(34, 197, 94, 0.3);">
+                <p style="color: #9ca3af; margin-bottom: 20px; font-size: 16px;">
+                  ⚠️ Your browser may be blocking the redirect to localhost.
+                </p>
+
+                <p style="color: white; margin-bottom: 20px; font-size: 18px; font-weight: 600;">
+                  👇 Click the button below to complete authentication:
+                </p>
+
                 <a
                   href="${callbackUrl}"
-                  className="inline-block px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors"
+                  style="display: inline-block; padding: 16px 32px; background: #22c55e; color: white; font-weight: bold; font-size: 18px; border-radius: 8px; text-decoration: none; cursor: pointer; border: 2px solid #16a34a; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); transition: all 0.2s;"
+                  onmouseover="this.style.background='#16a34a'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 8px rgba(0, 0, 0, 0.15)';"
+                  onmouseout="this.style.background='#22c55e'; this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px rgba(0, 0, 0, 0.1)';"
                 >
-                  Complete Authentication
+                  🔐 CLICK HERE TO COMPLETE AUTHENTICATION
                 </a>
               </div>
 
-              <p className="text-xs text-gray-500">
-                Your browser may block the redirect to localhost for security reasons.
-                Click the button above to complete authentication.
+              <p style="color: #6b7280; font-size: 12px;">
+                This will redirect you to: <br/>
+                <code style="background: rgba(31, 41, 55, 0.5); padding: 4px 8px; border-radius: 4px; font-size: 11px;">
+                  ${callbackUrl.substring(0, 50)}...
+                </code>
               </p>
             </div>
           `
