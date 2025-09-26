@@ -124,6 +124,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 5: If no cache hit, get response from appropriate provider
+    let actualProvider = provider; // Variable to track actual provider used
     if (!cacheHit) {
       try {
         if (useFreeTier) {
@@ -132,11 +133,8 @@ export async function POST(request: NextRequest) {
           const result = await callFreeProvider(getUserId(session), messages, provider);
           response = result.response;
 
-          // Update metadata with actual provider used
-          if (!cacheHit && result.provider) {
-            // Store actual provider name for client display
-            provider = result.provider;
-          }
+          // Track the actual provider that was used
+          actualProvider = result.provider;
 
           console.log(`[FREE] Response from ${result.provider}${result.cached ? ' (cached)' : ''}`);
 
@@ -216,7 +214,7 @@ export async function POST(request: NextRequest) {
       response,
       metadata: {
         cacheHit,
-        provider: useFreeTier ? 'free-provider' : provider,
+        provider: useFreeTier ? actualProvider : provider,
         timeSavedMs: cacheHit ? timeSavedMs : 0,
         costSaved: cacheHit ? costSaved : 0
       }
