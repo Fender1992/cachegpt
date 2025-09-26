@@ -59,8 +59,8 @@ htmlcov/
 # CLI build
 cli/dist/
 cli/build/
-app/static/llm-cache.exe
-app/static/llm-cache-*
+app/static/cachegpt.exe
+app/static/cachegpt-*
 
 # Vercel
 .vercel/

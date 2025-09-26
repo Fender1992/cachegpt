@@ -1,0 +1,42 @@
+E2E Test Setup Log - Phase 0
+========================================
+Date: 2025-09-26T19:08:00Z
+Environment: CacheGPT with Next.js + Supabase + CLI
+
+SETUP STEPS COMPLETED:
+1. ✅ Main app dependencies installed (yarn install)
+2. ✅ CLI dependencies installed (yarn install in /cli)
+3. ✅ CLI built successfully (typescript compilation)
+4. ✅ Main app built successfully (Next.js production build)
+5. ✅ Development server started on port 3006
+6. ✅ Health check passed: {"status":"ok","timestamp":"2025-09-26T19:08:12.200Z","message":"API is working"}
+
+ARCHITECTURE DETECTED:
+- Backend: Next.js 15.5.3 with API routes
+- Auth: Supabase (JWT tokens + OAuth)
+- Database: PostgreSQL via Supabase
+- CLI: Node.js/TypeScript console app (v11.0.6)
+- Chat: Web UI + API + Database persistence
+
+ENVIRONMENT VARIABLES CONFIRMED:
+- NEXT_PUBLIC_SUPABASE_URL: ✅ Configured
+- NEXT_PUBLIC_SUPABASE_ANON_KEY: ✅ Configured
+- SUPABASE_SERVICE_KEY: ✅ Configured
+- OPENAI_API_KEY: ✅ Configured
+- ANTHROPIC_API_KEY: ✅ Configured
+
+BUILD ISSUES RESOLVED:
+1. Fixed module import in /app/api/test-cache/route.ts (ranking-cache → tier-based-cache)
+2. Fixed nested try-catch syntax error in /app/api/v2/unified-chat/route.ts
+
+SERVICES STATUS:
+- Next.js Dev Server: ✅ Running on http://localhost:3006
+- Database: ✅ Connected via Supabase
+- CLI: ✅ Built and ready for testing
+
+LOGGING ENABLED:
+- API endpoint logging: ✅ Enabled (console.log)
+- CLI debug output: ✅ Available
+- Database query logging: ✅ Via Supabase dashboard
+
+READY FOR PHASE 1: User creation via CLI

@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# LLM Cache CLI Installation Script
+# CacheGPT CLI Installation Script
 
 set -e
 
-echo "🚀 Installing LLM Cache CLI..."
+echo "🚀 Installing CacheGPT CLI..."
 
 # Check if Node.js is installed
 if ! command -v node &> /dev/null; then
@@ -41,19 +41,19 @@ npm run build
 
 # Test the installation
 echo "🧪 Testing installation..."
-if ./bin/llm-cache --version &> /dev/null; then
+if ./bin/cachegpt --version &> /dev/null; then
     echo "✅ CLI built successfully!"
     echo ""
     echo "🎉 Installation complete!"
     echo ""
     echo "Quick start:"
-    echo "  ./bin/llm-cache init    # Initialize configuration"
-    echo "  ./bin/llm-cache test    # Test the connection"
-    echo "  ./bin/llm-cache --help  # See all commands"
+    echo "  ./bin/cachegpt init    # Initialize configuration"
+    echo "  ./bin/cachegpt test    # Test the connection"
+    echo "  ./bin/cachegpt --help  # See all commands"
     echo ""
     echo "For global installation:"
     echo "  npm link                # Link globally"
-    echo "  llm-cache --help        # Use from anywhere"
+    echo "  cachegpt --help        # Use from anywhere"
 else
     echo "❌ Installation failed. CLI is not working."
     exit 1

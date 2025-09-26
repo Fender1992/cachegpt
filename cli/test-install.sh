@@ -31,15 +31,15 @@ fi
 # Check if the CLI binary works
 echo ""
 echo "Testing CLI commands..."
-if ./bin/llm-cache --version &> /dev/null; then
-    echo "✅ CLI version: $(./bin/llm-cache --version)"
+if ./bin/cachegpt --version &> /dev/null; then
+    echo "✅ CLI version: $(./bin/cachegpt --version)"
 else
     echo "❌ CLI binary not working"
     exit 1
 fi
 
 # Check available commands
-if ./bin/llm-cache --help &> /dev/null; then
+if ./bin/cachegpt --help &> /dev/null; then
     echo "✅ CLI help command works"
 else
     echo "❌ CLI help command failed"
@@ -47,7 +47,7 @@ else
 fi
 
 # Test config command
-if ./bin/llm-cache config --show &> /dev/null; then
+if ./bin/cachegpt config --show &> /dev/null; then
     echo "✅ CLI config command works"
 else
     echo "❌ CLI config command failed"
@@ -62,4 +62,4 @@ echo "To use the CLI globally, run:"
 echo "  npm link"
 echo ""
 echo "Then you can use:"
-echo "  llm-cache --help"
+echo "  cachegpt --help"

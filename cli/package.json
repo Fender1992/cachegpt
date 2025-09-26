@@ -1,11 +1,10 @@
 {
   "name": "cachegpt-cli",
-  "version": "11.0.5",
+  "version": "11.0.6",
   "description": "Zero-setup CLI for free AI chat. Just login with Google/GitHub and start chatting - no API keys needed! Uses rotating free providers with smart caching.",
   "main": "dist/index.js",
   "bin": {
-    "cachegpt": "bin/llm-cache",
-    "llm-cache": "bin/llm-cache"
+    "cachegpt": "bin/cachegpt"
   },
   "repository": {
     "type": "git",
@@ -26,8 +25,8 @@
     "prepublishOnly": "npm run clean && npm run build",
     "postinstall": "node scripts/postinstall.js || true",
     "link": "npm link",
-    "test": "echo \"Run 'npm run build && ./bin/llm-cache --help' to test\"",
-    "build:exe": "tsc && pkg dist/index.js --targets node18-win-x64 --output ../app/static/llm-cache.exe",
+    "test": "echo \"Run 'npm run build && ./bin/cachegpt --help' to test\"",
+    "build:exe": "tsc && pkg dist/index.js --targets node18-win-x64 --output ../app/static/cachegpt.exe",
     "build:all": "tsc && pkg dist/index.js --targets node18-win-x64,node18-linux-x64,node18-macos-x64 --out-path ../app/static/"
   },
   "keywords": [

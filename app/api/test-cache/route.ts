@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cacheResponse, findSimilarCachedResponse } from '@/lib/ranking-cache';
+import { tierCache } from '@/lib/tier-based-cache';
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,19 +11,19 @@ export async function POST(request: NextRequest) {
     console.log('[TEST-CACHE] Testing with query:', query);
 
     // Check for cached response
-    const cachedMatch = await findSimilarCachedResponse(
+    const cachedMatch = await tierCache.findSimilarResponse(
       query,
       'free-model',
       'mixed',
-      0.85
+      { similarityThreshold: 0.85 }
     );
 
     if (cachedMatch) {
       return NextResponse.json({
-        response: cachedMatch.cached_response.response,
+        response: cachedMatch.response,
         cached: true,
         similarity: cachedMatch.similarity,
-        timeSaved: cachedMatch.time_saved_ms
+        tier: cachedMatch.tier
       });
     }
 
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
     // Cache the response
     console.log('[TEST-CACHE] Caching new response...');
-    await cacheResponse(
+    await tierCache.storeResponse(
       query,
       testResponse,
       'free-model',

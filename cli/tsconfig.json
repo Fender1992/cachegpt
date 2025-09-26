@@ -19,7 +19,7 @@
       "node"
     ],
     "allowJs": true,
-    "noEmit": true,
+    "noEmit": false,
     "incremental": true,
     "moduleResolution": "node",
     "isolatedModules": true,
@@ -37,6 +37,7 @@
     "node_modules",
     "dist",
     "**/*.test.ts",
+    "__tests__",
     ".next"
   ]
 }

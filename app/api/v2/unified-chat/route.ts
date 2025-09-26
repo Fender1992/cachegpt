@@ -3,17 +3,16 @@
  * Before making ANY changes to chat API logic, read:
  * /root/cachegpt/STATUS_2025_09_24.md
  *
- * This endpoint is the CORE of the authentication system - changes here
+ * This endpoint is the CORE of the chat system - changes here
  * affect both web and CLI users. After making changes:
- * - Update STATUS file with authentication flow changes
+ * - Update STATUS file with chat system changes
  * - Document any new provider integrations
- * - Note any cost/security implications
+ * - Note any cache/performance implications
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import {
   resolveAuthentication,
-  isUnifiedSession,
   isAuthError,
   getUserId,
   logAuthMethodUsage,
@@ -21,433 +20,455 @@ import {
   createSessionErrorMessage
 } from '@/lib/unified-auth-resolver';
 import { createClient } from '@supabase/supabase-js';
-import { generateEmbedding, findSimilarCachedResponse, cacheResponse } from '@/lib/ranking-cache';
+import { tierCache } from '@/lib/tier-based-cache';
+import { predictiveCache } from '@/lib/predictive-cache';
+import { rankingManager } from '@/lib/ranking-features-manager';
 
 /**
- * Unified chat endpoint that handles both web sessions and API keys
- * This replaces the dual-paradigm approach with a single, consistent handler
+ * Simple embedding generation for cache similarity
  */
-export async function POST(request: NextRequest) {
-  try {
-    // Step 1: Parse request body once
-    const body = await request.json();
-    const { directSession, credential, authMethod, provider, message, model, messages } = body;
+function generateSimpleEmbedding(text: string): number[] {
+  const embedding = new Array(384).fill(0);
+  const words = text.toLowerCase().split(/\s+/);
 
-    console.log('[unified-chat] Request received:', {
-      directSession,
-      authMethod,
-      provider,
-      hasCredential: !!credential,
-      credentialLength: credential?.length,
-      messagesCount: messages?.length
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
+    for (let j = 0; j < word.length; j++) {
+      const charCode = word.charCodeAt(j);
+      embedding[(i * 10 + j) % 384] += (charCode / 255) - 0.5;
+    }
+  }
+
+  // Normalize
+  const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
+  return magnitude > 0 ? embedding.map(val => val / magnitude) : embedding;
+}
+
+/**
+ * Calculate cosine similarity between embeddings
+ */
+function calculateSimilarity(embedding1: number[], embedding2: number[]): number {
+  if (!embedding1 || !embedding2 || embedding1.length !== embedding2.length) {
+    return 0;
+  }
+
+  let dotProduct = 0;
+  let norm1 = 0;
+  let norm2 = 0;
+
+  for (let i = 0; i < embedding1.length; i++) {
+    dotProduct += embedding1[i] * embedding2[i];
+    norm1 += embedding1[i] * embedding1[i];
+    norm2 += embedding2[i] * embedding2[i];
+  }
+
+  if (norm1 === 0 || norm2 === 0) return 0;
+  return dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2));
+}
+
+/**
+ * Search for cached responses using tier-based system
+ */
+async function findCachedResponse(
+  query: string,
+  model: string,
+  provider: string,
+  threshold: number = 0.85
+): Promise<any> {
+  try {
+    // Use the new tier-based cache system
+    const cached = await tierCache.findSimilarResponse(query, model, provider, {
+      similarityThreshold: threshold,
+      maxResults: 50,
+      tierPriority: ['hot', 'warm', 'cool', 'cold', 'frozen'],
+      includeArchived: false
     });
 
-    let session: UnifiedSession;
-
-    // Check if this is a direct session request (CLI with session key, no OAuth)
-    if (directSession === true && authMethod === 'web-session' && credential) {
-      // Create a pseudo-session for CLI users with session keys
-      // This bypasses OAuth but still allows session-based auth
-      session = {
-        user: {
-          id: 'cli-session-user',
-          email: 'cli-user@cachegpt.app'
-        },
-        authMethod: 'bearer', // Treat as bearer for consistency
-        token: credential, // The session key itself
-        issuedAt: Date.now()
+    if (cached) {
+      console.log(`[TIER-CACHE] Found cached response in ${cached.tier} tier with ${Math.round(cached.similarity * 100)}% similarity`);
+      return {
+        response: cached.response,
+        similarity: cached.similarity,
+        cached: true,
+        tier: cached.tier,
+        metadata: cached.metadata
       };
-
-      console.log('[unified-chat] Using direct session authentication for CLI user');
-    } else {
-      // Standard authentication flow - check for Bearer token or cookie
-      const authHeader = request.headers.get('authorization');
-      console.log('[unified-chat] Standard auth flow, has Bearer token:', !!authHeader);
-
-      const authResult = await resolveAuthentication(request);
-
-      if (isAuthError(authResult)) {
-        console.log('[unified-chat] Auth failed. Debug info:', {
-          directSession,
-          authMethod,
-          hasCredential: !!credential,
-          hasBearerToken: !!authHeader
-        });
-        return NextResponse.json({ error: authResult.error }, { status: authResult.status });
-      }
-
-      session = authResult as UnifiedSession;
     }
 
-    // Log auth method for debugging
-    logAuthMethodUsage(session, '/api/v2/unified-chat');
-
-    // Step 2: Validate provider
-    const validProviders = ['chatgpt', 'claude', 'gemini', 'perplexity', 'auto'];
-    if (provider && !validProviders.includes(provider)) {
-      return NextResponse.json({ error: 'Invalid provider' }, { status: 400 });
-    }
-
-    // Step 3: Handle authentication - use free providers for authenticated users
-    // If user is authenticated via OAuth but has no API key, use free providers
-    const useFreeTier = !credential && authMethod !== 'web-session';
-    let apiCredential = credential;
-
-    // Step 4: Check ranking-based cache for performance optimization
-    const startTime = Date.now();
-    let response = '';
-    let cacheHit = false;
-    let timeSavedMs = 0;
-    let costSaved = 0;
-
-    const userMessage = messages[messages.length - 1]?.content || message;
-    if (userMessage) {
-      console.log(`[CACHE] Checking for similar responses to: "${userMessage.substring(0, 100)}..."`);
-
-      // For auto provider, check cache across all free providers
-      const cacheProvider = provider === 'auto' ? 'mixed' : provider;
-      const cachedMatch = await findSimilarCachedResponse(
-        userMessage,
-        model || 'free-model',
-        cacheProvider,
-        0.85 // 85% similarity threshold
-      );
-
-      if (cachedMatch) {
-        response = cachedMatch.cached_response.response;
-        cacheHit = true;
-        timeSavedMs = cachedMatch.time_saved_ms;
-        costSaved = cachedMatch.cost_saved;
-
-        console.log(`[CACHE] HIT! Similarity: ${Math.round(cachedMatch.similarity * 100)}%, Time saved: ${timeSavedMs}ms, Cost saved: $${costSaved}`);
-      }
-    }
-
-    // Step 5: If no cache hit, get response from appropriate provider
-    let actualProvider = provider; // Variable to track actual provider used
-    if (!cacheHit) {
-      try {
-        if (useFreeTier) {
-          // Use free provider rotation system for OAuth users without API keys
-          const { callFreeProvider } = await import('@/lib/free-providers');
-          const result = await callFreeProvider(getUserId(session), messages, provider);
-          response = result.response;
-
-          // Track the actual provider that was used
-          actualProvider = result.provider;
-
-          console.log(`[FREE] Response from ${result.provider}${result.cached ? ' (cached)' : ''}`);
-
-        } else if (authMethod === 'web-session') {
-          // Handle web session-based requests (deprecated - will show error)
-          response = await retryWithBackoff(
-            () => handleWebSession(provider, messages, credential),
-            session,
-            'web session call'
-          );
-        } else {
-          // Handle user's own API key
-          response = await retryWithBackoff(
-            () => handleAPIKey(provider, messages, model, apiCredential),
-            session,
-            'API key call'
-          );
-        }
-
-        // Cache the new response for future optimization (if not from free provider - they cache themselves)
-        if (!useFreeTier) {
-          const responseTime = Date.now() - startTime;
-          if (userMessage && response && response.length > 10) {
-            await cacheResponse(
-              userMessage,
-              response,
-              model || `${provider}-default`,
-              provider,
-              getUserId(session),
-              responseTime
-            );
-            console.log(`[CACHE] Stored new response (${responseTime}ms) for future use`);
-          }
-        }
-
-      } catch (error: any) {
-        // Enhanced error message based on session state
-        const enhancedError = createSessionErrorMessage(session, error.message || 'Request failed');
-        throw new Error(enhancedError);
-      }
-    }
-
-    // Step 5: Log usage for analytics using unified session
+    return null;
+  } catch (error) {
+    console.error('[CACHE-SEARCH] Error:', error);
+    // Fallback to original implementation
     try {
       const supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_KEY!
       );
 
-      await supabase.from('usage').insert({
-        user_id: getUserId(session),
-        endpoint: '/api/v2/unified-chat',
-        method: 'POST',
-        model: model || provider,
-        metadata: {
-          provider,
-          authMethod: session.authMethod, // Use actual auth method from session
-          requestAuthMethod: authMethod,   // Auth method from request for comparison
-          message_count: messages.length,
-          response_length: response.length,
-          userEmail: session.user.email,
-          // Ranking system performance metrics
-          cacheHit,
-          timeSavedMs: cacheHit ? timeSavedMs : 0,
-          costSaved: cacheHit ? costSaved : 0,
-          totalResponseTime: Date.now() - startTime,
-          cacheEnabled: true
+      const queryEmbedding = generateSimpleEmbedding(query);
+
+      console.log(`[CACHE-SEARCH-FALLBACK] Looking for: model=${model}, provider=${provider}, query="${query.substring(0, 50)}..."`);
+
+      // Get potential matches from database
+      const { data: candidates, error: dbError } = await supabase
+        .from('cached_responses')
+        .select('*')
+        .eq('model', model)
+        .eq('provider', provider)
+        .eq('is_archived', false)
+        .order('popularity_score', { ascending: false })
+        .limit(50);
+
+      if (dbError) {
+        console.error('[CACHE-SEARCH-FALLBACK] Database error:', dbError);
+        return null;
+      }
+
+      if (!candidates || candidates.length === 0) {
+        console.log('[CACHE-SEARCH-FALLBACK] No candidates found');
+        return null;
+      }
+
+      console.log(`[CACHE-SEARCH-FALLBACK] Found ${candidates.length} candidates, checking similarity...`);
+
+      // Find best match
+      let bestMatch = null;
+      let bestSimilarity = 0;
+
+      for (const candidate of candidates) {
+        if (!candidate.embedding) continue;
+
+        const similarity = calculateSimilarity(queryEmbedding, candidate.embedding);
+        if (similarity >= threshold && similarity > bestSimilarity) {
+          bestMatch = candidate;
+          bestSimilarity = similarity;
         }
-      });
-    } catch (error) {
-      console.error('Usage logging failed:', error);
-      // Continue without logging - don't fail the request
+      }
+
+      if (bestMatch) {
+        console.log(`[CACHE-HIT-FALLBACK] Found match with ${Math.round(bestSimilarity * 100)}% similarity`);
+
+        // Update access count
+        await supabase
+          .from('cached_responses')
+          .update({
+            access_count: bestMatch.access_count + 1,
+            last_accessed: new Date().toISOString()
+          })
+          .eq('id', bestMatch.id);
+
+        return {
+          response: bestMatch.response,
+          similarity: bestSimilarity,
+          cached: true
+        };
+      }
+
+      console.log('[CACHE-MISS-FALLBACK] No similar responses found');
+      return null;
+
+    } catch (fallbackError) {
+      console.error('[CACHE-SEARCH-FALLBACK] Error:', fallbackError);
+      return null;
+    }
+  }
+}
+
+/**
+ * Store response in cache database using tier-based system
+ */
+async function storeInCache(
+  query: string,
+  response: string,
+  model: string,
+  provider: string,
+  userId: string | null,
+  responseTimeMs: number
+): Promise<void> {
+  try {
+    // Use the new tier-based cache system
+    const responseId = await tierCache.storeResponse(
+      query,
+      response,
+      model,
+      provider,
+      userId,
+      responseTimeMs
+    );
+
+    if (responseId) {
+      console.log(`[TIER-CACHE] ✅ Stored response with ID: ${responseId}`);
+    } else {
+      console.error('[TIER-CACHE] Failed to store response');
     }
 
-    // Return response with metadata about caching
-    return NextResponse.json({
-      response,
+  } catch (error) {
+    console.error('[CACHE-STORE] Error:', error);
+    // Fallback to original implementation
+    try {
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_KEY!
+      );
+
+      const embedding = generateSimpleEmbedding(query);
+
+      console.log(`[CACHE-STORE-FALLBACK] Storing: model=${model}, provider=${provider}, user=${userId}`);
+
+      const insertData = {
+        query,
+        response,
+        model,
+        provider,
+        embedding,
+        user_id: userId,
+        access_count: 1,
+        popularity_score: 50.0,
+        ranking_version: 1,
+        tier: 'cool',
+        cost_saved: 0.01,
+        is_archived: false,
+        ranking_metadata: {
+          initial_response_time: responseTimeMs,
+          created_by_user: userId
+        },
+        created_at: new Date().toISOString(),
+        last_accessed: new Date().toISOString(),
+        last_score_update: new Date().toISOString()
+      };
+
+      const { data, error } = await supabase
+        .from('cached_responses')
+        .insert(insertData)
+        .select('id');
+
+      if (error) {
+        console.error('[CACHE-STORE-FALLBACK] Database error:', error);
+      } else {
+        console.log(`[CACHE-STORE-FALLBACK] ✅ Stored response with ID: ${data?.[0]?.id}`);
+      }
+
+    } catch (fallbackError) {
+      console.error('[CACHE-STORE-FALLBACK] Error:', fallbackError);
+    }
+  }
+}
+
+/**
+ * Call free provider APIs with server-managed keys
+ */
+async function callFreeProvider(messages: any[]): Promise<{ response: string; provider: string }> {
+  const providers = [
+    {
+      name: 'groq',
+      apiKey: process.env.GROQ_API_KEY,
+      endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+      model: 'llama-3.1-8b-instant'
+    },
+    {
+      name: 'openrouter',
+      apiKey: process.env.OPENROUTER_API_KEY,
+      endpoint: 'https://openrouter.ai/api/v1/chat/completions',
+      model: 'nousresearch/nous-hermes-2-mixtral-8x7b-dpo'
+    },
+    {
+      name: 'huggingface',
+      apiKey: process.env.HUGGINGFACE_API_KEY,
+      endpoint: 'https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1',
+      model: 'mixtral-8x7b'
+    }
+  ];
+
+  for (const provider of providers) {
+    if (!provider.apiKey) {
+      console.log(`[FREE-PROVIDER] ${provider.name} has no API key`);
+      continue;
+    }
+
+    try {
+      console.log(`[FREE-PROVIDER] Trying ${provider.name}...`);
+
+      let body: any;
+      let headers: any = { 'Content-Type': 'application/json' };
+
+      if (provider.name === 'huggingface') {
+        body = {
+          inputs: messages.map(m => m.content).join('\n'),
+          parameters: { max_new_tokens: 1000, temperature: 0.7 }
+        };
+        headers['Authorization'] = `Bearer ${provider.apiKey}`;
+      } else {
+        body = {
+          model: provider.model,
+          messages,
+          temperature: 0.7,
+          max_tokens: 1000
+        };
+        headers['Authorization'] = `Bearer ${provider.apiKey}`;
+
+        if (provider.name === 'openrouter') {
+          headers['HTTP-Referer'] = 'https://cachegpt.app';
+          headers['X-Title'] = 'CacheGPT';
+        }
+      }
+
+      const response = await fetch(provider.endpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body)
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        console.log(`[FREE-PROVIDER] ${provider.name} failed: ${error}`);
+        continue;
+      }
+
+      const data = await response.json();
+      let responseText: string;
+
+      if (provider.name === 'huggingface') {
+        responseText = data[0]?.generated_text || data.generated_text || 'No response';
+      } else {
+        responseText = data.choices[0]?.message?.content || 'No response';
+      }
+
+      console.log(`[FREE-PROVIDER] ✅ Success with ${provider.name}`);
+      return { response: responseText, provider: provider.name };
+
+    } catch (error: any) {
+      console.error(`[FREE-PROVIDER] ${provider.name} error:`, error.message);
+      continue;
+    }
+  }
+
+  throw new Error('All free providers failed');
+}
+
+/**
+ * Main chat endpoint - Anonymous access allowed
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { messages, provider, model, authMethod } = body;
+
+    console.log('[UNIFIED-CHAT] Request:', { provider, model, authMethod, messageCount: messages?.length });
+
+    // Try to authenticate user, but allow anonymous access
+    let userId: string | null = null;
+    let session: UnifiedSession | null = null;
+
+    const authResult = await resolveAuthentication(request);
+    if (!isAuthError(authResult)) {
+      session = authResult as UnifiedSession;
+      userId = getUserId(session);
+      logAuthMethodUsage(session, '/api/v2/unified-chat');
+      console.log('[UNIFIED-CHAT] Authenticated user:', userId);
+    } else {
+      console.log('[UNIFIED-CHAT] Anonymous user access');
+    }
+
+    const userMessage = messages[messages.length - 1]?.content;
+    if (!userMessage) {
+      return NextResponse.json({ error: 'No message provided' }, { status: 400 });
+    }
+
+    const startTime = Date.now();
+
+    // Use consistent cache parameters
+    const cacheModel = 'free-model';
+    const cacheProvider = 'mixed';
+
+    // Track prediction accuracy
+    await predictiveCache.trackPredictionAccuracy(userMessage);
+
+    // Check cache first using tier-based system
+    console.log('[CACHE] Checking for cached response...');
+    const cached = await findCachedResponse(userMessage, cacheModel, cacheProvider);
+
+    if (cached) {
+      console.log('[CACHE] ✅ Using cached response');
+
+      // Log usage
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_KEY!
+      );
+
+      await supabase.from('usage').insert({
+        user_id: userId,
+        endpoint: '/api/v2/unified-chat',
+        method: 'POST',
+        model: cacheModel,
+        metadata: {
+          provider: cacheProvider,
+          cached: true,
+          similarity: cached.similarity,
+          response_length: cached.response.length
+        }
+      });
+
+      return NextResponse.json({
+        response: cached.response,
+        metadata: {
+          cached: true,
+          similarity: cached.similarity,
+          provider: cacheProvider,
+          tier: cached.tier,
+          accessCount: cached.metadata?.accessCount,
+          popularityScore: cached.metadata?.popularityScore
+        }
+      });
+    }
+
+    // No cache hit, call free providers
+    console.log('[CHAT] No cache hit, calling free providers...');
+    const result = await callFreeProvider(messages);
+    const responseTime = Date.now() - startTime;
+
+    // Store in cache
+    await storeInCache(
+      userMessage,
+      result.response,
+      cacheModel,
+      cacheProvider,
+      userId,
+      responseTime
+    );
+
+    // Log usage
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    );
+
+    await supabase.from('usage').insert({
+      user_id: userId,
+      endpoint: '/api/v2/unified-chat',
+      method: 'POST',
+      model: cacheModel,
       metadata: {
-        cacheHit,
-        provider: useFreeTier ? actualProvider : provider,
-        timeSavedMs: cacheHit ? timeSavedMs : 0,
-        costSaved: cacheHit ? costSaved : 0
+        provider: result.provider,
+        cached: false,
+        response_time: responseTime,
+        response_length: result.response.length
+      }
+    });
+
+    return NextResponse.json({
+      response: result.response,
+      metadata: {
+        cached: false,
+        provider: result.provider,
+        responseTime
       }
     });
 
   } catch (error: any) {
-    console.error('Unified Chat API Error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Internal server error' },
-      { status: 500 }
-    );
+    console.error('[UNIFIED-CHAT] Error:', error);
+    return NextResponse.json({
+      error: error.message || 'Chat request failed'
+    }, { status: 500 });
   }
-}
-
-/**
- * Handle web session-based authentication (Claude.ai, ChatGPT web, etc.)
- */
-async function handleWebSession(provider: string, messages: any[], sessionCookie: string): Promise<string> {
-  switch (provider) {
-    case 'claude':
-      return await callClaudeWeb(sessionCookie, messages);
-    case 'chatgpt':
-      return await callChatGPTWeb(sessionCookie, messages);
-    case 'gemini':
-      return await callGeminiWeb(sessionCookie, messages);
-    case 'perplexity':
-      return await callPerplexityWeb(sessionCookie, messages);
-    default:
-      throw new Error(`Web sessions not supported for ${provider}`);
-  }
-}
-
-/**
- * Handle API key-based authentication
- */
-async function handleAPIKey(provider: string, messages: any[], model: string, apiKey: string): Promise<string> {
-  switch (provider) {
-    case 'chatgpt':
-      return await callOpenAIAPI(apiKey, messages, model || 'gpt-5');
-    case 'claude':
-      return await callAnthropicAPI(apiKey, messages, model || 'claude-opus-4-1-20250805');
-    case 'gemini':
-      return await callGeminiAPI(apiKey, messages, model || 'gemini-2.0-ultra');
-    case 'perplexity':
-      return await callPerplexityAPI(apiKey, messages, model || 'pplx-pro-online');
-    default:
-      throw new Error(`Unknown provider: ${provider}`);
-  }
-}
-
-// Web session implementations - DEPRECATED
-// These are kept for backward compatibility but will show deprecation errors
-async function callClaudeWeb(sessionKey: string, messages: any[]): Promise<string> {
-  throw new Error(
-    'Web sessions are deprecated. CacheGPT now uses free LLM providers for authenticated users. ' +
-    'Simply login with Google/GitHub and start chatting - no API keys needed!'
-  );
-}
-
-async function callChatGPTWeb(sessionToken: string, messages: any[]): Promise<string> {
-  throw new Error(
-    'Web sessions are deprecated. CacheGPT now uses free LLM providers for authenticated users. ' +
-    'Simply login with Google/GitHub and start chatting - no API keys needed!'
-  );
-}
-
-async function callGeminiWeb(sessionCookie: string, messages: any[]): Promise<string> {
-  throw new Error(
-    'Web sessions are deprecated. CacheGPT now uses free LLM providers for authenticated users. ' +
-    'Simply login with Google/GitHub and start chatting - no API keys needed!'
-  );
-}
-
-async function callPerplexityWeb(sessionCookie: string, messages: any[]): Promise<string> {
-  throw new Error(
-    'Web sessions are deprecated. CacheGPT now uses free LLM providers for authenticated users. ' +
-    'Simply login with Google/GitHub and start chatting - no API keys needed!'
-  );
-}
-
-// API key implementations
-async function callOpenAIAPI(apiKey: string, messages: any[], model: string): Promise<string> {
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature: 0.7,
-      max_tokens: 4096
-    })
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`OpenAI API error: ${error}`);
-  }
-
-  const data = await response.json();
-  return data.choices[0]?.message?.content || 'No response';
-}
-
-async function callAnthropicAPI(apiKey: string, messages: any[], model: string): Promise<string> {
-  const anthropicMessages = messages.map(m => ({
-    role: m.role === 'user' ? 'user' : 'assistant',
-    content: m.content
-  }));
-
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      model,
-      messages: anthropicMessages,
-      max_tokens: 4096
-    })
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Anthropic API error: ${error}`);
-  }
-
-  const data = await response.json();
-  return data.content[0]?.text || 'No response';
-}
-
-async function callGeminiAPI(apiKey: string, messages: any[], model: string): Promise<string> {
-  const contents = messages.map(m => ({
-    parts: [{ text: m.content }],
-    role: m.role === 'user' ? 'user' : 'model'
-  }));
-
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v2/models/${model}:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents })
-    }
-  );
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Gemini API error: ${error}`);
-  }
-
-  const data = await response.json();
-  return data.candidates[0]?.content?.parts[0]?.text || 'No response';
-}
-
-async function callPerplexityAPI(apiKey: string, messages: any[], model: string): Promise<string> {
-  const response = await fetch('https://api.perplexity.ai/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ model, messages })
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Perplexity API error: ${error}`);
-  }
-
-  const data = await response.json();
-  return data.choices[0]?.message?.content || 'No response';
-}
-
-/**
- * Retry mechanism with exponential backoff for handling transient failures
- */
-async function retryWithBackoff<T>(
-  operation: () => Promise<T>,
-  session: UnifiedSession,
-  operationName: string,
-  maxRetries: number = 3,
-  baseDelayMs: number = 1000
-): Promise<T> {
-  let lastError: Error | null = null;
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      console.log(`[RETRY] ${operationName} attempt ${attempt}/${maxRetries} for user ${session.user.id}`);
-      return await operation();
-    } catch (error: any) {
-      lastError = error;
-      console.warn(`[RETRY] ${operationName} attempt ${attempt} failed:`, error.message);
-
-      // Check if this is a session-related error that won't benefit from retry
-      if (isSessionRelatedError(error)) {
-        console.log(`[RETRY] Session-related error detected, not retrying: ${error.message}`);
-        throw error;
-      }
-
-      // If this is the last attempt, don't wait
-      if (attempt === maxRetries) {
-        break;
-      }
-
-      // Exponential backoff with jitter
-      const delayMs = baseDelayMs * Math.pow(2, attempt - 1) + Math.random() * 1000;
-      console.log(`[RETRY] Waiting ${Math.round(delayMs)}ms before retry ${attempt + 1}`);
-      await new Promise(resolve => setTimeout(resolve, delayMs));
-    }
-  }
-
-  // All retries failed
-  console.error(`[RETRY] All ${maxRetries} attempts failed for ${operationName}`);
-  throw lastError || new Error(`${operationName} failed after ${maxRetries} attempts`);
-}
-
-/**
- * Check if an error is session-related and won't benefit from retry
- */
-function isSessionRelatedError(error: any): boolean {
-  const sessionErrorPatterns = [
-    /session.*expired/i,
-    /unauthorized/i,
-    /authentication.*failed/i,
-    /invalid.*token/i,
-    /login.*required/i,
-    /access.*denied/i
-  ];
-
-  const errorMessage = error.message || error.toString();
-  return sessionErrorPatterns.some(pattern => pattern.test(errorMessage));
 }

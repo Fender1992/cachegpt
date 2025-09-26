@@ -91,7 +91,8 @@
       "Bash(yarn:*)",
       "Bash(CACHEGPT_API_URL=http://localhost:3004 ./bin/llm-cache login)",
       "WebFetch(domain:supabase.com)",
-      "Bash(CACHEGPT_API_URL=http://localhost:3005 node dist/index.js chat)"
+      "Bash(CACHEGPT_API_URL=http://localhost:3005 node dist/index.js chat)",
+      "Bash(./bin/cachegpt:*)"
     ],
     "deny": [],
     "ask": []
