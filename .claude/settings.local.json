@@ -90,7 +90,8 @@
       "Bash(python3:*)",
       "Bash(yarn:*)",
       "Bash(CACHEGPT_API_URL=http://localhost:3004 ./bin/llm-cache login)",
-      "WebFetch(domain:supabase.com)"
+      "WebFetch(domain:supabase.com)",
+      "Bash(CACHEGPT_API_URL=http://localhost:3005 node dist/index.js chat)"
     ],
     "deny": [],
     "ask": []
