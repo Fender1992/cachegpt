@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
     // Check admin access
     const { data: { session } } = await supabase.auth.getSession()
 
-    if (!session || session.user.email !== 'fender1992@gmail.com') {
+    if (!session || session.user.email !== 'rolandofender@gmail.com') {
       return NextResponse.json({
         error: 'Admin access required'
       }, { status: 403 })

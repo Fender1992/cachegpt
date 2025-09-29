@@ -43,7 +43,7 @@ USING (
   EXISTS (
     SELECT 1 FROM auth.users
     WHERE auth.uid() = auth.users.id
-    AND auth.users.email = 'fender1992@gmail.com'  -- Replace with your actual email
+    AND auth.users.email = 'rolandofender@gmail.com'
   )
 );
 

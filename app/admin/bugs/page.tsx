@@ -90,7 +90,7 @@ export default function AdminBugsPage() {
         return
       }
 
-      if (session.user.email !== 'fender1992@gmail.com') {
+      if (session.user.email !== 'rolandofender@gmail.com') {
         router.push('/')
         return
       }

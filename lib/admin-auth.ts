@@ -3,7 +3,7 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 // Admin email - only this email has admin access
-const ADMIN_EMAIL = 'fender1992@gmail.com' // Replace with your actual email
+const ADMIN_EMAIL = 'rolandofender@gmail.com'
 
 export interface AdminSession {
   user: {
