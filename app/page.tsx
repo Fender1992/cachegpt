@@ -165,7 +165,6 @@ export default function Home() {
           </div>
 
           <div className={`flex items-center space-x-3 sm:space-x-6 transition-all duration-500 delay-100 ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-5'}`}>
-            <Link href="/chat" className="text-sm sm:text-base text-gray-600 hover:text-purple-600 transition">Chat</Link>
             <Link href="#installation" className="text-sm sm:text-base text-gray-600 hover:text-purple-600 transition">Install</Link>
             <Link href="/support" className="hidden sm:inline text-gray-600 hover:text-purple-600 transition">Support</Link>
 
@@ -308,7 +307,7 @@ export default function Home() {
               </button>
             </div>
 
-            <div className="flex items-center justify-center mb-12">
+            <div className="flex items-center justify-center gap-4 mb-12">
               <button
                 onClick={() => {
                   const element = document.getElementById('installation');
@@ -319,6 +318,18 @@ export default function Home() {
                 Start Saving Now
                 <ArrowRight className="w-5 h-5 inline ml-2 group-hover:translate-x-1 transition-transform" />
               </button>
+
+              {/* Chat Button - Only show if user is authenticated */}
+              {user && (
+                <Link
+                  href="/chat"
+                  className="group relative px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200"
+                >
+                  <Sparkles className="w-5 h-5 inline mr-2 group-hover:rotate-12 transition-transform" />
+                  Start Chatting
+                  <ArrowRight className="w-5 h-5 inline ml-2 group-hover:translate-x-1 transition-transform" />
+                </Link>
+              )}
             </div>
 
             {/* Before/After Comparison */}
