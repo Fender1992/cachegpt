@@ -3,15 +3,10 @@
 const chalk = require('chalk');
 const { execSync } = require('child_process');
 
-// Try to install Playwright browsers if needed (for Claude Web login)
-if (process.env.npm_config_global === 'true' || process.env.npm_config_local === undefined) {
-  try {
-    console.log(chalk.gray('Setting up browser automation for Claude Web login...'));
-    execSync('npx playwright install chromium', { stdio: 'ignore' });
-  } catch (error) {
-    // Playwright installation is optional
-    console.log(chalk.yellow('Note: Browser automation setup skipped (optional - only needed for Claude Web login)'));
-  }
+// Skip playwright installation during npm install to prevent recursion
+// Users can manually run 'npx playwright install chromium' if needed
+if (process.env.npm_config_global === 'true' && process.env.CACHEGPT_SKIP_PLAYWRIGHT !== 'true') {
+  console.log(chalk.yellow('Note: To use Claude Web login, manually run: npx playwright install chromium'));
 }
 
 // Only show this message when installed globally, not during development
