@@ -1,6 +1,6 @@
 {
   "name": "cachegpt-cli",
-  "version": "11.1.20",
+  "version": "11.1.21",
   "description": "Zero-setup CLI for free AI chat. Just login with Google/GitHub and start chatting - no API keys needed! Uses rotating free providers with smart caching.",
   "main": "dist/index.js",
   "bin": {
@@ -9,13 +9,10 @@
   "files": [
     "dist",
     "bin",
-    "scripts",
     ".env.defaults",
     ".env.example",
     "README.md",
-    "README.npm.md",
-    "install.sh",
-    "sync-claude.sh"
+    "README.npm.md"
   ],
   "repository": {
     "type": "git",
@@ -33,7 +30,6 @@
     "dev": "NODE_ENV=development ts-node src/index.ts",
     "start": "node dist/index.js",
     "clean": "rm -rf dist",
-    "postinstall": "node scripts/postinstall.js 2>/dev/null || true",
     "link": "npm link",
     "test": "echo \"Run 'npm run build && ./bin/cachegpt --help' to test\"",
     "build:exe": "tsc && pkg dist/index.js --targets node18-win-x64 --output ../app/static/cachegpt.exe",
@@ -50,7 +46,6 @@
   "author": "CacheGPT Team <support@cachegpt.io>",
   "license": "MIT",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.63.1",
     "@supabase/supabase-js": "^2.57.4",
     "chalk": "^4.1.2",
     "commander": "^11.0.0",
@@ -59,13 +54,14 @@
     "express": "^4.18.2",
     "inquirer": "^12.9.6",
     "open": "^10.2.0",
-    "openai": "^5.23.0",
-    "ora": "^9.0.0"
+    "axios": "^1.5.0",
+    "node-fetch": "^2.6.7"
   },
   "optionalDependencies": {
+    "@anthropic-ai/sdk": "^0.63.1",
     "@huggingface/inference": "^4.8.0",
-    "axios": "^1.5.0",
-    "node-fetch": "^2.6.7",
+    "openai": "^5.23.0",
+    "ora": "^9.0.0",
     "playwright": "^1.55.1",
     "table": "^6.8.1"
   },

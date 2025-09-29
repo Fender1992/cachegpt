@@ -97,7 +97,8 @@
       "Bash(pkill:*)",
       "Bash(xargs curl:*)",
       "Bash(tar:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(npm ls:*)"
     ],
     "deny": [],
     "ask": []
