@@ -98,7 +98,9 @@
       "Bash(xargs curl:*)",
       "Bash(tar:*)",
       "WebSearch",
-      "Bash(npm ls:*)"
+      "Bash(npm ls:*)",
+      "Bash(git filter-branch:*)",
+      "Bash(git stash:*)"
     ],
     "deny": [],
     "ask": []

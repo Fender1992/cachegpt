@@ -21,16 +21,20 @@ for (const envPath of possiblePaths) {
   }
 }
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || 'https://slxgfzlralwbpzafbufm.supabase.co';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNseGdmemxyYWx3YnB6YWZidWZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5NzgwMzQsImV4cCI6MjA3MzU1NDAzNH0.0TRSpP_OxAde0WkVXJohGWIqlJ2CdpiYt6FAh2lz1so';
+// Initialize Supabase client - requires environment variables
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Supabase configuration missing. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables.');
+}
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Silent connection - no logging in production
 
 // Initialize Hugging Face client
-const hfApiKey = process.env.HUGGINGFACE_API_KEY || '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'; // Default key for demo
+const hfApiKey = process.env.HUGGINGFACE_API_KEY;
 const hf = new HfInference(hfApiKey);
 
 interface CachedResponse {

@@ -43,8 +43,14 @@ export async function loginSimpleCodeCommand() {
     }
 
     // Initialize Supabase client
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://slxgfzlralwbpzafbufm.supabase.co';
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNseGdmemxyYWx3YnB6YWZidWZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5NzgwMzQsImV4cCI6MjA3MzU1NDAzNH0.0TRSpP_OxAde0WkVXJohGWIqlJ2CdpiYt6FAh2lz1so';
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error(chalk.red('Error: Supabase configuration missing.'));
+      console.log(chalk.yellow('Please ensure environment variables are set.'));
+      return;
+    }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
