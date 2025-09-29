@@ -9,7 +9,7 @@ import {
   Zap, Shield, BarChart3, Code, ArrowRight, Check,
   Cpu, Globe, Lock, Gauge, Cloud, Sparkles,
   ChevronDown, Terminal, Database, Layers,
-  User, LogOut, Settings, CreditCard, Timer, DollarSign, TrendingUp
+  User, LogOut, Settings, CreditCard, Timer, DollarSign, TrendingUp, Bug
 } from 'lucide-react'
 import BugReportButton from '@/components/bug-report-button'
 
@@ -200,6 +200,17 @@ export default function Home() {
                       <Sparkles className="w-4 h-4" />
                       <span>Chat</span>
                     </Link>
+
+                    {/* Admin Bug Tracker Link - Only for admin email */}
+                    {user.email === 'rolandofender@gmail.com' && (
+                      <Link
+                        href="/admin/bugs"
+                        className="flex items-center space-x-2 px-4 py-2 text-sm text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20"
+                      >
+                        <Bug className="w-4 h-4" />
+                        <span>Bug Tracker</span>
+                      </Link>
+                    )}
 
                     <Link
                       href="/settings"
