@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase-client'
-import { ChevronDown, Check, Crown, Zap } from 'lucide-react'
+import { ChevronDown, Check, Crown, Zap, ArrowUpRight } from 'lucide-react'
 
 interface ProviderModel {
   id: string
@@ -62,6 +62,11 @@ export default function ModelSelector({
     fetchAvailableModels()
   }, [])
 
+  // Redirect to API key setup if no premium providers and user wants to access premium models
+  const handleUpgradeRedirect = () => {
+    window.location.href = '/dashboard?tab=api-keys&setup=true'
+  }
+
   const fetchAvailableModels = async () => {
     try {
       setLoading(true)
@@ -76,13 +81,32 @@ export default function ModelSelector({
         setAvailableModels(data.grouped || {})
         setUserHasApiKeys(data.user_access?.has_premium || false)
       } else {
-        console.error('Failed to fetch user available models')
+        console.error('Failed to fetch user available models, falling back to backend free providers only')
 
-        // Fallback: fetch free models only
-        const fallbackResponse = await fetch('/api/provider-models?free_only=true')
+        // Fallback: fetch all models and filter to backend free providers only
+        const fallbackResponse = await fetch('/api/provider-models')
         if (fallbackResponse.ok) {
           const fallbackData = await fallbackResponse.json()
-          setAvailableModels(fallbackData.grouped || {})
+
+          // Backend free providers (always available, no API keys needed)
+          const freeProviders = new Set(['groq', 'openrouter', 'huggingface'])
+
+          // Filter to only show backend free providers
+          const filteredModels = fallbackData.models?.filter((model: any) =>
+            freeProviders.has(model.provider)
+          ) || []
+
+          // Group the filtered models
+          const groupedModels = filteredModels.reduce((acc: any, model: any) => {
+            if (!acc[model.provider]) {
+              acc[model.provider] = []
+            }
+            acc[model.provider].push(model)
+            return acc
+          }, {})
+
+          setAvailableModels(groupedModels)
+          setUserHasApiKeys(false) // No API keys in fallback mode
         }
       }
     } catch (error) {
@@ -231,13 +255,28 @@ export default function ModelSelector({
             </div>
           ))}
 
-          {/* No API Keys Message */}
+          {/* API Key Setup Message */}
           {!userHasApiKeys && Object.values(availableModels).some(models => models.some(m => m.requires_api_key)) && (
-            <div className="px-3 py-2 bg-yellow-50 dark:bg-yellow-900/20 border-t border-gray-200 dark:border-gray-700">
-              <div className="text-xs text-yellow-800 dark:text-yellow-200">
-                <Crown className="w-3 h-3 inline mr-1" />
-                Add your API keys in Settings to unlock premium models
-              </div>
+            <div className="px-3 py-2 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={handleUpgradeRedirect}
+                className="w-full text-left hover:bg-white/50 dark:hover:bg-gray-800/50 rounded-lg p-2 transition-colors group"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Crown className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                    <div>
+                      <div className="text-sm font-medium text-purple-800 dark:text-purple-200">
+                        Unlock Premium Models
+                      </div>
+                      <div className="text-xs text-purple-600 dark:text-purple-400">
+                        Add API keys for Claude, GPT-4, Gemini Pro
+                      </div>
+                    </div>
+                  </div>
+                  <ArrowUpRight className="w-4 h-4 text-purple-600 dark:text-purple-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                </div>
+              </button>
             </div>
           )}
         </div>
