@@ -24,6 +24,21 @@
     height: 100vh;
     height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
   }
+
+  /* Mobile keyboard stability */
+  .keyboard-stable {
+    position: fixed;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Prevent iOS zoom on input focus */
+  @media screen and (max-width: 767px) {
+    input[type="text"], input[type="email"], input[type="password"], textarea {
+      font-size: 16px;
+    }
+  }
 }
 
 @layer base {

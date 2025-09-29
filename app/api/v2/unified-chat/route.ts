@@ -175,6 +175,92 @@ async function findCachedResponse(
 }
 
 /**
+ * Save chat history to unified conversation system
+ */
+async function saveChatHistory(
+  userId: string | null,
+  messages: any[],
+  response: string,
+  provider: string,
+  model: string,
+  responseTime: number,
+  platform: string = 'web'
+) {
+  if (!userId) {
+    console.log('[CHAT-HISTORY] Skipping save - anonymous user');
+    return;
+  }
+
+  try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    );
+
+    const userMessage = messages[messages.length - 1];
+
+    // Create or get existing conversation
+    // For now, create a new conversation for each chat (can be optimized later)
+    const { data: conversation, error: convError } = await supabase
+      .from('conversations')
+      .insert([{
+        user_id: userId,
+        title: userMessage.content.slice(0, 50) + '...',
+        provider,
+        model,
+        platform
+      }])
+      .select()
+      .single();
+
+    if (convError) {
+      console.error('[CHAT-HISTORY] Error creating conversation:', convError);
+      return;
+    }
+
+    // Save user message
+    const { error: userMsgError } = await supabase
+      .from('messages')
+      .insert([{
+        conversation_id: conversation.id,
+        user_id: userId,
+        role: 'user',
+        content: userMessage.content,
+        provider,
+        model,
+        platform
+      }]);
+
+    if (userMsgError) {
+      console.error('[CHAT-HISTORY] Error saving user message:', userMsgError);
+    }
+
+    // Save assistant response
+    const { error: assistantMsgError } = await supabase
+      .from('messages')
+      .insert([{
+        conversation_id: conversation.id,
+        user_id: userId,
+        role: 'assistant',
+        content: response,
+        provider,
+        model,
+        response_time_ms: responseTime,
+        platform
+      }]);
+
+    if (assistantMsgError) {
+      console.error('[CHAT-HISTORY] Error saving assistant message:', assistantMsgError);
+    } else {
+      console.log(`[CHAT-HISTORY] ✅ Saved conversation ${conversation.id} for user ${userId}`);
+    }
+
+  } catch (error) {
+    console.error('[CHAT-HISTORY] Error saving chat history:', error);
+  }
+}
+
+/**
  * Store response in cache database using tier-based system
  */
 async function storeInCache(
@@ -364,19 +450,19 @@ async function callFreeProvider(messages: any[]): Promise<{ response: string; pr
       name: 'groq',
       apiKey: process.env.GROQ_API_KEY,
       endpoint: 'https://api.groq.com/openai/v1/chat/completions',
-      model: 'llama-3.1-8b-instant'
+      model: 'llama-3.3-70b-versatile'  // Updated to latest Llama 3.3 70B
     },
     {
       name: 'openrouter',
       apiKey: process.env.OPENROUTER_API_KEY,
       endpoint: 'https://openrouter.ai/api/v1/chat/completions',
-      model: 'nousresearch/nous-hermes-2-mixtral-8x7b-dpo'
+      model: 'meta-llama/llama-4-scout:free'  // Updated to Llama 4 Scout (free)
     },
     {
       name: 'huggingface',
       apiKey: process.env.HUGGINGFACE_API_KEY,
-      endpoint: 'https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1',
-      model: 'mixtral-8x7b'
+      endpoint: 'https://api-inference.huggingface.co/models/Qwen/Qwen3-8B',
+      model: 'Qwen/Qwen3-8B'  // Updated to latest Qwen3 8B model
     }
   ];
 
@@ -594,6 +680,17 @@ export async function POST(request: NextRequest) {
       cacheProvider,
       userId,
       responseTime
+    );
+
+    // Save to unified chat history system
+    await saveChatHistory(
+      userId,
+      messages,
+      result.response,
+      result.provider,
+      model || cacheModel,
+      responseTime,
+      'web' // Can be enhanced to detect platform
     );
 
     // Log usage
