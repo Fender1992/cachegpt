@@ -62,7 +62,7 @@ export default function ChatPage() {
         .eq('user_id', session.user.id)
         .not('api_key', 'is', null)
 
-      hasPremium = !!(credentials && credentials.length > 0)
+      hasPremium = Boolean(credentials && credentials.length > 0)
     }
     setUsingPremium(hasPremium)
 

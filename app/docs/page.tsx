@@ -1,10 +1,11 @@
 import { redirect } from 'next/navigation'
-import { createServerClient } from '@/lib/supabase-server'
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
 import { Book, Command, Key, Database, Shield, Zap, Terminal, Settings, HelpCircle } from 'lucide-react'
 import Link from 'next/link'
 
 export default async function DocsPage() {
-  const supabase = createServerClient()
+  const supabase = createRouteHandlerClient({ cookies })
   const { data: { session } } = await supabase.auth.getSession()
 
   if (!session) {
