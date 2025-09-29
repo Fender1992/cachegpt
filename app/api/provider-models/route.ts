@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
       .select('provider, is_active')
       .eq('user_id', userId)
       .eq('is_active', true)
-      .not('api_key', 'is', null)
+      .not('api_key_encrypted', 'is', null)
 
     const hasApiKeys = credentials && credentials.length > 0
     const providersWithKeys = new Set(credentials?.map(c => c.provider) || [])
@@ -99,13 +99,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch models' }, { status: 500 })
     }
 
+    // Backend free providers (always available)
+    const freeProviders = new Set(['groq', 'openrouter', 'huggingface'])
+
+    // Premium providers (require user API keys)
+    const premiumProviders = new Set(['claude', 'chatgpt', 'gemini', 'perplexity'])
+
     // Filter models based on user's access
     const availableModels = allModels?.filter(model => {
-      // Free models are available to everyone
-      if (model.is_free) return true
+      // Backend free models are ALWAYS available (no API keys needed)
+      if (freeProviders.has(model.provider)) {
+        return true
+      }
 
-      // Premium models require API keys
-      if (model.requires_api_key) {
+      // Premium providers only show if user has API keys
+      if (premiumProviders.has(model.provider)) {
         return providersWithKeys.has(model.provider)
       }
 
