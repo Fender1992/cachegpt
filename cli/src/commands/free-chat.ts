@@ -37,8 +37,7 @@ export async function freeChatCommand(): Promise<void> {
     return;
   }
 
-  console.log(chalk.gray('🤖 Using: Groq (Llama 3.1 70B) → OpenRouter → HuggingFace'));
-  console.log(chalk.gray('📦 Smart caching: Repeated questions return instantly'));
+  console.log(chalk.gray('💬 Chat powered by free AI models with smart caching'));
   console.log();
 
   // Start chat
@@ -112,14 +111,7 @@ export async function freeChatCommand(): Promise<void> {
         console.log(chalk.blue('Assistant: ') + response.response);
 
         if (response.cached) {
-          let cacheInfo = '   ⚡ From cache';
-          if (response.timeSaved && response.costSaved) {
-            cacheInfo += chalk.green(` (saved ${response.timeSaved}ms, $${response.costSaved.toFixed(4)})`);
-          }
-          console.log(chalk.gray(cacheInfo));
-        } else {
-          console.log(chalk.gray(`   🤖 From ${response.provider}`));
-          console.log(chalk.gray(`   📝 Response cached for future use`));
+          console.log(chalk.gray('   ⚡ Cached response'));
         }
         console.log();
 

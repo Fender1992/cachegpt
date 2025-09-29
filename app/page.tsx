@@ -160,6 +160,7 @@ export default function Home() {
               <Cpu className="w-6 h-6 text-white" />
             </div>
             <span className="text-xl font-bold">CacheGPT</span>
+            <span className="text-xs text-gray-500 ml-2">v11.1.14</span>
           </div>
 
           <div className={`flex items-center space-x-6 transition-all duration-500 delay-100 ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-5'}`}>
@@ -494,6 +495,7 @@ export default function Home() {
               <Cpu className="w-5 h-5 text-white" />
             </div>
             <span className="font-semibold">CacheGPT</span>
+            <span className="text-xs ml-1">v11.1.14</span>
           </div>
           <div className="flex items-center space-x-6 text-sm text-gray-600 dark:text-gray-400">
             <Link href="/support" className="hover:text-purple-600 transition">Support</Link>
