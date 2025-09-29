@@ -47,8 +47,8 @@ export async function loginConsoleCommand() {
     }
 
     // Initialize Supabase client
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://zfqtydaskvtevhdsltbp.supabase.co';
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpmcXR5ZGFza3Z0ZXZoZHNsdGJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzczMTE2MjAsImV4cCI6MjA1Mjg4NzYyMH0.w0E5-Q5pv-R_Y3AF5uBClQnnchQEd8HB6itr6dPDKRw';
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://slxgfzlralwbpzafbufm.supabase.co';
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNseGdmemxyYWx3YnB6YWZidWZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5NzgwMzQsImV4cCI6MjA3MzU1NDAzNH0.0TRSpP_OxAde0WkVXJohGWIqlJ2CdpiYt6FAh2lz1so';
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 

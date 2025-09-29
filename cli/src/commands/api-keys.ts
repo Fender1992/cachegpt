@@ -30,7 +30,7 @@ export async function apiKeysCommand(action?: string) {
     return;
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://eohjmtrmeqjzqgeivlje.supabase.co';
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://slxgfzlralwbpzafbufm.supabase.co';
   const supabase = createClient(supabaseUrl, authToken.value);
 
   // Get current user
