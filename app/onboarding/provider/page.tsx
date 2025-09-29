@@ -196,15 +196,15 @@ export default function ProviderSelectionPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center p-4">
       <div className="max-w-4xl w-full">
-        <div className="glass-card rounded-3xl p-8">
-          <div className="text-center mb-8">
-            <CheckCircle2 className="w-16 h-16 mx-auto mb-4 text-green-500" />
-            <h1 className="text-3xl font-bold mb-2 text-white">Welcome to CacheGPT!</h1>
-            <p className="text-gray-300">Choose your AI model provider to get started</p>
-            <p className="text-sm text-gray-400 mt-2">You can change this anytime in Settings</p>
+        <div className="glass-card rounded-2xl sm:rounded-3xl p-6 sm:p-8">
+          <div className="text-center mb-6 sm:mb-8">
+            <CheckCircle2 className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 text-green-500" />
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2 text-white">Welcome to CacheGPT!</h1>
+            <p className="text-sm sm:text-base text-gray-300">Choose your AI model provider to get started</p>
+            <p className="text-xs sm:text-sm text-gray-400 mt-2">You can change this anytime in Settings</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
             {providers.map((provider) => {
               const Icon = provider.icon
               const isSelected = selectedProvider === provider.id
@@ -212,18 +212,18 @@ export default function ProviderSelectionPage() {
                 <button
                   key={provider.id}
                   onClick={() => handleProviderSelect(provider.id)}
-                  className={`p-6 rounded-xl transition-all transform hover:scale-105 border-2 ${
+                  className={`p-4 sm:p-6 rounded-xl transition-all transform hover:scale-105 border-2 ${
                     isSelected
                       ? `border-${provider.color}-500 bg-${provider.color}-500/10`
                       : 'border-gray-700 bg-gray-800/50 hover:border-gray-600'
                   }`}
                   disabled={isLoading}
                 >
-                  <Icon className={`w-12 h-12 mx-auto mb-3 ${
+                  <Icon className={`w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-3 ${
                     isSelected ? `text-${provider.color}-500` : 'text-gray-400'
                   }`} />
-                  <h3 className="font-semibold text-lg text-white">{provider.name}</h3>
-                  <p className="text-sm text-gray-400">{provider.description}</p>
+                  <h3 className="font-semibold text-base sm:text-lg text-white">{provider.name}</h3>
+                  <p className="text-xs sm:text-sm text-gray-400">{provider.description}</p>
                   {isSelected && (
                     <div className="mt-3">
                       <CheckCircle2 className="w-5 h-5 mx-auto text-green-500" />
@@ -244,7 +244,7 @@ export default function ProviderSelectionPage() {
             <button
               onClick={handleContinue}
               disabled={!selectedProvider || isLoading}
-              className="px-8 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-6 sm:px-8 py-2.5 sm:py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white text-sm sm:text-base font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {isLoading ? (
                 <>

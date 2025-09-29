@@ -275,15 +275,15 @@ export default function Dashboard() {
 
       {/* Header */}
       <header className="sticky top-0 z-40 glass-card border-b border-gray-200 dark:border-gray-800">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
-                <Cpu className="w-6 h-6 text-white" />
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
+                <Cpu className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold">CacheGPT Dashboard</h1>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Welcome back, {user?.email}</p>
+                <h1 className="text-lg sm:text-xl font-bold">CacheGPT Dashboard</h1>
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 hidden sm:block">Welcome back, {user?.email}</p>
               </div>
             </div>
 
@@ -296,9 +296,9 @@ export default function Dashboard() {
               </button>
 
               <div className="relative group">
-                <div className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-purple-100 dark:bg-purple-900/30 cursor-pointer">
-                  <Crown className="w-4 h-4 text-purple-600" />
-                  <span className="text-sm font-medium">Free Plan</span>
+                <div className="flex items-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-1 sm:py-2 rounded-lg bg-purple-100 dark:bg-purple-900/30 cursor-pointer">
+                  <Crown className="w-3 h-3 sm:w-4 sm:h-4 text-purple-600" />
+                  <span className="text-xs sm:text-sm font-medium hidden sm:inline">Free Plan</span>
                 </div>
                 <div className="absolute right-0 mt-2 w-48 glass-card rounded-lg shadow-lg p-2 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all">
                   <button className="w-full text-left px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-sm">
@@ -319,14 +319,14 @@ export default function Dashboard() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
         {/* Tabs */}
-        <div className="flex items-center space-x-1 mb-8 p-1 glass-card rounded-xl w-fit">
+        <div className="flex items-center space-x-1 mb-4 sm:mb-8 p-1 glass-card rounded-xl w-full sm:w-fit overflow-x-auto">
           {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all ${
+              className={`flex items-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'bg-white dark:bg-gray-800 shadow-sm text-purple-600'
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
@@ -341,13 +341,13 @@ export default function Dashboard() {
         {/* Time Range Selector */}
         {activeTab === 'overview' && (
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold">Dashboard Overview</h2>
+            <h2 className="text-xl sm:text-2xl font-bold">Dashboard Overview</h2>
             <div className="flex items-center space-x-2">
               {['24h', '7d', '30d', '90d'].map(range => (
                 <button
                   key={range}
                   onClick={() => setTimeRange(range)}
-                  className={`px-3 py-1 rounded-lg text-sm font-medium transition ${
+                  className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-lg text-xs sm:text-sm font-medium transition ${
                     timeRange === range
                       ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600'
                       : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
@@ -368,7 +368,7 @@ export default function Dashboard() {
               {statCards.map((stat, index) => (
                 <div
                   key={index}
-                  className="glass-card rounded-2xl p-6 card-lift cursor-pointer group"
+                  className="glass-card rounded-xl sm:rounded-2xl p-4 sm:p-6 card-lift cursor-pointer group"
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className={`p-3 rounded-xl ${stat.bgColor} ${stat.color} group-hover:scale-110 transition-transform`}>
@@ -382,15 +382,15 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{stat.title}</p>
-                    <p className="text-2xl font-bold">{stat.value}</p>
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">{stat.title}</p>
+                    <p className="text-xl sm:text-2xl font-bold">{stat.value}</p>
                   </div>
                 </div>
               ))}
             </div>
 
             {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               {/* Usage Chart */}
               <Card className="glass-card border-0">
                 <CardHeader>
@@ -504,7 +504,7 @@ export default function Dashboard() {
         {activeTab === 'api-keys' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold">API Keys Management</h2>
+              <h2 className="text-xl sm:text-2xl font-bold">API Keys Management</h2>
               <button className="btn-glow flex items-center space-x-2">
                 <Plus className="w-4 h-4" />
                 <span>Create New Key</span>

@@ -153,19 +153,19 @@ export default function Home() {
       </div>
 
       {/* Navigation */}
-      <nav className="relative z-50 px-6 py-4">
+      <nav className="relative z-50 px-4 sm:px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className={`flex items-center space-x-2 transition-all duration-500 ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-5'}`}>
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
-              <Cpu className="w-6 h-6 text-white" />
+          <div className={`flex items-center space-x-1 sm:space-x-2 transition-all duration-500 ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-5'}`}>
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
+              <Cpu className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
-            <span className="text-xl font-bold">CacheGPT</span>
-            <span className="text-xs text-gray-500 ml-2">v11.1.21</span>
+            <span className="text-lg sm:text-xl font-bold">CacheGPT</span>
+            <span className="hidden sm:inline text-xs text-gray-500 ml-2">v11.1.21</span>
           </div>
 
-          <div className={`flex items-center space-x-6 transition-all duration-500 delay-100 ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-5'}`}>
-            <Link href="#installation" className="text-gray-600 hover:text-purple-600 transition">Install</Link>
-            <Link href="/support" className="text-gray-600 hover:text-purple-600 transition">Support</Link>
+          <div className={`flex items-center space-x-3 sm:space-x-6 transition-all duration-500 delay-100 ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-5'}`}>
+            <Link href="#installation" className="text-sm sm:text-base text-gray-600 hover:text-purple-600 transition">Install</Link>
+            <Link href="/support" className="hidden sm:inline text-gray-600 hover:text-purple-600 transition">Support</Link>
 
             {loading ? (
               <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse"></div>
@@ -213,9 +213,9 @@ export default function Home() {
                 )}
               </div>
             ) : (
-              <Link href="/login" className="btn-glow">
+              <Link href="/login" className="btn-glow text-sm sm:text-base px-3 sm:px-4 py-2">
                 Login
-                <ArrowRight className="w-4 h-4 ml-2 inline" />
+                <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1 sm:ml-2 inline" />
               </Link>
             )}
           </div>
@@ -227,19 +227,19 @@ export default function Home() {
         <div className="max-w-7xl mx-auto">
           <div className={`text-center max-w-5xl mx-auto transition-all duration-700 delay-200 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}>
             {/* Problem Statement */}
-            <h1 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900 dark:text-white">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-4 text-gray-900 dark:text-white px-4 sm:px-0">
               Your LLM APIs cost too much and respond too slowly
             </h1>
 
             {/* Solution */}
-            <p className="text-2xl text-gray-700 dark:text-gray-300 mb-8">
+            <p className="text-lg sm:text-xl md:text-2xl text-gray-700 dark:text-gray-300 mb-8 px-4 sm:px-0">
               CacheGPT cuts costs by <span className="text-purple-600 font-bold">80%</span> and speeds up responses to <span className="text-purple-600 font-bold">&lt;10ms</span>
             </p>
 
             {/* One-line install */}
-            <div className="glass-card rounded-xl p-4 inline-flex items-center space-x-4 mb-8">
-              <Terminal className="w-5 h-5 text-gray-500" />
-              <code className="text-lg font-mono">npm install -g cachegpt-cli@latest</code>
+            <div className="glass-card rounded-xl p-3 sm:p-4 flex flex-col sm:inline-flex sm:flex-row items-start sm:items-center gap-2 sm:gap-4 mb-8 mx-4 sm:mx-0 w-auto max-w-full overflow-hidden">
+              <Terminal className="w-5 h-5 text-gray-500 flex-shrink-0" />
+              <code className="text-sm sm:text-base md:text-lg font-mono break-all sm:break-normal">npm install -g cachegpt-cli@latest</code>
               <button
                 onClick={async (event) => {
                   const textToCopy = 'npm install -g cachegpt-cli@latest';
@@ -281,7 +281,7 @@ export default function Home() {
                     }
                   }
                 }}
-                className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 rounded text-sm hover:bg-purple-200 dark:hover:bg-purple-900/50 transition"
+                className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 rounded text-sm hover:bg-purple-200 dark:hover:bg-purple-900/50 transition flex-shrink-0 self-start sm:self-auto"
               >
                 Copy
               </button>
@@ -301,7 +301,7 @@ export default function Home() {
             </div>
 
             {/* Before/After Comparison */}
-            <div className={`grid md:grid-cols-2 gap-6 max-w-4xl mx-auto transition-all duration-700 delay-400 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}>
+            <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 max-w-4xl mx-auto px-4 sm:px-0 transition-all duration-700 delay-400 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}>
               {/* Without CacheGPT */}
               <div className="glass-card rounded-2xl p-6 border-2 border-red-200 dark:border-red-900/50">
                 <h3 className="text-lg font-semibold mb-4 text-red-600 dark:text-red-400">❌ Without CacheGPT</h3>
