@@ -139,9 +139,15 @@ export default function ChatPage() {
   const ProviderIcon = providerIcons[userProfile.selected_provider as keyof typeof providerIcons] || Bot
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-slate-900 dark:to-gray-900 flex flex-col">
+    <div
+      className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-slate-900 dark:to-gray-900 flex flex-col overflow-hidden"
+      style={{
+        height: '100dvh', // Dynamic viewport height for mobile browsers
+        minHeight: '-webkit-fill-available' // Safari fallback
+      }}
+    >
       {/* Header */}
-      <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm">
+      <div className="flex-shrink-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-3">
             <ProviderIcon className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 dark:text-blue-400" />
@@ -184,8 +190,8 @@ export default function ChatPage() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="max-w-4xl mx-auto space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 pb-safe">
+        <div className="max-w-4xl mx-auto space-y-4 pb-4">
           {messages.map((msg, idx) => (
             <div
               key={idx}
@@ -214,10 +220,11 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Input */}
-      <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm">
+      {/* Input - Fixed at bottom with safe area and mobile protection */}
+      <div className="flex-shrink-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm"
+           style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
         <div className="max-w-4xl mx-auto">
-          <div className="flex gap-2">
+          <div className="flex gap-2 mb-2 sm:mb-0">
             <input
               type="text"
               value={message}
