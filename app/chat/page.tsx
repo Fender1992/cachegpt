@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
-import { Send, Bot, Brain, Sparkles, Zap, Settings, LogOut } from 'lucide-react'
+import { Send, Bot, Brain, Sparkles, Zap, Settings, LogOut, Book } from 'lucide-react'
 
 const providerIcons = {
   chatgpt: Bot,
@@ -158,6 +158,13 @@ export default function ChatPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => router.push('/docs')}
+              className="p-2 text-gray-400 hover:text-white transition-colors"
+              title="Commands Documentation"
+            >
+              <Book className="w-5 h-5" />
+            </button>
             <button
               onClick={handleSettings}
               className="p-2 text-gray-400 hover:text-white transition-colors"
