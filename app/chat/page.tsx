@@ -402,7 +402,7 @@ export default function ChatPage() {
 
       {/* Chat History Sidebar */}
       {showHistory && (
-        <div className="fixed top-[73px] bottom-0 right-0 w-80 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 z-40 overflow-y-auto">
+        <div className="fixed top-[85px] bottom-0 right-0 w-80 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 z-30 overflow-y-auto">
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Chat History</h2>
