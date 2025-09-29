@@ -171,6 +171,9 @@ export class TierBasedCache {
     limit: number,
     includeArchived: boolean
   ): Promise<CachedResponse[]> {
+    // Debug: Log what we're searching for
+    console.log(`[TIER-CACHE-DEBUG] Searching tier=${tier}, model=${model}, provider=${provider}`);
+
     let query = this.supabase
       .from('cached_responses')
       .select('*')
@@ -191,9 +194,11 @@ export class TierBasedCache {
 
     if (error) {
       console.error(`[TIER-CACHE] Error fetching ${tier} tier:`, error);
+      console.error(`[TIER-CACHE] Full error details:`, JSON.stringify(error));
       return [];
     }
 
+    console.log(`[TIER-CACHE-DEBUG] Found ${data?.length || 0} candidates in ${tier} tier`);
     return data || [];
   }
 
@@ -348,6 +353,8 @@ export class TierBasedCache {
 
       if (error) {
         console.error('[TIER-CACHE] Store error:', error);
+        console.error('[TIER-CACHE] Insert data that failed:', JSON.stringify(insertData, null, 2));
+        console.error('[TIER-CACHE] Full error details:', JSON.stringify(error));
         return null;
       }
 
