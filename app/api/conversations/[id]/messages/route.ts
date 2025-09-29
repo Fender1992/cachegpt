@@ -5,10 +5,11 @@ import { cookies } from 'next/headers'
 // GET /api/conversations/[id]/messages - Get messages for a specific conversation (ONLY if user owns it)
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const conversationId = params.id
+    const { id } = await params
+    const conversationId = id
 
     // Create Supabase client with user session
     const supabase = createRouteHandlerClient({ cookies })
@@ -63,10 +64,11 @@ export async function GET(
 // POST /api/conversations/[id]/messages - Add message to conversation (ONLY if user owns it)
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const conversationId = params.id
+    const { id } = await params
+    const conversationId = id
     const { role, content, provider, model, tokens_used, response_time_ms, cost, platform = 'web' } = await request.json()
 
     // Create Supabase client with user session
