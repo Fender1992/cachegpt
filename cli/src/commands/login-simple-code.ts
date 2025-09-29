@@ -184,16 +184,78 @@ async function createAccountWithPassword(supabase: any, email: string, tokenMana
     if (error.message.includes('User already registered')) {
       console.log(chalk.yellow('\n⚠️  An account with this email already exists.'));
       console.log(chalk.cyan('💡 Try logging in instead.'));
+      process.exit(1);
+    } else if (error.message.includes('Database error')) {
+      console.log(chalk.yellow('\n⚠️  Database configuration issue detected.'));
+      console.log(chalk.cyan('Attempting alternative signup method...'));
+
+      // Try to create account without profile, then manually create profile
+      const { data: retryData, error: retryError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: email.split('@')[0],
+            skip_profile_creation: true
+          },
+          emailRedirectTo: 'https://cachegpt.app/auth/success'
+        }
+      });
+
+      if (retryError && !retryError.message.includes('User already registered')) {
+        console.error(chalk.red(`\n❌ Account creation failed: ${retryError.message}`));
+        console.log(chalk.yellow('\n🔧 Troubleshooting:'));
+        console.log('1. This is a known Supabase configuration issue');
+        console.log('2. Please contact support@cachegpt.io for assistance');
+        console.log('3. Or try signing up at https://cachegpt.app');
+        process.exit(1);
+      }
+
+      if (retryData?.user) {
+        // Try to manually create the profile using the RPC function
+        try {
+          const { error: profileError } = await supabase.rpc('force_create_user_profile', {
+            user_id: retryData.user.id,
+            user_email: email
+          });
+
+          if (!profileError) {
+            console.log(chalk.green('\n✅ Account created successfully!'));
+          } else {
+            console.log(chalk.yellow('\n⚠️  Account created but profile setup incomplete.'));
+            console.log(chalk.cyan('This will be fixed automatically on your first login.'));
+          }
+        } catch (e) {
+          // Profile creation failed but account exists
+          console.log(chalk.yellow('\n⚠️  Account created but profile setup pending.'));
+        }
+
+        console.log(chalk.yellow('\n📧 Please check your email to confirm your account.'));
+        console.log(chalk.cyan('After confirming, run: cachegpt login'));
+        return;
+      }
     } else {
       console.error(chalk.red(`\n❌ Account creation failed: ${error.message}`));
+      process.exit(1);
     }
-    process.exit(1);
   }
 
-  console.log(chalk.green('\n✅ Account created!'));
-  console.log(chalk.yellow('📧 Please check your email to confirm your account.'));
-  console.log(chalk.cyan('\n💡 After confirming your email, run:'));
-  console.log(chalk.white('   cachegpt login'));
+  if (data?.user) {
+    // Try to ensure profile exists
+    try {
+      await supabase.rpc('force_create_user_profile', {
+        user_id: data.user.id,
+        user_email: email
+      });
+    } catch (e) {
+      // Ignore profile creation errors
+    }
+
+    console.log(chalk.green('\n✅ Account created!'));
+    console.log(chalk.yellow('📧 Please check your email to confirm your account.'));
+    console.log(chalk.cyan('\n💡 After confirming your email, run:'));
+    console.log(chalk.white('   cachegpt login'));
+  }
 }
 
 async function saveSession(session: any, email: string, tokenManager: TokenManager) {
