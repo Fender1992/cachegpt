@@ -68,6 +68,11 @@ export async function signupConsoleCommand() {
       if (error.message.includes('User already registered')) {
         console.log(chalk.yellow('\n⚠️  An account with this email already exists.'));
         console.log(chalk.cyan('💡 Use `cachegpt login --console` to login instead.'));
+      } else if (error.message.includes('Database error')) {
+        console.error(chalk.red('\n❌ Account creation failed: Database configuration issue'));
+        console.log(chalk.yellow('\n💡 This is a known issue that has been fixed.'));
+        console.log(chalk.cyan('   Please try again in a few moments.'));
+        console.log(chalk.gray('   If the problem persists, contact support.'));
       } else {
         console.error(chalk.red(`\n❌ Account creation failed: ${error.message}`));
       }
