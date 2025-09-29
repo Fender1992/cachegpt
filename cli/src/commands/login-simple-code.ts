@@ -276,6 +276,7 @@ async function saveSession(session: any, email: string, tokenManager: TokenManag
   console.log(chalk.green('\n🎉 Login successful!'));
   console.log(chalk.cyan(`Welcome, ${email}!`));
   console.log(chalk.dim('\nYou can now use:'));
-  console.log('  • ' + chalk.yellow('cachegpt chat') + ' to start chatting');
+  console.log('  • ' + chalk.yellow('cachegpt chat') + ' to start chatting in the terminal');
+  console.log('  • ' + chalk.blue('https://cachegpt.app/chat') + ' to use the web interface');
   console.log('  • ' + chalk.yellow('cachegpt auth-status') + ' to check your login status');
 }

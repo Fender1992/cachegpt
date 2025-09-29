@@ -139,18 +139,18 @@ export default function ChatPage() {
   const ProviderIcon = providerIcons[userProfile.selected_provider as keyof typeof providerIcons] || Bot
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-slate-900 dark:to-gray-900 flex flex-col">
       {/* Header */}
-      <div className="glass-card border-b border-white/10 p-3 sm:p-4">
+      <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-3">
-            <ProviderIcon className="w-6 h-6 sm:w-8 sm:h-8 text-purple-400" />
+            <ProviderIcon className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 dark:text-blue-400" />
             <div>
-              <h1 className="text-lg sm:text-xl font-bold text-white">CacheGPT</h1>
-              <p className="text-xs sm:text-sm text-gray-400 hidden sm:block">
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">CacheGPT</h1>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 hidden sm:block">
                 Using {providerNames[userProfile.selected_provider as keyof typeof providerNames]}
                 {usingPremium && (
-                  <span className="ml-2 px-2 py-0.5 bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs rounded-full">
+                  <span className="ml-2 px-2 py-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs rounded-full">
                     Premium
                   </span>
                 )}
@@ -160,21 +160,21 @@ export default function ChatPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => router.push('/docs')}
-              className="p-2 text-gray-400 hover:text-white transition-colors"
+              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
               title="Commands Documentation"
             >
               <Book className="w-5 h-5" />
             </button>
             <button
               onClick={handleSettings}
-              className="p-2 text-gray-400 hover:text-white transition-colors"
+              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
               title="Settings"
             >
               <Settings className="w-5 h-5" />
             </button>
             <button
               onClick={handleLogout}
-              className="p-2 text-gray-400 hover:text-white transition-colors"
+              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
               title="Logout"
             >
               <LogOut className="w-5 h-5" />
@@ -191,10 +191,10 @@ export default function ChatPage() {
               key={idx}
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              <div className={`max-w-[80%] rounded-lg p-4 ${
+              <div className={`max-w-[80%] rounded-lg p-4 shadow-sm ${
                 msg.role === 'user'
-                  ? 'bg-purple-600/20 border border-purple-500/30 text-white'
-                  : 'glass-card text-gray-100'
+                  ? 'bg-blue-600 text-white ml-auto'
+                  : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700'
               }`}>
                 <p className="whitespace-pre-wrap">{msg.content}</p>
               </div>
@@ -202,11 +202,11 @@ export default function ChatPage() {
           ))}
           {isLoading && (
             <div className="flex justify-start">
-              <div className="glass-card rounded-lg p-4">
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
-                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse delay-100"></div>
-                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse delay-200"></div>
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse delay-100"></div>
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse delay-200"></div>
                 </div>
               </div>
             </div>
@@ -215,7 +215,7 @@ export default function ChatPage() {
       </div>
 
       {/* Input */}
-      <div className="glass-card border-t border-white/10 p-3 sm:p-4">
+      <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm">
         <div className="max-w-4xl mx-auto">
           <div className="flex gap-2">
             <input
@@ -224,13 +224,13 @@ export default function ChatPage() {
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
               placeholder="Type your message..."
-              className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base text-white placeholder-gray-400 focus:outline-none focus:border-purple-500/50"
+              className="flex-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={isLoading}
             />
             <button
               onClick={handleSendMessage}
               disabled={!message.trim() || isLoading}
-              className="px-3 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 sm:gap-2 text-sm sm:text-base"
+              className="px-3 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 sm:gap-2 text-sm sm:text-base shadow-sm"
             >
               <Send className="w-4 h-4 sm:w-5 sm:h-5" />
               <span className="hidden sm:inline">Send</span>
