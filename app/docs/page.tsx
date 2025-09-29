@@ -1,16 +1,8 @@
-import { redirect } from 'next/navigation'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
 import { Book, Command, Key, Database, Shield, Zap, Terminal, Settings, HelpCircle } from 'lucide-react'
 import Link from 'next/link'
 
-export default async function DocsPage() {
-  const supabase = createRouteHandlerClient({ cookies })
-  const { data: { session } } = await supabase.auth.getSession()
-
-  if (!session) {
-    redirect('/login')
-  }
+export default function DocsPage() {
+  // Allow anonymous access to docs - no authentication required
 
   const sections = [
     {
@@ -101,16 +93,16 @@ export default async function DocsPage() {
           </p>
           <div className="mt-6 flex justify-center gap-4">
             <Link
-              href="/chat"
+              href="/"
               className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
             >
-              Back to Chat
+              Back to Home
             </Link>
             <Link
-              href="/settings"
+              href="/login"
               className="px-6 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition"
             >
-              Settings
+              Get Started
             </Link>
           </div>
         </div>
@@ -200,8 +192,8 @@ export default async function DocsPage() {
             >
               Email Support
             </a>
-            <Link href="/settings" className="hover:text-purple-400 transition">
-              API Keys Settings
+            <Link href="/login" className="hover:text-purple-400 transition">
+              Sign Up / Login
             </Link>
           </div>
         </div>
