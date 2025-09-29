@@ -80,8 +80,9 @@ export default function BugReportButton({ className = '' }: BugReportButtonProps
       {/* Floating Bug Report Button */}
       <button
         onClick={() => setIsOpen(true)}
-        className={`fixed bottom-6 right-6 bg-red-600 hover:bg-red-700 text-white p-3 rounded-full shadow-lg hover:shadow-xl transition-all z-40 ${className}`}
+        className={`fixed bottom-20 sm:bottom-6 right-4 sm:right-6 bg-red-600 hover:bg-red-700 text-white p-3 rounded-full shadow-lg hover:shadow-xl transition-all z-40 ${className}`}
         title="Report a Bug"
+        style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom))' }}
       >
         <Bug className="w-5 h-5" />
       </button>
