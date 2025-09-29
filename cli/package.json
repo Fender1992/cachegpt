@@ -1,11 +1,22 @@
 {
   "name": "cachegpt-cli",
-  "version": "11.0.6",
+  "version": "11.1.12",
   "description": "Zero-setup CLI for free AI chat. Just login with Google/GitHub and start chatting - no API keys needed! Uses rotating free providers with smart caching.",
   "main": "dist/index.js",
   "bin": {
     "cachegpt": "bin/cachegpt"
   },
+  "files": [
+    "dist",
+    "bin",
+    "scripts",
+    ".env.defaults",
+    ".env.example",
+    "README.md",
+    "README.npm.md",
+    "install.sh",
+    "sync-claude.sh"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/cachegpt/cachegpt-cli.git"
@@ -22,7 +33,6 @@
     "dev": "NODE_ENV=development ts-node src/index.ts",
     "start": "node dist/index.js",
     "clean": "rm -rf dist",
-    "prepublishOnly": "npm run clean && npm run build",
     "postinstall": "node scripts/postinstall.js || true",
     "link": "npm link",
     "test": "echo \"Run 'npm run build && ./bin/cachegpt --help' to test\"",

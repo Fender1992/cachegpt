@@ -174,9 +174,12 @@ export class TierBasedCache {
     let query = this.supabase
       .from('cached_responses')
       .select('*')
-      .eq('model', model)
-      .eq('provider', provider)
       .eq('tier', tier);
+
+    // For free tier, don't filter by model/provider to allow broader cache hits
+    if (model !== 'free-model' && provider !== 'mixed') {
+      query = query.eq('model', model).eq('provider', provider);
+    }
 
     if (!includeArchived) {
       query = query.eq('is_archived', false);

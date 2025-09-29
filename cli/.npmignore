@@ -1,7 +1,7 @@
 # Source files
 src/
 *.ts
-!dist/**/*.d.ts
+!*.d.ts
 
 # Development files
 .env
@@ -23,6 +23,7 @@ test-install.sh
 
 # Build files
 tsconfig.json
+tsconfig.tsbuildinfo
 .eslintrc.*
 .prettierrc
 
@@ -53,4 +54,11 @@ docs/
 # Package managers
 yarn.lock
 package-lock.json
-!npm-shrinkwrap.json
+!npm-shrinkwrap.json.next/
+
+# Tarballs (exclude old packages)
+*.tgz
+*.tar.gz
+
+# DO NOT IGNORE dist - it's needed for the package
+!dist/

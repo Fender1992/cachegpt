@@ -21,14 +21,7 @@
     "allowJs": true,
     "noEmit": false,
     "incremental": true,
-    "moduleResolution": "node",
-    "isolatedModules": true,
-    "jsx": "preserve",
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ]
+    "moduleResolution": "node"
   },
   "include": [
     "src/**/*"

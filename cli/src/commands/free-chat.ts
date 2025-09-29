@@ -1,5 +1,4 @@
 import chalk from 'chalk';
-import ora from 'ora';
 import { createInterface } from 'readline';
 import { TokenManager } from '../lib/token-manager';
 
@@ -46,7 +45,8 @@ export async function freeChatCommand(): Promise<void> {
   const messages: ChatMessage[] = [];
   const rl = createInterface({
     input: process.stdin,
-    output: process.stdout
+    output: process.stdout,
+    terminal: true  // Explicitly set for Windows
   });
 
   console.log(chalk.cyan('💬 Start chatting! Type "exit" to quit.\n'));
@@ -58,77 +58,137 @@ export async function freeChatCommand(): Promise<void> {
     process.exit(0);
   });
 
-  // Prevent unexpected exits
-  process.on('uncaughtException', (error) => {
-    console.error('Unexpected error:', error.message);
-    console.log('Chat will continue...\n');
-  });
-
-  const chat = () => {
-    // Use the user's email (or "You" for anonymous) in the prompt
-    const promptName = userEmail === 'You' ? 'You' : userEmail.split('@')[0];  // Use first part of email
-    rl.question(chalk.green(`${promptName}: `), async (input) => {
-      try {
-        if (input.toLowerCase() === 'exit') {
-          console.log(chalk.yellow('\n👋 Goodbye!\n'));
-          rl.close();
-          process.exit(0);
-        }
-
-        if (!input.trim()) {
-          setImmediate(chat); // Use setImmediate to avoid stack overflow
-          return;
-        }
-
-        // Add user message
-        messages.push({ role: 'user', content: input });
-
-        const spinner = ora('Thinking...').start();
-
-        try {
-          const response = await callFreeProviderAPI(authToken.value, messages);
-          spinner.stop();
-
-          // Add assistant response
-          messages.push({ role: 'assistant', content: response.response });
-
-          // Show response with provider info
-          console.log(chalk.blue('\\nAssistant: ') + response.response);
-
-          if (response.cached) {
-            let cacheInfo = '   ⚡ From cache';
-            if (response.timeSaved && response.costSaved) {
-              cacheInfo += chalk.green(` (saved ${response.timeSaved}ms, $${response.costSaved.toFixed(4)})`);
-            }
-            console.log(chalk.gray(cacheInfo));
-          } else {
-            console.log(chalk.gray(`   🤖 From ${response.provider}`));
-            console.log(chalk.gray(`   📝 Response cached for future use`));
-          }
-          console.log();
-
-        } catch (error: any) {
-          spinner.stop();
-          console.log(chalk.red('\\n❌ Error: ') + error.message);
-
-          // If it's an auth error, suggest re-authentication
-          if (error.message.includes('401') || error.message.includes('authentication')) {
-            console.log(chalk.yellow('\\n💡 Try: cachegpt logout && cachegpt login'));
-          }
-          console.log();
-        }
-
-        // Continue the chat loop after response or error
-        setImmediate(chat); // Use setImmediate to avoid stack overflow and ensure proper continuation
-
-      } catch (outerError: any) {
-        console.error('Unexpected error in chat loop:', outerError);
-        setImmediate(chat); // Continue even if there's an unexpected error
-      }
-    });
+  // Function to prompt for next input
+  const promptNext = () => {
+    const promptName = userEmail === 'You' ? 'You' : userEmail.split('@')[0];
+    // Ensure readline is resumed and active
+    rl.resume();
+    rl.setPrompt(chalk.green(`${promptName}: `));
+    rl.prompt();
   };
 
-  chat();
+  // Handle line input - NOT async to avoid Windows issues
+  rl.on('line', (input) => {
+    // Debug logging
+    if (process.env.DEBUG === 'true') {
+      console.log(chalk.gray(`[DEBUG] Received input: "${input}"`));
+    }
+
+    if (input.toLowerCase() === 'exit') {
+      console.log(chalk.yellow('\n👋 Goodbye!\n'));
+      rl.close();
+      process.exit(0);
+    }
+
+    if (!input.trim()) {
+      // Empty input - just show the prompt again
+      promptNext();
+      return;
+    }
+
+    // Add user message
+    messages.push({ role: 'user', content: input });
+
+    // Pause readline while processing
+    rl.pause();
+
+    // Show thinking message without spinner (spinner can break readline on Windows)
+    console.log(chalk.gray('\n🤔 Thinking...'));
+
+    // Process the API call in a Promise
+    callFreeProviderAPI(authToken.value, messages)
+      .then(response => {
+        // Try to clear the thinking message (may not work on all terminals)
+        try {
+          process.stdout.write('\x1B[1A\x1B[2K'); // Move up one line and clear it
+        } catch (e) {
+          // If ANSI codes fail, just continue
+        }
+
+        // Add assistant response
+        messages.push({ role: 'assistant', content: response.response });
+
+        // Show response with provider info
+        console.log(chalk.blue('Assistant: ') + response.response);
+
+        if (response.cached) {
+          let cacheInfo = '   ⚡ From cache';
+          if (response.timeSaved && response.costSaved) {
+            cacheInfo += chalk.green(` (saved ${response.timeSaved}ms, $${response.costSaved.toFixed(4)})`);
+          }
+          console.log(chalk.gray(cacheInfo));
+        } else {
+          console.log(chalk.gray(`   🤖 From ${response.provider}`));
+          console.log(chalk.gray(`   📝 Response cached for future use`));
+        }
+        console.log();
+
+        // Debug: Ensure readline is still active
+        if (process.env.DEBUG === 'true') {
+          console.log(chalk.gray('[DEBUG] Prompting for next input...'));
+        }
+
+        // IMPORTANT: Use setImmediate to ensure proper event loop handling on Windows
+        setImmediate(() => {
+          try {
+            rl.resume();
+            promptNext();
+          } catch (e) {
+            console.log(chalk.red('[ERROR] Readline interface error:'), e);
+          }
+        });
+      })
+      .catch((error: any) => {
+        // Try to clear the thinking message
+        try {
+          process.stdout.write('\x1B[1A\x1B[2K');
+        } catch (e) {
+          // If ANSI codes fail, just continue
+        }
+
+        console.log(chalk.red('❌ Error: ') + error.message);
+
+        // If it's an auth error, suggest re-authentication
+        if (error.message.includes('401') || error.message.includes('authentication')) {
+          console.log(chalk.yellow('\n💡 Try: cachegpt logout && cachegpt login'));
+        }
+        console.log();
+
+        // Debug logging
+        if (process.env.DEBUG === 'true') {
+          console.log(chalk.gray('[DEBUG] Error occurred, prompting for next input...'));
+        }
+
+        // Still prompt for next input on error
+        setImmediate(() => {
+          try {
+            rl.resume();
+            promptNext();
+          } catch (e) {
+            console.log(chalk.red('[ERROR] Readline interface error on retry:'), e);
+          }
+        });
+      });
+  });
+
+  // Keep the process alive - use setInterval for Windows compatibility
+  const keepAlive = setInterval(() => {
+    // This keeps the event loop active
+  }, 100000);
+
+  // Handle close event
+  rl.on('close', () => {
+    console.log(chalk.yellow('\n👋 Goodbye!\n'));
+    clearInterval(keepAlive);
+    process.exit(0);
+  });
+
+  // Start the first prompt
+  promptNext();
+
+  // Ensure stdin stays open on Windows
+  // Don't use setRawMode in chat applications as it breaks normal input
+  process.stdin.resume();
 }
 
 async function callFreeProviderAPI(bearerToken: string, messages: ChatMessage[]): Promise<{
@@ -163,7 +223,7 @@ async function callFreeProviderAPI(bearerToken: string, messages: ChatMessage[])
 
   // Extract provider info from response metadata if available
   const provider = data.metadata?.provider || 'free-provider';
-  const cached = data.metadata?.cacheHit || false;
+  const cached = data.metadata?.cached || data.metadata?.cacheHit || false; // Check both field names
   const timeSaved = data.metadata?.timeSavedMs || 0;
   const costSaved = data.metadata?.costSaved || 0;
 
