@@ -17,6 +17,7 @@ import { authStatusCommand } from './commands/auth-status';
 import { templatesCommand } from './commands/templates';
 import { versionCommand } from './commands/version';
 import { modelsCommand } from './commands/models';
+import { apiKeysCommand } from './commands/api-keys';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -181,6 +182,11 @@ program
   .command('models [action]')
   .description('Manage and validate AI models (list, validate, update, check)')
   .action(modelsCommand);
+
+program
+  .command('api-keys [action]')
+  .description('Manage your API keys for premium providers (add, view, remove, test)')
+  .action(apiKeysCommand);
 
 // Parse CLI arguments
 program.parse();

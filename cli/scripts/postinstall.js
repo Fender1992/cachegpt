@@ -19,7 +19,7 @@ if (process.env.npm_config_global === 'true' || process.env.npm_config_local ===
   console.log();
   console.log(chalk.cyan.bold('╔═══════════════════════════════════════════════════════════════╗'));
   console.log(chalk.cyan.bold('║                                                               ║'));
-  console.log(chalk.cyan.bold('║        🚀 CacheGPT CLI v11.1.15 - Free AI Chat               ║'));
+  console.log(chalk.cyan.bold('║        🚀 CacheGPT CLI v11.1.16 - Free AI Chat               ║'));
   console.log(chalk.cyan.bold('║                                                               ║'));
   console.log(chalk.cyan.bold('╚═══════════════════════════════════════════════════════════════╝'));
   console.log();
@@ -40,6 +40,7 @@ if (process.env.npm_config_global === 'true' || process.env.npm_config_local ===
   console.log('  ' + chalk.white('cachegpt chat') + chalk.gray('         # Start free AI chat'));
   console.log();
   console.log(chalk.yellow('  Management:'));
+  console.log('  ' + chalk.white('cachegpt api-keys') + chalk.gray('     # Manage API keys for premium providers'));
   console.log('  ' + chalk.white('cachegpt config') + chalk.gray('       # Manage configuration'));
   console.log('  ' + chalk.white('cachegpt stats') + chalk.gray('        # View usage statistics'));
   console.log('  ' + chalk.white('cachegpt status') + chalk.gray('       # Check system status'));
@@ -50,9 +51,9 @@ if (process.env.npm_config_global === 'true' || process.env.npm_config_local ===
   console.log();
   console.log(chalk.green.bold('✨ Features:'));
   console.log(chalk.gray('  • Free AI chat with no API keys required'));
+  console.log(chalk.gray('  • Optional: Use your own API keys for premium models'));
   console.log(chalk.gray('  • Smart caching saves repeated responses'));
   console.log(chalk.gray('  • Works with Google/GitHub OAuth login'));
-  console.log(chalk.gray('  • Powered by rotating free AI providers'));
   console.log();
   console.log(chalk.yellow('📚 Documentation: https://cachegpt.io'));
   console.log(chalk.yellow('💬 Support: https://github.com/cachegpt/cachegpt-cli/issues'));

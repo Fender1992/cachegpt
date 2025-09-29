@@ -24,6 +24,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Array<{role: string, content: string}>>([])
   const [isLoading, setIsLoading] = useState(false)
   const [userProfile, setUserProfile] = useState<any>(null)
+  const [usingPremium, setUsingPremium] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -52,10 +53,27 @@ export default function ChatPage() {
 
     setUserProfile(profile)
 
+    // Check if user has API keys configured
+    let hasPremium = false
+    if (profile.enterprise_mode) {
+      const { data: credentials } = await supabase
+        .from('user_provider_credentials')
+        .select('provider')
+        .eq('user_id', session.user.id)
+        .not('api_key', 'is', null)
+
+      hasPremium = credentials && credentials.length > 0
+    }
+    setUsingPremium(hasPremium)
+
     // Add welcome message
+    const providerText = hasPremium
+      ? `premium ${providerNames[profile.selected_provider as keyof typeof providerNames] || 'AI'} with your API key`
+      : 'free AI models with smart caching'
+
     setMessages([{
       role: 'assistant',
-      content: `Welcome! I'm ${providerNames[profile.selected_provider as keyof typeof providerNames]} powered by CacheGPT. How can I help you today?`
+      content: `Welcome! I'm powered by ${providerText}. How can I help you today?`
     }])
   }
 
@@ -131,6 +149,11 @@ export default function ChatPage() {
               <h1 className="text-xl font-bold text-white">CacheGPT Chat</h1>
               <p className="text-sm text-gray-400">
                 Using {providerNames[userProfile.selected_provider as keyof typeof providerNames]}
+                {usingPremium && (
+                  <span className="ml-2 px-2 py-0.5 bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs rounded-full">
+                    Premium
+                  </span>
+                )}
               </p>
             </div>
           </div>

@@ -255,6 +255,107 @@ async function storeInCache(
 }
 
 /**
+ * Call premium provider with user's API key
+ */
+async function callPremiumProvider(
+  messages: any[],
+  provider: string,
+  apiKey: string
+): Promise<{ response: string; provider: string }> {
+  console.log(`[PREMIUM-PROVIDER] Calling ${provider} with user's API key`);
+
+  try {
+    let endpoint: string;
+    let headers: any = {
+      'Content-Type': 'application/json'
+    };
+    let body: any;
+
+    switch (provider) {
+      case 'chatgpt':
+        endpoint = 'https://api.openai.com/v1/chat/completions';
+        headers['Authorization'] = `Bearer ${apiKey}`;
+        body = {
+          model: 'gpt-4-turbo-preview',
+          messages,
+          temperature: 0.7,
+          max_tokens: 2000
+        };
+        break;
+
+      case 'claude':
+        endpoint = 'https://api.anthropic.com/v1/messages';
+        headers['x-api-key'] = apiKey;
+        headers['anthropic-version'] = '2023-06-01';
+        body = {
+          model: 'claude-3-opus-20240229',
+          messages: messages.map(m => ({
+            role: m.role === 'assistant' ? 'assistant' : 'user',
+            content: m.content
+          })),
+          max_tokens: 2000
+        };
+        break;
+
+      case 'gemini':
+        endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+        body = {
+          contents: messages.map(m => ({
+            role: m.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: m.content }]
+          }))
+        };
+        break;
+
+      case 'perplexity':
+        endpoint = 'https://api.perplexity.ai/chat/completions';
+        headers['Authorization'] = `Bearer ${apiKey}`;
+        body = {
+          model: 'pplx-70b-online',
+          messages,
+          temperature: 0.7
+        };
+        break;
+
+      default:
+        throw new Error(`Unsupported provider: ${provider}`);
+    }
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`API error: ${error}`);
+    }
+
+    const data = await response.json();
+    let responseText: string;
+
+    switch (provider) {
+      case 'claude':
+        responseText = data.content?.[0]?.text || 'No response';
+        break;
+      case 'gemini':
+        responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response';
+        break;
+      default:
+        responseText = data.choices?.[0]?.message?.content || 'No response';
+    }
+
+    console.log(`[PREMIUM-PROVIDER] ✅ Success with ${provider}`);
+    return { response: responseText, provider };
+
+  } catch (error: any) {
+    console.error(`[PREMIUM-PROVIDER] ${provider} error:`, error.message);
+    throw error;
+  }
+}
+
+/**
  * Call free provider APIs with server-managed keys
  */
 async function callFreeProvider(messages: any[]): Promise<{ response: string; provider: string }> {
@@ -358,6 +459,8 @@ export async function POST(request: NextRequest) {
     // Try to authenticate user, but allow anonymous access
     let userId: string | null = null;
     let session: UnifiedSession | null = null;
+    let userApiKey: string | null = null;
+    let preferredProvider: string = 'auto';
 
     const authResult = await resolveAuthentication(request);
     if (!isAuthError(authResult)) {
@@ -365,6 +468,40 @@ export async function POST(request: NextRequest) {
       userId = getUserId(session);
       logAuthMethodUsage(session, '/api/v2/unified-chat');
       console.log('[UNIFIED-CHAT] Authenticated user:', userId);
+
+      // Check if user has API keys configured
+      if (userId) {
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_KEY!
+        );
+
+        // Check user profile for enterprise mode
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('enterprise_mode, selected_provider')
+          .eq('user_id', userId)
+          .single();
+
+        if (profile?.enterprise_mode) {
+          // Get user's API keys
+          const { data: credentials } = await supabase
+            .from('user_provider_credentials')
+            .select('provider, api_key')
+            .eq('user_id', userId)
+            .not('api_key', 'is', null);
+
+          if (credentials && credentials.length > 0) {
+            // Use the first available API key or the one matching selected provider
+            const selectedCred = credentials.find(c => c.provider === profile.selected_provider) || credentials[0];
+            if (selectedCred) {
+              userApiKey = atob(selectedCred.api_key); // Decode from base64
+              preferredProvider = selectedCred.provider;
+              console.log(`[UNIFIED-CHAT] Using user's ${preferredProvider} API key`);
+            }
+          }
+        }
+      }
     } else {
       console.log('[UNIFIED-CHAT] Anonymous user access');
     }
@@ -377,8 +514,8 @@ export async function POST(request: NextRequest) {
     const startTime = Date.now();
 
     // Use consistent cache parameters
-    const cacheModel = 'free-model';
-    const cacheProvider = 'mixed';
+    const cacheModel = userApiKey ? `${preferredProvider}-model` : 'free-model';
+    const cacheProvider = userApiKey ? preferredProvider : 'mixed';
 
     // Track prediction accuracy
     await predictiveCache.trackPredictionAccuracy(userMessage);
@@ -429,9 +566,24 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // No cache hit, call free providers
-    console.log('[CHAT] No cache hit, calling free providers...');
-    const result = await callFreeProvider(messages);
+    // No cache hit, call appropriate provider
+    let result: { response: string; provider: string };
+
+    if (userApiKey && preferredProvider !== 'auto') {
+      // Use premium provider with user's API key
+      console.log('[CHAT] No cache hit, calling premium provider with user API key...');
+      try {
+        result = await callPremiumProvider(messages, preferredProvider, userApiKey);
+      } catch (error) {
+        console.error('[CHAT] Premium provider failed, falling back to free providers');
+        result = await callFreeProvider(messages);
+      }
+    } else {
+      // Use free providers
+      console.log('[CHAT] No cache hit, calling free providers...');
+      result = await callFreeProvider(messages);
+    }
+
     const responseTime = Date.now() - startTime;
 
     // Store in cache
