@@ -63,8 +63,18 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Error creating bug report:', error)
+
+      // Check if it's a table not found error
+      if (error.message?.includes('relation "bugs" does not exist')) {
+        return NextResponse.json({
+          error: 'Bug tracking system not yet initialized. Please contact admin.',
+          details: 'Database migration required'
+        }, { status: 503 })
+      }
+
       return NextResponse.json({
-        error: 'Failed to submit bug report'
+        error: 'Failed to submit bug report',
+        details: error.message
       }, { status: 500 })
     }
 
