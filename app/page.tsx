@@ -160,7 +160,7 @@ export default function Home() {
               <Cpu className="w-6 h-6 text-white" />
             </div>
             <span className="text-xl font-bold">CacheGPT</span>
-            <span className="text-xs text-gray-500 ml-2">v11.1.16</span>
+            <span className="text-xs text-gray-500 ml-2">v11.1.21</span>
           </div>
 
           <div className={`flex items-center space-x-6 transition-all duration-500 delay-100 ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-5'}`}>
@@ -241,7 +241,46 @@ export default function Home() {
               <Terminal className="w-5 h-5 text-gray-500" />
               <code className="text-lg font-mono">npm install -g cachegpt-cli@latest</code>
               <button
-                onClick={() => navigator.clipboard.writeText('npm install -g cachegpt-cli@latest')}
+                onClick={async (event) => {
+                  const textToCopy = 'npm install -g cachegpt-cli@latest';
+                  try {
+                    // Try modern clipboard API first
+                    if (navigator.clipboard && window.isSecureContext) {
+                      await navigator.clipboard.writeText(textToCopy);
+                    } else {
+                      // Fallback for older browsers or non-secure contexts
+                      const textArea = document.createElement('textarea');
+                      textArea.value = textToCopy;
+                      textArea.style.position = 'fixed';
+                      textArea.style.left = '-999999px';
+                      textArea.style.top = '-999999px';
+                      document.body.appendChild(textArea);
+                      textArea.focus();
+                      textArea.select();
+                      document.execCommand('copy');
+                      textArea.remove();
+                    }
+                    // Optional: Show success feedback
+                    const button = event?.currentTarget as HTMLButtonElement;
+                    if (button) {
+                      const originalText = button.textContent;
+                      button.textContent = 'Copied!';
+                      setTimeout(() => {
+                        button.textContent = originalText;
+                      }, 2000);
+                    }
+                  } catch (error) {
+                    console.error('Failed to copy:', error);
+                    // Fallback: select the text
+                    const codeElement = document.querySelector('code.text-lg.font-mono') as HTMLElement;
+                    if (codeElement) {
+                      const range = document.createRange();
+                      range.selectNode(codeElement);
+                      window.getSelection()?.removeAllRanges();
+                      window.getSelection()?.addRange(range);
+                    }
+                  }
+                }}
                 className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 rounded text-sm hover:bg-purple-200 dark:hover:bg-purple-900/50 transition"
               >
                 Copy
@@ -495,7 +534,7 @@ export default function Home() {
               <Cpu className="w-5 h-5 text-white" />
             </div>
             <span className="font-semibold">CacheGPT</span>
-            <span className="text-xs ml-1">v11.1.16</span>
+            <span className="text-xs ml-1">v11.1.21</span>
           </div>
           <div className="flex items-center space-x-6 text-sm text-gray-600 dark:text-gray-400">
             <Link href="/support" className="hover:text-purple-600 transition">Support</Link>
