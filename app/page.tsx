@@ -164,6 +164,7 @@ export default function Home() {
           </div>
 
           <div className={`flex items-center space-x-3 sm:space-x-6 transition-all duration-500 delay-100 ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-5'}`}>
+            <Link href="/chat" className="text-sm sm:text-base text-gray-600 hover:text-purple-600 transition">Chat</Link>
             <Link href="#installation" className="text-sm sm:text-base text-gray-600 hover:text-purple-600 transition">Install</Link>
             <Link href="/support" className="hidden sm:inline text-gray-600 hover:text-purple-600 transition">Support</Link>
 
@@ -190,6 +191,14 @@ export default function Home() {
                       <p className="text-sm font-medium text-gray-900 dark:text-white">{user.email}</p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">Free Plan</p>
                     </div>
+
+                    <Link
+                      href="/chat"
+                      className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span>Chat</span>
+                    </Link>
 
                     <Link
                       href="/settings"
