@@ -255,8 +255,8 @@ export default function ModelSelector({
             </div>
           ))}
 
-          {/* API Key Setup Message */}
-          {!userHasApiKeys && Object.values(availableModels).some(models => models.some(m => m.requires_api_key)) && (
+          {/* API Key Setup Message - Always show for users without API keys */}
+          {!userHasApiKeys && (
             <div className="px-3 py-2 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border-t border-gray-200 dark:border-gray-700">
               <button
                 onClick={handleUpgradeRedirect}
