@@ -42,18 +42,31 @@ export function AuthForm({ isFromCLI = false, callbackPort }: AuthFormProps) {
 
         // Create user profile manually to ensure it exists
         if (data.user) {
+          // Try multiple methods to ensure profile is created
+
+          // Method 1: Direct insert
           const { error: profileError } = await supabase
             .from('user_profiles')
             .insert({
               id: data.user.id,
               email: data.user.email!,
               provider: 'email',
-              email_verified: false
+              email_verified: false,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
             })
             .select()
 
           if (profileError && profileError.code !== '23505') {
-            // Profile creation error handled silently
+            // Method 2: Try RPC function if direct insert fails
+            try {
+              await supabase.rpc('create_profile_if_missing', {
+                user_id: data.user.id,
+                user_email: data.user.email
+              })
+            } catch (rpcError) {
+              console.log('Profile creation fallback also failed, but continuing...')
+            }
           }
 
           // Store signup event
