@@ -1,6 +1,8 @@
 {
   "/_not-found/page": "app/_not-found/page.js",
   "/api/auth/session-health/route": "app/api/auth/session-health/route.js",
+  "/api/bugs/manage/route": "app/api/bugs/manage/route.js",
+  "/api/bugs/report/route": "app/api/bugs/report/route.js",
   "/api/cache-warm/route": "app/api/cache-warm/route.js",
   "/api/claude-sync/route": "app/api/claude-sync/route.js",
   "/api/cron/model-update/route": "app/api/cron/model-update/route.js",
@@ -19,6 +21,7 @@
   "/api/health/route": "app/api/health/route.js",
   "/api/cli-auth/route": "app/api/cli-auth/route.js",
   "/api/me/route": "app/api/me/route.js",
+  "/admin/bugs/page": "app/admin/bugs/page.js",
   "/auth/callback/page": "app/auth/callback/page.js",
   "/auth/claude-setup/page": "app/auth/claude-setup/page.js",
   "/auth/provider-callback/page": "app/auth/provider-callback/page.js",

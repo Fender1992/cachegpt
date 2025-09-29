@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
 import { Send, Bot, Brain, Sparkles, Zap, Settings, LogOut, Book } from 'lucide-react'
+import BugReportButton from '@/components/bug-report-button'
 
 const providerIcons = {
   chatgpt: Bot,
@@ -245,6 +246,9 @@ export default function ChatPage() {
           </div>
         </div>
       </div>
+
+      {/* Floating Bug Report Button */}
+      <BugReportButton />
     </div>
   )
 }

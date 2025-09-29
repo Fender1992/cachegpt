@@ -11,6 +11,7 @@ import {
   ChevronDown, Terminal, Database, Layers,
   User, LogOut, Settings, CreditCard, Timer, DollarSign, TrendingUp
 } from 'lucide-react'
+import BugReportButton from '@/components/bug-report-button'
 
 export default function Home() {
   const { user, loading } = useAuth()
@@ -552,6 +553,9 @@ export default function Home() {
           </div>
         </div>
       </footer>
+
+      {/* Floating Bug Report Button */}
+      <BugReportButton />
     </div>
   )
 }
