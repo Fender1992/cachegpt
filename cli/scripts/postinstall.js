@@ -19,7 +19,7 @@ if (process.env.npm_config_global === 'true' || process.env.npm_config_local ===
   console.log();
   console.log(chalk.cyan.bold('╔═══════════════════════════════════════════════════════════════╗'));
   console.log(chalk.cyan.bold('║                                                               ║'));
-  console.log(chalk.cyan.bold('║        🚀 CacheGPT CLI v11.1.14 - Free AI Chat               ║'));
+  console.log(chalk.cyan.bold('║        🚀 CacheGPT CLI v11.1.15 - Free AI Chat               ║'));
   console.log(chalk.cyan.bold('║                                                               ║'));
   console.log(chalk.cyan.bold('╚═══════════════════════════════════════════════════════════════╝'));
   console.log();
@@ -38,7 +38,6 @@ if (process.env.npm_config_global === 'true' || process.env.npm_config_local ===
   console.log();
   console.log(chalk.yellow('  Chat & AI:'));
   console.log('  ' + chalk.white('cachegpt chat') + chalk.gray('         # Start free AI chat'));
-  console.log('  ' + chalk.white('cachegpt claude') + chalk.gray('       # Setup Claude web session'));
   console.log();
   console.log(chalk.yellow('  Management:'));
   console.log('  ' + chalk.white('cachegpt config') + chalk.gray('       # Manage configuration'));
@@ -53,7 +52,7 @@ if (process.env.npm_config_global === 'true' || process.env.npm_config_local ===
   console.log(chalk.gray('  • Free AI chat with no API keys required'));
   console.log(chalk.gray('  • Smart caching saves repeated responses'));
   console.log(chalk.gray('  • Works with Google/GitHub OAuth login'));
-  console.log(chalk.gray('  • Supports Claude web sessions'));
+  console.log(chalk.gray('  • Powered by rotating free AI providers'));
   console.log();
   console.log(chalk.yellow('📚 Documentation: https://cachegpt.io'));
   console.log(chalk.yellow('💬 Support: https://github.com/cachegpt/cachegpt-cli/issues'));
