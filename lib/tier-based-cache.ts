@@ -60,8 +60,9 @@ export class TierBasedCache {
 
   /**
    * Generate simple embedding for text similarity
+   * Returns both array format (for calculations) and string format (for pgvector)
    */
-  private generateEmbedding(text: string): number[] {
+  private generateEmbedding(text: string): { array: number[], pgvector: string } {
     const embedding = new Array(384).fill(0);
     const words = text.toLowerCase().split(/\s+/);
 
@@ -75,7 +76,15 @@ export class TierBasedCache {
 
     // Normalize
     const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
-    return magnitude > 0 ? embedding.map(val => val / magnitude) : embedding;
+    const normalizedArray = magnitude > 0 ? embedding.map(val => val / magnitude) : embedding;
+
+    // Format for pgvector: '[0.1, 0.2, 0.3, ...]'
+    const pgvectorString = '[' + normalizedArray.join(',') + ']';
+
+    return {
+      array: normalizedArray,
+      pgvector: pgvectorString
+    };
   }
 
   /**
@@ -118,7 +127,7 @@ export class TierBasedCache {
     };
 
     try {
-      const queryEmbedding = this.generateEmbedding(query);
+      const queryEmbeddingData = this.generateEmbedding(query);
       console.log(`[TIER-CACHE] Searching: model=${model}, provider=${provider}, query="${query.substring(0, 50)}..."`);
 
       // Search tier by tier for maximum performance
@@ -137,7 +146,7 @@ export class TierBasedCache {
 
         // Find best match in this tier
         const match = await this.findBestMatch(
-          queryEmbedding,
+          queryEmbeddingData.array,
           candidates,
           defaultOptions.similarityThreshold
         );
@@ -216,7 +225,19 @@ export class TierBasedCache {
     for (const candidate of candidates) {
       if (!candidate.embedding) continue;
 
-      const similarity = this.calculateSimilarity(queryEmbedding, candidate.embedding);
+      // Parse pgvector string format back to array if needed
+      let candidateEmbedding = candidate.embedding;
+      if (typeof candidateEmbedding === 'string') {
+        // Parse '[0.1, 0.2, ...]' format
+        try {
+          candidateEmbedding = JSON.parse(candidateEmbedding);
+        } catch (e) {
+          console.error('[TIER-CACHE] Error parsing embedding:', e);
+          continue;
+        }
+      }
+
+      const similarity = this.calculateSimilarity(queryEmbedding, candidateEmbedding as number[]);
 
       if (similarity >= threshold && similarity > bestSimilarity) {
         bestMatch = candidate;
@@ -307,7 +328,7 @@ export class TierBasedCache {
     responseTimeMs: number
   ): Promise<string | null> {
     try {
-      const embedding = this.generateEmbedding(query);
+      const embeddingData = this.generateEmbedding(query);
       const now = new Date();
 
       // Initial popularity score (new items start in 'cool' tier)
@@ -327,7 +348,7 @@ export class TierBasedCache {
         response,
         model,
         provider,
-        embedding,
+        embedding: embeddingData.pgvector, // Use pgvector format for database
         user_id: userId,
         access_count: 1,
         popularity_score: initialScore,

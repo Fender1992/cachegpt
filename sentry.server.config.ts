@@ -13,7 +13,7 @@ Sentry.init({
   debug: process.env.NODE_ENV === 'development',
 
   // Filtering
-  beforeSend(event, hint) {
+  beforeSend(event: any, hint: any) {
     // Filter out sensitive data from API keys
     if (event.extra) {
       Object.keys(event.extra).forEach(key => {
