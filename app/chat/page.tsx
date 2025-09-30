@@ -351,12 +351,11 @@ export default function ChatPage() {
   const handleRetry = (retryMessage: string) => {
     // Remove the error message from display
     setMessages(prev => prev.filter(msg => !msg.error))
-    // Resend the original message
+    // Set the message and trigger send
     setMessage(retryMessage)
     // Trigger send after state updates
     setTimeout(() => {
-      handleSendMessage(retryMessage)
-      setMessage('')
+      handleSendMessage()
     }, 0)
   }
 
