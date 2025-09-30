@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
+import { error as logError, info as logInfo } from '@/lib/logger'
 
 export async function POST(request: NextRequest) {
   try {
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      console.error('Error creating bug report:', error)
+      logError('Error creating bug report', error)
 
       // Check if it's a table not found error
       if (error.message?.includes('relation "bugs" does not exist')) {
@@ -80,7 +81,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Log for admin notification (you could add email notification here)
-    console.log(`🐛 New bug report: ${title} (Priority: ${priority}, Category: ${category})`)
+    logInfo(`New bug report: ${title} (Priority: ${priority}, Category: ${category})`)
 
     return NextResponse.json({
       success: true,
@@ -89,7 +90,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Bug report submission error:', error)
+    logError('Bug report submission error', error)
     return NextResponse.json({
       error: 'Internal server error'
     }, { status: 500 })

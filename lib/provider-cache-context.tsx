@@ -94,9 +94,9 @@ export function ProviderCacheProvider({ children }: { children: React.ReactNode 
       // Fetch from database
       const { data: credentials, error: fetchError } = await supabase
         .from('user_provider_credentials')
-        .select('provider_name, status')
+        .select('provider, status')
         .eq('user_id', session.user.id)
-        .eq('status', 'active')
+        .eq('status', 'ready')
 
       if (fetchError) {
         setError('Failed to fetch providers')
@@ -119,7 +119,7 @@ export function ProviderCacheProvider({ children }: { children: React.ReactNode 
         }
 
         credentials.forEach((cred) => {
-          const providerKey = providerMap[cred.provider_name] || cred.provider_name
+          const providerKey = providerMap[cred.provider] || cred.provider
           if (!providerList.find(p => p.provider === providerKey)) {
             providerList.push({ provider: providerKey, hasApiKey: true })
           }
