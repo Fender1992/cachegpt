@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     // Create Supabase client with user session
     const cookieStore = await cookies()
     console.log('[CONVERSATIONS API] Cookies available:', cookieStore.getAll().map(c => c.name))
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+    const supabase = createRouteHandlerClient({ cookies: async () => cookieStore })
 
     // Get current authenticated user
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     // Create Supabase client with user session
     const cookieStore = await cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+    const supabase = createRouteHandlerClient({ cookies: async () => cookieStore })
 
     // Get current authenticated user
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
