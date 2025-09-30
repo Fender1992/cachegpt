@@ -16,6 +16,7 @@ import {
   TrendingUp,
   Clock
 } from 'lucide-react'
+import { error as logError } from '@/lib/logger'
 
 interface ServiceStatus {
   name: string
@@ -86,7 +87,7 @@ export default function StatusPage() {
         {
           name: 'API Gateway',
           status: apiHealth.status,
-          uptime: 99.95,
+          uptime: apiHealth.status === 'operational' ? 100 : 0,
           latency: apiHealth.latency,
           lastChecked: new Date(),
           icon: <Server className="w-5 h-5" />
@@ -94,7 +95,7 @@ export default function StatusPage() {
         {
           name: 'Database',
           status: dbHealth.status,
-          uptime: 99.99,
+          uptime: dbHealth.status === 'operational' ? 100 : 0,
           latency: dbHealth.latency,
           lastChecked: new Date(),
           icon: <Database className="w-5 h-5" />
@@ -102,7 +103,7 @@ export default function StatusPage() {
         {
           name: 'Cache Service',
           status: cacheHealth.status,
-          uptime: 99.87,
+          uptime: cacheHealth.status === 'operational' ? 100 : 0,
           latency: cacheHealth.latency,
           lastChecked: new Date(),
           icon: <Zap className="w-5 h-5" />
@@ -110,7 +111,7 @@ export default function StatusPage() {
         {
           name: 'Hugging Face',
           status: hfHealth.status,
-          uptime: 99.5,
+          uptime: hfHealth.status === 'operational' ? 100 : 0,
           latency: hfHealth.latency,
           lastChecked: new Date(),
           icon: <Cloud className="w-5 h-5" />
@@ -118,7 +119,7 @@ export default function StatusPage() {
         {
           name: 'OpenAI API',
           status: openaiHealth.status,
-          uptime: 99.9,
+          uptime: openaiHealth.status === 'operational' ? 100 : 0,
           latency: openaiHealth.latency,
           lastChecked: new Date(),
           icon: <Activity className="w-5 h-5" />
@@ -126,7 +127,7 @@ export default function StatusPage() {
         {
           name: 'Anthropic API',
           status: anthropicHealth.status,
-          uptime: 99.8,
+          uptime: anthropicHealth.status === 'operational' ? 100 : 0,
           latency: anthropicHealth.latency,
           lastChecked: new Date(),
           icon: <Activity className="w-5 h-5" />
@@ -140,40 +141,53 @@ export default function StatusPage() {
       const hasDegraded = newServices.some(s => s.status === 'degraded')
       setOverallStatus(hasOutage ? 'outage' : hasDegraded ? 'degraded' : 'operational')
 
-      // Update metrics
-      setMetrics([
-        {
-          label: 'API Requests (24h)',
-          value: '1.2M',
-          change: 12.5,
-          trend: 'up'
-        },
-        {
-          label: 'Cache Hit Rate',
-          value: '94.3%',
-          change: 2.1,
-          trend: 'up'
-        },
-        {
-          label: 'Avg Response Time',
-          value: '142ms',
-          change: -8.3,
-          trend: 'down'
-        },
-        {
-          label: 'Error Rate',
-          value: '0.02%',
-          change: -0.01,
-          trend: 'down'
+      // Fetch real metrics from API
+      try {
+        const metricsResponse = await fetch('/api/metrics/system')
+        if (metricsResponse.ok) {
+          const systemMetrics = await metricsResponse.json()
+
+          // Only show metrics if we have real data
+          if (systemMetrics.requests24h > 0) {
+            setMetrics([
+              {
+                label: 'API Requests (24h)',
+                value: systemMetrics.requests24h.toLocaleString(),
+                change: 0,
+                trend: 'stable'
+              },
+              {
+                label: 'Cache Hit Rate',
+                value: `${systemMetrics.cacheHitRate}%`,
+                change: 0,
+                trend: 'stable'
+              },
+              {
+                label: 'Avg Response Time',
+                value: `${systemMetrics.avgResponseTime}ms`,
+                change: 0,
+                trend: 'stable'
+              },
+              {
+                label: 'Error Rate',
+                value: `${systemMetrics.errorRate}%`,
+                change: 0,
+                trend: 'stable'
+              }
+            ])
+          }
         }
-      ])
+      } catch (error) {
+        logError('Failed to fetch system metrics', error)
+        // Keep metrics empty if fetch fails
+      }
 
       // Load recent incidents (mock data for now)
       setIncidents([])
 
       setLastRefresh(new Date())
     } catch (error) {
-      console.error('Failed to check status:', error)
+      logError('Failed to check status', error)
     } finally {
       setLoading(false)
     }
@@ -387,29 +401,31 @@ export default function StatusPage() {
           </CardContent>
         </Card>
 
-        {/* Key Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          {metrics.map((metric, index) => (
-            <Card key={index}>
-              <CardContent className="py-4">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm text-gray-600">{metric.label}</p>
-                  <TrendingUp className={`w-4 h-4 ${
-                    metric.trend === 'up' ? 'text-green-600' :
-                    metric.trend === 'down' ? 'text-red-600' :
-                    'text-gray-600'
-                  }`} />
-                </div>
-                <p className="text-2xl font-bold">{metric.value}</p>
-                <p className={`text-sm mt-1 ${
-                  metric.change > 0 ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {metric.change > 0 ? '+' : ''}{metric.change}%
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        {/* Key Metrics - Only show if we have real data */}
+        {metrics.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            {metrics.map((metric, index) => (
+              <Card key={index}>
+                <CardContent className="py-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm text-gray-600">{metric.label}</p>
+                    <TrendingUp className={`w-4 h-4 ${
+                      metric.trend === 'up' ? 'text-green-600' :
+                      metric.trend === 'down' ? 'text-red-600' :
+                      'text-gray-600'
+                    }`} />
+                  </div>
+                  <p className="text-2xl font-bold">{metric.value}</p>
+                  <p className={`text-sm mt-1 ${
+                    metric.change > 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {metric.change > 0 ? '+' : ''}{metric.change}%
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
 
         {/* Service Status Grid */}
         <Card className="mb-8">

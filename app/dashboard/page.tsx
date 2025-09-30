@@ -13,6 +13,7 @@ import {
   Cpu, Globe, Code, ArrowUpRight, RefreshCw, Plus, Eye,
   Copy, Trash2, MoreVertical, Filter, Search
 } from 'lucide-react'
+import { error as logError } from '@/lib/logger'
 
 interface Stat {
   title: string
@@ -77,9 +78,7 @@ export default function Dashboard() {
     costSaved: 0,
     avgResponseTime: 0,
     activeUsers: 0,
-    apiCalls: 0,
-    dataProcessed: 0,
-    uptime: 99.9
+    apiCalls: 0
   })
 
   const [chartData, setChartData] = useState<ChartDataPoint[]>([])
@@ -106,53 +105,37 @@ export default function Dashboard() {
 
     setRefreshing(true)
     try {
-      // Fetch usage statistics
-      const { data: usageData } = await supabase
-        .from('usage_logs')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false })
-        .limit(100)
-
-      if (usageData) {
-        const typedUsageData = usageData as UsageLog[]
-        const totalRequests = typedUsageData.length
-        const cacheHits = typedUsageData.filter((log: UsageLog) => log.cache_hit).length
-        const costSaved = typedUsageData.reduce((sum: number, log: UsageLog) => sum + (log.cost || 0), 0)
-        const avgResponseTime = typedUsageData.reduce((sum: number, log: UsageLog) => sum + (log.response_time_ms || 0), 0) / totalRequests
-
-        // Get unique active users count
-        const { data: activeUsersData } = await supabase
-          .from('usage_logs')
-          .select('user_id')
-          .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
-
-        const uniqueUsers = new Set(activeUsersData?.map((log: any) => log.user_id) || [])
-
-        setStats({
-          totalRequests,
-          cacheHits,
-          costSaved,
-          avgResponseTime: Math.round(avgResponseTime),
-          activeUsers: uniqueUsers.size,
-          apiCalls: totalRequests,
-          dataProcessed: Math.floor(totalRequests * 0.5), // Estimate based on average request size
-          uptime: 99.9
-        })
-
-        // Process data for chart
-        const chartDataMap = new Map<string, ChartDataPoint>()
-        typedUsageData.forEach((log: UsageLog) => {
-          const date = new Date(log.created_at).toLocaleDateString()
-          if (!chartDataMap.has(date)) {
-            chartDataMap.set(date, { date, requests: 0, cached: 0 })
-          }
-          const dayData = chartDataMap.get(date)!
-          dayData.requests++
-          if (log.cache_hit) dayData.cached++
-        })
-        setChartData(Array.from(chartDataMap.values()).slice(0, 7).reverse())
+      // Fetch metrics from new API endpoint
+      const daysMap: Record<string, number> = {
+        '24h': 1,
+        '7d': 7,
+        '30d': 30,
+        '90d': 90
       }
+      const days = daysMap[timeRange] || 7
+
+      const response = await fetch(`/api/metrics/usage?days=${days}`, {
+        credentials: 'include'
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch metrics')
+      }
+
+      const metricsData = await response.json()
+
+      // Update stats from API response
+      setStats({
+        totalRequests: metricsData.summary.totalRequests,
+        cacheHits: metricsData.summary.cacheHits,
+        costSaved: metricsData.summary.costSaved,
+        avgResponseTime: metricsData.summary.avgResponseTime,
+        activeUsers: 1, // Current user
+        apiCalls: metricsData.summary.totalRequests
+      })
+
+      // Set chart data from API
+      setChartData(metricsData.chartData)
 
       // Fetch API keys
       const { data: keysData } = await supabase
@@ -165,29 +148,20 @@ export default function Dashboard() {
         setApiKeys(keysData)
       }
 
-      // Fetch recent activity from usage logs
-      const { data: activityData } = await supabase
-        .from('usage_logs')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false })
-        .limit(10)
-
-      if (activityData) {
-        const activities = activityData.map((log: any) => ({
-          id: log.id,
-          action: 'API Call',
-          model: log.model || 'gpt-3.5-turbo',
-          status: log.cache_hit ? 'cached' : 'miss',
-          time: new Date(log.created_at).toLocaleString(),
-          saved: log.cache_hit ? `$${(log.cost_saved || 0).toFixed(2)}` : '$0.00',
-          endpoint: log.endpoint,
-          response_time_ms: log.response_time_ms
-        }))
-        setRecentActivity(activities)
-      }
+      // Set recent activity from API
+      const activities = metricsData.recentActivity.map((log: any) => ({
+        id: log.id,
+        action: 'API Call',
+        model: log.model,
+        status: log.cached ? 'cached' : 'miss',
+        time: new Date(log.timestamp).toLocaleString(),
+        saved: log.cached ? `$${log.costSaved.toFixed(4)}` : '$0.00',
+        endpoint: log.provider,
+        response_time_ms: log.responseTime
+      }))
+      setRecentActivity(activities)
     } catch (error) {
-      console.error('Error fetching dashboard data:', error)
+      logError('Error fetching dashboard data', error)
     } finally {
       setRefreshing(false)
     }
@@ -217,7 +191,7 @@ export default function Dashboard() {
     {
       title: 'Total Requests',
       value: stats.totalRequests.toLocaleString(),
-      change: 12.5,
+      change: 0,
       icon: <Activity className="w-5 h-5" />,
       color: 'text-blue-600',
       bgColor: 'bg-blue-100'
@@ -225,7 +199,7 @@ export default function Dashboard() {
     {
       title: 'Cache Hit Rate',
       value: stats.totalRequests ? `${((stats.cacheHits / stats.totalRequests) * 100).toFixed(1)}%` : '0%',
-      change: 8.2,
+      change: 0,
       icon: <Zap className="w-5 h-5" />,
       color: 'text-purple-600',
       bgColor: 'bg-purple-100'
@@ -233,7 +207,7 @@ export default function Dashboard() {
     {
       title: 'Cost Saved',
       value: `$${stats.costSaved.toFixed(2)}`,
-      change: 23.1,
+      change: 0,
       icon: <DollarSign className="w-5 h-5" />,
       color: 'text-green-600',
       bgColor: 'bg-green-100'
@@ -241,7 +215,7 @@ export default function Dashboard() {
     {
       title: 'Avg Response',
       value: `${stats.avgResponseTime}ms`,
-      change: -15.3,
+      change: 0,
       icon: <Clock className="w-5 h-5" />,
       color: 'text-orange-600',
       bgColor: 'bg-orange-100'
@@ -373,12 +347,6 @@ export default function Dashboard() {
                   <div className="flex items-start justify-between mb-4">
                     <div className={`p-3 rounded-xl ${stat.bgColor} ${stat.color} group-hover:scale-110 transition-transform`}>
                       {stat.icon}
-                    </div>
-                    <div className={`flex items-center space-x-1 text-sm ${
-                      stat.change > 0 ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {stat.change > 0 ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                      <span>{Math.abs(stat.change)}%</span>
                     </div>
                   </div>
                   <div>

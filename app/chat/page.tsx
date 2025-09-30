@@ -3,9 +3,10 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
-import { Send, Bot, Brain, Sparkles, Zap, Settings, LogOut, History } from 'lucide-react'
+import { Send, Bot, Brain, Sparkles, Zap, Settings, LogOut, History, RefreshCw, Loader2 } from 'lucide-react'
 import BugReportButton from '@/components/bug-report-button'
 import ProviderSelector from '@/components/provider-selector'
+import { error as logError } from '@/lib/logger'
 
 const providerIcons = {
   chatgpt: Bot,
@@ -27,11 +28,17 @@ interface ChatMessage {
   provider?: string
   model?: string
   created_at?: string
+  error?: boolean
+  retryMessage?: string
 }
+
+// Maximum messages to keep in memory (prevents memory leaks in long sessions)
+const MAX_MESSAGES_IN_MEMORY = 50
 
 export default function ChatPage() {
   const [message, setMessage] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [hasOlderMessages, setHasOlderMessages] = useState(false)
   const [conversations, setConversations] = useState<any[]>([])
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
   const [showHistory, setShowHistory] = useState(false)
@@ -40,9 +47,27 @@ export default function ChatPage() {
   const [userProfile, setUserProfile] = useState<any>(null)
   const [usingPremium, setUsingPremium] = useState(false)
   const [keyboardVisible, setKeyboardVisible] = useState(false)
+  const [loadingOlderMessages, setLoadingOlderMessages] = useState(false)
   const router = useRouter()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  const getRelativeTime = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 1) return 'Just now'
+    if (diffMins < 60) return `${diffMins}m ago`
+    if (diffHours < 24) return `${diffHours}h ago`
+    if (diffDays === 1) return 'Yesterday'
+    if (diffDays < 7) return `${diffDays}d ago`
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`
+    return date.toLocaleDateString()
+  }
 
   useEffect(() => {
     loadUserProfile()
@@ -63,21 +88,45 @@ export default function ChatPage() {
         setConversations(data.conversations || [])
       }
     } catch (error) {
-      console.error('Error loading conversations:', error)
+      logError('Error loading conversations', error)
     }
   }
 
-  const loadConversationMessages = async (conversationId: string) => {
+  const loadConversationMessages = async (conversationId: string, limit = MAX_MESSAGES_IN_MEMORY) => {
     try {
-      const response = await fetch(`/api/conversations/${conversationId}/messages`)
+      const response = await fetch(`/api/conversations/${conversationId}/messages?limit=${limit}`)
       if (response.ok) {
         const data = await response.json()
-        setMessages(data.messages || [])
+        const loadedMessages = data.messages || []
+        setMessages(loadedMessages)
+        setHasOlderMessages(data.hasMore || false)
         setCurrentConversationId(conversationId)
         setShowHistory(false)
       }
     } catch (error) {
-      console.error('Error loading conversation messages:', error)
+      logError('Error loading conversation messages', error)
+    }
+  }
+
+  const loadOlderMessages = async () => {
+    if (!currentConversationId || loadingOlderMessages || !hasOlderMessages) return
+
+    setLoadingOlderMessages(true)
+    try {
+      const oldestMessage = messages[0]
+      const response = await fetch(
+        `/api/conversations/${currentConversationId}/messages?before=${oldestMessage?.created_at}&limit=20`
+      )
+      if (response.ok) {
+        const data = await response.json()
+        const olderMessages = data.messages || []
+        setMessages(prev => [...olderMessages, ...prev])
+        setHasOlderMessages(data.hasMore || false)
+      }
+    } catch (error) {
+      logError('Error loading older messages', error)
+    } finally {
+      setLoadingOlderMessages(false)
     }
   }
 
@@ -212,7 +261,15 @@ export default function ChatPage() {
       created_at: new Date().toISOString()
     }
 
-    setMessages(prev => [...prev, newUserMessage])
+    setMessages(prev => {
+      const updated = [...prev, newUserMessage]
+      // Keep only last MAX_MESSAGES_IN_MEMORY messages to prevent memory leaks
+      if (updated.length > MAX_MESSAGES_IN_MEMORY) {
+        setHasOlderMessages(true)
+        return updated.slice(-MAX_MESSAGES_IN_MEMORY)
+      }
+      return updated
+    })
     setIsLoading(true)
 
     // Blur the input to dismiss mobile keyboard
@@ -248,16 +305,39 @@ export default function ChatPage() {
         created_at: new Date().toISOString()
       }
 
-      setMessages(prev => [...prev, assistantMessage])
+      setMessages(prev => {
+        const updated = [...prev, assistantMessage]
+        // Keep only last MAX_MESSAGES_IN_MEMORY messages to prevent memory leaks
+        if (updated.length > MAX_MESSAGES_IN_MEMORY) {
+          setHasOlderMessages(true)
+          return updated.slice(-MAX_MESSAGES_IN_MEMORY)
+        }
+        return updated
+      })
 
       // Refresh conversations list to include new conversation
       loadConversations()
 
-    } catch (error) {
+    } catch (error: any) {
+      // Provide specific error messages based on error type
+      let errorMessage = 'Sorry, I encountered an error. Please try again.'
+
+      if (error.status === 401) {
+        errorMessage = '🔒 Session expired. Please refresh the page to log in again.'
+      } else if (error.status === 429) {
+        errorMessage = '⏱️ Rate limit reached. Please wait a few seconds and try again.'
+      } else if (error.status === 503) {
+        errorMessage = '🔧 AI service temporarily unavailable. Trying backup provider...'
+      } else if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
+        errorMessage = '📡 Network error. Please check your connection and try again.'
+      }
+
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.',
-        created_at: new Date().toISOString()
+        content: errorMessage,
+        created_at: new Date().toISOString(),
+        error: true,
+        retryMessage: message
       }])
     } finally {
       setIsLoading(false)
@@ -266,6 +346,18 @@ export default function ChatPage() {
 
   const handleProviderChange = (provider: string) => {
     setSelectedProvider(provider)
+  }
+
+  const handleRetry = (retryMessage: string) => {
+    // Remove the error message from display
+    setMessages(prev => prev.filter(msg => !msg.error))
+    // Resend the original message
+    setMessage(retryMessage)
+    // Trigger send after state updates
+    setTimeout(() => {
+      handleSendMessage(retryMessage)
+      setMessage('')
+    }, 0)
   }
 
   const startNewConversation = () => {
@@ -325,6 +417,7 @@ export default function ChatPage() {
               onClick={startNewConversation}
               className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors hidden sm:block"
               title="New Chat"
+              aria-label="Start new chat"
             >
               New Chat
             </button>
@@ -332,6 +425,8 @@ export default function ChatPage() {
               onClick={() => setShowHistory(!showHistory)}
               className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors relative"
               title="Chat History"
+              aria-label={showHistory ? "Close chat history" : "Open chat history"}
+              aria-expanded={showHistory}
             >
               <History className="w-5 h-5" />
               {conversations.length > 0 && (
@@ -350,6 +445,7 @@ export default function ChatPage() {
               onClick={handleSettings}
               className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
               title="Settings"
+              aria-label="Open settings"
             >
               <Settings className="w-5 h-5" />
             </button>
@@ -357,6 +453,7 @@ export default function ChatPage() {
               onClick={handleLogout}
               className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
               title="Logout"
+              aria-label="Logout"
             >
               <LogOut className="w-5 h-5" />
             </button>
@@ -401,7 +498,7 @@ export default function ChatPage() {
                     {conv.message_count} messages • {providerNames[conv.provider as keyof typeof providerNames]}
                   </div>
                   <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                    {new Date(conv.last_message_at).toLocaleDateString()}
+                    {getRelativeTime(conv.last_message_at)}
                   </div>
                 </button>
               ))
@@ -411,8 +508,34 @@ export default function ChatPage() {
       )}
 
       {/* Messages */}
-      <div className={`flex-1 overflow-y-auto p-4 pb-safe transition-all duration-300 ${showHistory ? 'sm:mr-80 mr-0' : ''}`}>
+      <div
+        className={`flex-1 overflow-y-auto p-4 pb-safe transition-all duration-300 ${showHistory ? 'sm:mr-80 mr-0' : ''}`}
+        role="log"
+        aria-live="polite"
+        aria-label="Chat messages"
+      >
         <div className="max-w-4xl mx-auto space-y-4 pb-4">
+          {/* Load Older Messages Button */}
+          {hasOlderMessages && (
+            <div className="flex justify-center mb-4">
+              <button
+                onClick={loadOlderMessages}
+                disabled={loadingOlderMessages}
+                className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg transition disabled:opacity-50"
+                aria-label="Load older messages"
+              >
+                {loadingOlderMessages ? (
+                  <>
+                    <Loader2 className="inline w-4 h-4 mr-2 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  '↑ Load Older Messages'
+                )}
+              </button>
+            </div>
+          )}
+
           {messages.map((msg, idx) => (
             <div
               key={idx}
@@ -421,9 +544,20 @@ export default function ChatPage() {
               <div className={`max-w-[80%] rounded-lg p-4 shadow-sm ${
                 msg.role === 'user'
                   ? 'bg-blue-600 text-white ml-auto'
-                  : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700'
+                  : msg.error
+                    ? 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800'
+                    : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700'
               }`}>
                 <p className="whitespace-pre-wrap">{msg.content}</p>
+                {msg.error && msg.retryMessage && (
+                  <button
+                    onClick={() => handleRetry(msg.retryMessage!)}
+                    className="mt-3 flex items-center gap-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Retry
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -466,11 +600,14 @@ export default function ChatPage() {
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="sentences"
+              aria-label="Type your message"
+              role="textbox"
             />
             <button
               onClick={handleSendMessage}
               disabled={!message.trim() || isLoading}
               className="px-3 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 sm:gap-2 text-sm sm:text-base shadow-sm"
+              aria-label="Send message"
             >
               <Send className="w-4 h-4 sm:w-5 sm:h-5" />
               <span className="hidden sm:inline">Send</span>

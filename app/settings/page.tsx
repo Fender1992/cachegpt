@@ -6,13 +6,16 @@ import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase-client'
 import {
   Key, Save, Trash2, Eye, EyeOff, Plus,
-  AlertCircle, Check, ChevronLeft
+  AlertCircle, Check, ChevronLeft, CheckCircle, XCircle, Loader2
 } from 'lucide-react'
+import { validateApiKeyFormat, testApiKeyConnection } from '@/lib/api-key-validator'
 
 interface ApiKey {
   provider: string
   api_key: string
   masked?: string
+  validationStatus?: 'idle' | 'testing' | 'valid' | 'invalid'
+  validationError?: string
 }
 
 const PROVIDERS = [
@@ -100,6 +103,41 @@ export default function SettingsPage() {
 
   const handleRemoveKey = (provider: string) => {
     setApiKeys(apiKeys.filter(k => k.provider !== provider))
+  }
+
+  const handleTestConnection = async (provider: string) => {
+    const key = apiKeys.find(k => k.provider === provider)
+    if (!key || !key.api_key) return
+
+    // Update status to testing
+    setApiKeys(apiKeys.map(k =>
+      k.provider === provider
+        ? { ...k, validationStatus: 'testing', validationError: undefined }
+        : k
+    ))
+
+    // Format validation first
+    const formatCheck = validateApiKeyFormat(provider, key.api_key)
+    if (!formatCheck.valid) {
+      setApiKeys(apiKeys.map(k =>
+        k.provider === provider
+          ? { ...k, validationStatus: 'invalid', validationError: formatCheck.error }
+          : k
+      ))
+      return
+    }
+
+    // Test connection
+    const result = await testApiKeyConnection(provider, key.api_key)
+    setApiKeys(apiKeys.map(k =>
+      k.provider === provider
+        ? {
+            ...k,
+            validationStatus: result.valid ? 'valid' : 'invalid',
+            validationError: result.error
+          }
+        : k
+    ))
   }
 
   const handleSave = async () => {
@@ -242,29 +280,63 @@ export default function SettingsPage() {
                   </div>
 
                   {existingKey && (
-                    <div className="flex items-center gap-1 sm:gap-2">
-                      <input
-                        type={isShowing ? 'text' : 'password'}
-                        value={isShowing ? existingKey.api_key : existingKey.masked || ''}
-                        onChange={(e) => handleUpdateKey(provider.id, e.target.value)}
-                        placeholder={provider.placeholder}
-                        className="flex-1 px-2 sm:px-3 py-1.5 sm:py-2 text-sm sm:text-base border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                      />
-                      <button
-                        onClick={() => toggleShowKey(provider.id)}
-                        className="p-1.5 sm:p-2 text-gray-600 hover:text-purple-600 transition"
-                        title={isShowing ? 'Hide' : 'Show'}
-                      >
-                        {isShowing ? <EyeOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Eye className="w-4 h-4 sm:w-5 sm:h-5" />}
-                      </button>
-                      <button
-                        onClick={() => handleRemoveKey(provider.id)}
-                        className="p-1.5 sm:p-2 text-red-600 hover:text-red-700 transition"
-                        title="Remove"
-                      >
-                        <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
-                      </button>
-                    </div>
+                    <>
+                      <div className="flex items-center gap-1 sm:gap-2">
+                        <input
+                          type={isShowing ? 'text' : 'password'}
+                          value={isShowing ? existingKey.api_key : existingKey.masked || ''}
+                          onChange={(e) => handleUpdateKey(provider.id, e.target.value)}
+                          placeholder={provider.placeholder}
+                          className="flex-1 px-2 sm:px-3 py-1.5 sm:py-2 text-sm sm:text-base border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        />
+                        <button
+                          onClick={() => toggleShowKey(provider.id)}
+                          className="p-1.5 sm:p-2 text-gray-600 hover:text-purple-600 transition"
+                          title={isShowing ? 'Hide' : 'Show'}
+                        >
+                          {isShowing ? <EyeOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Eye className="w-4 h-4 sm:w-5 sm:h-5" />}
+                        </button>
+                        <button
+                          onClick={() => handleRemoveKey(provider.id)}
+                          className="p-1.5 sm:p-2 text-red-600 hover:text-red-700 transition"
+                          title="Remove"
+                        >
+                          <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                        </button>
+                      </div>
+
+                      {/* Test Connection Button and Status */}
+                      <div className="mt-2 flex items-center gap-2">
+                        <button
+                          onClick={() => handleTestConnection(provider.id)}
+                          disabled={existingKey.validationStatus === 'testing'}
+                          className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {existingKey.validationStatus === 'testing' ? (
+                            <>
+                              <Loader2 className="inline w-3 h-3 mr-1 animate-spin" />
+                              Testing...
+                            </>
+                          ) : (
+                            'Test Connection'
+                          )}
+                        </button>
+
+                        {existingKey.validationStatus === 'valid' && (
+                          <div className="flex items-center gap-1 text-xs text-green-600">
+                            <CheckCircle className="w-3 h-3" />
+                            Valid
+                          </div>
+                        )}
+
+                        {existingKey.validationStatus === 'invalid' && (
+                          <div className="flex items-center gap-1 text-xs text-red-600">
+                            <XCircle className="w-3 h-3" />
+                            {existingKey.validationError || 'Invalid'}
+                          </div>
+                        )}
+                      </div>
+                    </>
                   )}
                 </div>
               )

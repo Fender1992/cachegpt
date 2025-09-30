@@ -1,18 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase-client'
 import { ChevronDown, Check, Settings } from 'lucide-react'
+import { useProviderCache } from '@/lib/provider-cache-context'
 
 interface ProviderSelectorProps {
   currentProvider?: string
   onProviderChange?: (provider: string) => void
   className?: string
-}
-
-interface UserProvider {
-  provider: string
-  hasApiKey: boolean
 }
 
 export default function ProviderSelector({
@@ -21,9 +16,10 @@ export default function ProviderSelector({
   className = ''
 }: ProviderSelectorProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const [availableProviders, setAvailableProviders] = useState<UserProvider[]>([])
   const [selectedProvider, setSelectedProvider] = useState(currentProvider)
-  const [loading, setLoading] = useState(true)
+
+  // Use cached providers instead of fetching on every mount
+  const { providers: availableProviders, loading } = useProviderCache()
 
   const providerDisplayNames: Record<string, string> = {
     auto: 'Automatic (Free)',
@@ -41,78 +37,13 @@ export default function ProviderSelector({
     perplexity: '🔍'
   }
 
+  // Auto-select 'auto' if user has no API keys
   useEffect(() => {
-    fetchUserProviders()
-  }, [])
-
-  const fetchUserProviders = async () => {
-    try {
-      setLoading(true)
-
-      // Check which providers the user has API keys for
-      const { data: { session } } = await supabase.auth.getSession()
-
-      if (!session?.user) {
-        // Not logged in - only show auto
-        setAvailableProviders([{ provider: 'auto', hasApiKey: false }])
-        setSelectedProvider('auto')
-        setLoading(false)
-        return
-      }
-
-      // Get user's API keys
-      const { data: credentials, error } = await supabase
-        .from('user_provider_credentials')
-        .select('provider_name, status')
-        .eq('user_id', session.user.id)
-        .eq('status', 'active')
-
-      if (error) {
-        console.error('Error fetching credentials:', error)
-        setAvailableProviders([{ provider: 'auto', hasApiKey: false }])
-        setSelectedProvider('auto')
-        setLoading(false)
-        return
-      }
-
-      // Build list of available providers
-      const providers: UserProvider[] = [
-        { provider: 'auto', hasApiKey: false }
-      ]
-
-      if (credentials && credentials.length > 0) {
-        // Map database provider names to our internal names
-        const providerMap: Record<string, string> = {
-          'claude': 'anthropic',
-          'chatgpt': 'openai',
-          'gemini': 'google',
-          'perplexity': 'perplexity'
-        }
-
-        credentials.forEach((cred) => {
-          const providerKey = providerMap[cred.provider_name] || cred.provider_name
-          if (!providers.find(p => p.provider === providerKey)) {
-            providers.push({ provider: providerKey, hasApiKey: true })
-          }
-        })
-      }
-
-      setAvailableProviders(providers)
-
-      // If user has no API keys, force auto
-      if (providers.length === 1) {
-        setSelectedProvider('auto')
-        onProviderChange?.('auto')
-      }
-
-      setLoading(false)
-    } catch (error) {
-      console.error('Error in fetchUserProviders:', error)
-      setAvailableProviders([{ provider: 'auto', hasApiKey: false }])
+    if (!loading && availableProviders.length === 1 && availableProviders[0].provider === 'auto') {
       setSelectedProvider('auto')
-      setLoading(false)
+      onProviderChange?.('auto')
     }
-  }
+  }, [availableProviders, loading, onProviderChange])
 
   const handleProviderSelect = (provider: string) => {
     setSelectedProvider(provider)
@@ -120,9 +51,13 @@ export default function ProviderSelector({
     onProviderChange?.(provider)
   }
 
-  // If only 'auto' is available (no API keys), don't show the selector
+  // If only 'auto' is available (no API keys), show a read-only badge
   if (!loading && availableProviders.length === 1 && availableProviders[0].provider === 'auto') {
-    return null
+    return (
+      <div className={`px-3 py-1.5 bg-purple-50 border border-purple-200 rounded-lg ${className}`}>
+        <span className="text-xs font-medium text-purple-700">⚡ Free AI (Auto)</span>
+      </div>
+    )
   }
 
   if (loading) {
@@ -136,12 +71,15 @@ export default function ProviderSelector({
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+        aria-label="Select AI provider"
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
       >
-        <span className="text-lg">{providerIcons[selectedProvider]}</span>
+        <span className="text-lg" aria-hidden="true">{providerIcons[selectedProvider]}</span>
         <span className="font-medium text-gray-700">
           {providerDisplayNames[selectedProvider]}
         </span>
-        <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
       </button>
 
       {isOpen && (
@@ -153,12 +91,18 @@ export default function ProviderSelector({
           />
 
           {/* Dropdown */}
-          <div className="absolute top-full left-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1">
+          <div
+            className="absolute top-full left-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1"
+            role="listbox"
+            aria-label="Available providers"
+          >
             {availableProviders.map((provider) => (
               <button
                 key={provider.provider}
                 onClick={() => handleProviderSelect(provider.provider)}
                 className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors"
+                role="option"
+                aria-selected={selectedProvider === provider.provider}
               >
                 <span className="text-lg">{providerIcons[provider.provider]}</span>
                 <span className="flex-1 text-left font-medium text-gray-700">
