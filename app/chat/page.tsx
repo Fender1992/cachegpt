@@ -50,7 +50,7 @@ export default function ChatPage() {
   const [loadingOlderMessages, setLoadingOlderMessages] = useState(false)
   const router = useRouter()
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
 
   const getRelativeTime = (dateString: string) => {
     const date = new Date(dateString)
@@ -215,6 +215,17 @@ export default function ChatPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // Auto-resize textarea as user types
+  useEffect(() => {
+    if (inputRef.current) {
+      // Reset height to auto to get the correct scrollHeight
+      inputRef.current.style.height = 'auto'
+      // Set height to scrollHeight (content height)
+      const newHeight = Math.min(inputRef.current.scrollHeight, 200) // Max 200px
+      inputRef.current.style.height = `${newHeight}px`
+    }
+  }, [message])
 
   const loadUserProfile = async () => {
     console.log('[CHAT] Loading user profile...')
@@ -621,9 +632,8 @@ export default function ChatPage() {
            style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
         <div className="max-w-4xl mx-auto">
           <div className="flex gap-2 mb-2 sm:mb-0">
-            <input
+            <textarea
               ref={inputRef}
-              type="text"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={(e) => {
@@ -632,15 +642,15 @@ export default function ChatPage() {
                   handleSendMessage()
                 }
               }}
-              placeholder="Type your message..."
-              className="flex-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Type your message... (Shift+Enter for new line)"
+              className="flex-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none min-h-[44px] max-h-[200px] overflow-y-auto"
               disabled={isLoading}
-              enterKeyHint="send"
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="sentences"
               aria-label="Type your message"
               role="textbox"
+              rows={1}
             />
             <button
               onClick={handleSendMessage}
