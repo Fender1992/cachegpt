@@ -110,7 +110,9 @@ export default function AdminBugsPage() {
       if (priorityFilter) params.append('priority', priorityFilter)
       if (categoryFilter) params.append('category', categoryFilter)
 
-      const response = await fetch(`/api/bugs/manage?${params}`)
+      const response = await fetch(`/api/bugs/manage?${params}`, {
+        credentials: 'include'
+      })
 
       if (!response.ok) {
         throw new Error('Failed to load bugs')
@@ -132,6 +134,7 @@ export default function AdminBugsPage() {
       const response = await fetch('/api/bugs/manage', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ bugId, updates })
       })
 
@@ -154,7 +157,8 @@ export default function AdminBugsPage() {
 
     try {
       const response = await fetch(`/api/bugs/manage?id=${bugId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        credentials: 'include'
       })
 
       if (!response.ok) {
