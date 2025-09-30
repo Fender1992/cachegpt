@@ -372,7 +372,7 @@ export default function ChatPage() {
                 currentModel={selectedModel}
                 onModelChange={handleModelChange}
                 platform="web"
-                className="w-40"
+                className="w-32"
               />
             </div>
             <button
@@ -402,7 +402,7 @@ export default function ChatPage() {
 
       {/* Chat History Sidebar */}
       {showHistory && (
-        <div className="fixed top-[85px] bottom-0 right-0 w-80 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 z-30 overflow-y-auto">
+        <div className="fixed top-[85px] bottom-0 right-0 w-80 sm:w-80 w-full bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 z-30 overflow-y-auto">
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Chat History</h2>
@@ -447,7 +447,7 @@ export default function ChatPage() {
       )}
 
       {/* Messages */}
-      <div className={`flex-1 overflow-y-auto p-4 pb-safe transition-all duration-300 ${showHistory ? 'mr-80' : ''}`}>
+      <div className={`flex-1 overflow-y-auto p-4 pb-safe transition-all duration-300 ${showHistory ? 'sm:mr-80 mr-0' : ''}`}>
         <div className="max-w-4xl mx-auto space-y-4 pb-4">
           {messages.map((msg, idx) => (
             <div

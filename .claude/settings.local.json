@@ -101,7 +101,9 @@
       "Bash(npm ls:*)",
       "Bash(git filter-branch:*)",
       "Bash(git stash:*)",
-      "WebFetch(domain:cachegpt.app)"
+      "WebFetch(domain:cachegpt.app)",
+      "WebFetch(domain:claude.ai)",
+      "Bash(PGPASSWORD=\"$SUPABASE_DB_PASSWORD\" psql -h \"aws-0-us-east-1.pooler.supabase.com\" -p 6543 -d \"postgres\" -U \"postgres.ntekfgvkbuzjwmftqchr\" -f database-scripts/027_unified_chat_system.sql)"
     ],
     "deny": [],
     "ask": []
