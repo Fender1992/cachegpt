@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+import { createClient } from '@supabase/supabase-js'
 import { error as logError } from '@/lib/logger'
+import {
+  resolveAuthentication,
+  isAuthError,
+  getUserId
+} from '@/lib/unified-auth-resolver'
 
 // GET /api/conversations - Get ONLY the authenticated user's conversation list
 export async function GET(request: NextRequest) {
@@ -11,30 +15,22 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0')
     const platform = searchParams.get('platform') || null
 
-    // Create Supabase client with user session
-    const cookieStore = cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+    // Use unified authentication resolver
+    const authResult = await resolveAuthentication(request)
 
-    // Get current authenticated user
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-
-    console.log('[CONVERSATIONS API] Session check:', {
-      hasSession: !!session,
-      userId: session?.user?.id,
-      error: sessionError?.message
-    })
-
-    if (sessionError) {
-      console.error('[CONVERSATIONS API] Session error:', sessionError)
-      return NextResponse.json({ error: 'Unauthorized - Please log in', details: sessionError.message }, { status: 401 })
+    if (isAuthError(authResult)) {
+      console.error('[CONVERSATIONS API] Auth failed:', authResult.error)
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status })
     }
 
-    if (!session?.user) {
-      console.error('[CONVERSATIONS API] No session found')
-      return NextResponse.json({ error: 'Unauthorized - Please log in' }, { status: 401 })
-    }
+    const userId = getUserId(authResult)
+    console.log('[CONVERSATIONS API] User authenticated:', userId)
 
-    const userId = session.user.id
+    // Create Supabase client with service key for database operations
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    )
 
     // Get conversations using the database function - ONLY for this user
     const { data: conversations, error } = await supabase
@@ -70,18 +66,20 @@ export async function POST(request: NextRequest) {
   try {
     const { title, provider, model, platform = 'web' } = await request.json()
 
-    // Create Supabase client with user session
-    const cookieStore = cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+    // Use unified authentication resolver
+    const authResult = await resolveAuthentication(request)
 
-    // Get current authenticated user
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-
-    if (sessionError || !session?.user) {
-      return NextResponse.json({ error: 'Unauthorized - Please log in' }, { status: 401 })
+    if (isAuthError(authResult)) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status })
     }
 
-    const userId = session.user.id
+    const userId = getUserId(authResult)
+
+    // Create Supabase client with service key for database operations
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    )
 
     // Create new conversation - ONLY for this authenticated user
     const { data: conversation, error } = await supabase
