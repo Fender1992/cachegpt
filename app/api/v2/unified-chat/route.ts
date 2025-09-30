@@ -668,7 +668,7 @@ export async function POST(request: NextRequest) {
       searchContext = await performContextualSearch(
         userMessage,
         contextAnalysis.realTimeCategory,
-        0.9 // High confidence threshold
+        0.80 // Confidence threshold (lowered for broader matching)
       )
       if (searchContext) {
         console.log('[CONTEXT] ✅ Web search results added to context')
@@ -819,11 +819,11 @@ export async function POST(request: NextRequest) {
       responseTime
     );
 
-    // Save to unified chat history system
+    // Save to unified chat history system (use original messages, not enriched)
     await saveChatHistory(
       userId,
-      messages,
-      result.response,
+      messages, // Original messages without system context
+      sanitizedResponse, // Use sanitized response
       result.provider,
       finalModel,
       responseTime,

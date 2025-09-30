@@ -210,8 +210,8 @@ export function shouldPerformSearch(
   // High-value categories that benefit from search
   const searchableCategories = ['news', 'weather', 'stocks', 'sports', 'technology']
 
-  // Only search if confidence is high enough
-  return searchableCategories.includes(category) && confidence >= 0.85
+  // Only search if confidence is high enough (lowered from 0.85 to 0.80 for broader matching)
+  return searchableCategories.includes(category) && confidence >= 0.80
 }
 
 /**

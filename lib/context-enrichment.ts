@@ -109,8 +109,8 @@ export function needsRealTimeInfo(query: string): {
       confidence: 0.9
     },
     news: {
-      keywords: ['latest news', 'current events', 'breaking news', 'happening now', 'recent news', 'today\'s news'],
-      confidence: 0.95
+      keywords: ['latest news', 'current events', 'breaking news', 'happening now', 'recent news', 'today\'s news', 'what happened', 'what\'s happening', 'any news about', 'tell me about'],
+      confidence: 0.85 // Lower confidence for broader patterns
     },
     weather: {
       keywords: ['weather', 'temperature', 'forecast', 'rain', 'snow', 'climate today'],
