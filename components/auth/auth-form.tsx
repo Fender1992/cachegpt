@@ -33,7 +33,8 @@ export function AuthForm({ isFromCLI = false, callbackPort }: AuthFormProps) {
           options: {
             data: {
               full_name: email.split('@')[0], // Default name from email
-            }
+            },
+            emailRedirectTo: `${window.location.origin}/auth/callback`
           }
         })
 
@@ -78,7 +79,10 @@ export function AuthForm({ isFromCLI = false, callbackPort }: AuthFormProps) {
           })
         }
 
-        setMessage({ type: 'success', text: 'Check your email to confirm your account!' })
+        setMessage({
+          type: 'success',
+          text: 'Account created! Please check your email (including spam folder) for a confirmation link. If you don\'t receive it within 5 minutes, try signing up again or contact support.'
+        })
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
