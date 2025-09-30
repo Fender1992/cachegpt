@@ -809,7 +809,15 @@ export async function POST(request: NextRequest) {
 
     const responseTime = Date.now() - startTime;
 
-    // Store in cache
+    // Sanitize response to remove execution tags and artifacts (do this early)
+    const sanitizedResponse = sanitizeResponse(result.response)
+
+    // Log if artifacts were removed
+    if (hasExecutionArtifacts(result.response)) {
+      console.log('[SANITIZE] Cleaned response artifacts from', result.provider)
+    }
+
+    // Store in cache (original response - will be sanitized on retrieval)
     await storeInCache(
       userMessage,
       result.response,
@@ -819,7 +827,7 @@ export async function POST(request: NextRequest) {
       responseTime
     );
 
-    // Save to unified chat history system (use original messages, not enriched)
+    // Save to unified chat history system (use original messages + sanitized response)
     await saveChatHistory(
       userId,
       messages, // Original messages without system context
@@ -845,17 +853,9 @@ export async function POST(request: NextRequest) {
         provider: result.provider,
         cached: false,
         response_time: responseTime,
-        response_length: result.response.length
+        response_length: sanitizedResponse.length
       }
     });
-
-    // Sanitize response to remove execution tags and artifacts
-    const sanitizedResponse = sanitizeResponse(result.response)
-
-    // Log if artifacts were removed
-    if (hasExecutionArtifacts(result.response)) {
-      console.log('[SANITIZE] Cleaned response artifacts from', result.provider)
-    }
 
     // Analyze response quality
     const userQuery = messages[messages.length - 1]?.content || ''
