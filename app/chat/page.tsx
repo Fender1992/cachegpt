@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
-import { Send, Bot, Brain, Sparkles, Zap, Settings, LogOut, Book, History } from 'lucide-react'
+import { Send, Bot, Brain, Sparkles, Zap, Settings, LogOut, History } from 'lucide-react'
 import BugReportButton from '@/components/bug-report-button'
 import ModelSelector from '@/components/model-selector'
 
@@ -375,13 +375,6 @@ export default function ChatPage() {
                 className="w-32"
               />
             </div>
-            <button
-              onClick={() => router.push('/docs')}
-              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
-              title="Commands Documentation"
-            >
-              <Book className="w-5 h-5" />
-            </button>
             <button
               onClick={handleSettings}
               className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"

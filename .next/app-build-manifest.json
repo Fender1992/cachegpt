@@ -6,10 +6,10 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
-    "/docs/page": [
+    "/api/ranking/features/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/docs/page.js"
+      "static/chunks/app/api/ranking/features/route.js"
     ]
   }
 }
