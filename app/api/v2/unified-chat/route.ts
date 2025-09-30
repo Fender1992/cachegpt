@@ -25,6 +25,8 @@ import {
   analyzeResponse
 } from '@/lib/response-validator';
 import { sanitizeResponse, hasExecutionArtifacts } from '@/lib/response-sanitizer';
+import { enrichContext, generateSystemContext } from '@/lib/context-enrichment';
+import { performContextualSearch } from '@/lib/web-search';
 
 // Lazy load ranking modules to avoid build-time initialization
 const getTierCache = async () => {
@@ -655,6 +657,56 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No message provided' }, { status: 400 });
     }
 
+    // Enrich context with current information and real-time data
+    console.log('[CONTEXT] Analyzing query for context enrichment...')
+    const contextAnalysis = enrichContext(userMessage)
+
+    // If query needs real-time information, attempt web search
+    let searchContext: string | null = null
+    if (contextAnalysis.needsRealTime && contextAnalysis.realTimeCategory) {
+      console.log(`[CONTEXT] Query needs real-time info: ${contextAnalysis.realTimeCategory}`)
+      searchContext = await performContextualSearch(
+        userMessage,
+        contextAnalysis.realTimeCategory,
+        0.9 // High confidence threshold
+      )
+      if (searchContext) {
+        console.log('[CONTEXT] ✅ Web search results added to context')
+      }
+    }
+
+    // Build enriched messages with system context
+    const enrichedMessages = [...messages]
+
+    // Add system context as first message if not already present
+    if (enrichedMessages.length === 0 || enrichedMessages[0].role !== 'system') {
+      enrichedMessages.unshift({
+        role: 'system',
+        content: contextAnalysis.systemContext
+      })
+    }
+
+    // If we have search results, add them before the user's last message
+    if (searchContext) {
+      enrichedMessages.splice(enrichedMessages.length - 1, 0, {
+        role: 'system',
+        content: searchContext
+      })
+    }
+
+    // Update the last user message with enriched query
+    enrichedMessages[enrichedMessages.length - 1] = {
+      ...enrichedMessages[enrichedMessages.length - 1],
+      content: contextAnalysis.enrichedQuery
+    }
+
+    console.log('[CONTEXT] Messages enriched:', {
+      hasSystemContext: true,
+      hasSearchResults: !!searchContext,
+      needsRealTime: contextAnalysis.needsRealTime,
+      category: contextAnalysis.realTimeCategory
+    })
+
     const startTime = Date.now();
 
     // Determine if using free providers or user's API key
@@ -740,17 +792,17 @@ export async function POST(request: NextRequest) {
     if (usingFreeProviders) {
       // Use free providers (auto-rotates between Groq, OpenRouter, HuggingFace)
       console.log('[CHAT] No cache hit, calling free providers...');
-      result = await callFreeProvider(messages);
+      result = await callFreeProvider(enrichedMessages);
       finalModel = 'free-model';  // Don't expose which specific free model was used
     } else {
       // Use premium provider with user's API key
       console.log(`[CHAT] No cache hit, calling ${selectedProvider} with user API key and model ${selectedModel}...`);
       try {
-        result = await callPremiumProvider(messages, selectedProvider, userApiKey!, selectedModel!);
+        result = await callPremiumProvider(enrichedMessages, selectedProvider, userApiKey!, selectedModel!);
         finalModel = selectedModel!;
       } catch (error) {
         console.error('[CHAT] Premium provider failed, falling back to free providers');
-        result = await callFreeProvider(messages);
+        result = await callFreeProvider(enrichedMessages);
         finalModel = 'free-model';
       }
     }
