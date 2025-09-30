@@ -20,6 +20,12 @@ import {
   createSessionErrorMessage
 } from '@/lib/unified-auth-resolver';
 import { createClient } from '@supabase/supabase-js';
+import {
+  validateResponse,
+  truncateResponse,
+  getQualityScore,
+  analyzeResponse
+} from '@/lib/response-validator';
 
 // Lazy load ranking modules to avoid build-time initialization
 const getTierCache = async () => {
@@ -693,8 +699,22 @@ export async function POST(request: NextRequest) {
       const timeSaved = Math.round(Math.random() * 800 + 200); // Estimate 200-1000ms saved
       const costSaved = 0.0002; // Estimate based on typical API costs
 
+      // Validate cached response
+      const userQuery = messages[messages.length - 1]?.content || ''
+      const cachedValidation = validateResponse(cached.response, userQuery)
+      const cachedQualityScore = getQualityScore(cached.response, userQuery)
+      const cachedMetrics = analyzeResponse(cached.response)
+
+      let finalCachedResponse = cached.response
+      let cachedWasTruncated = false
+
+      if (cachedValidation.shouldTruncate && cachedValidation.suggestedMaxLength) {
+        finalCachedResponse = truncateResponse(cached.response, cachedValidation.suggestedMaxLength)
+        cachedWasTruncated = true
+      }
+
       return NextResponse.json({
-        response: cached.response,
+        response: finalCachedResponse,
         metadata: {
           cached: true,
           cacheHit: true, // Add both for compatibility
@@ -704,7 +724,15 @@ export async function POST(request: NextRequest) {
           accessCount: cached.metadata?.accessCount,
           popularityScore: cached.metadata?.popularityScore,
           timeSavedMs: timeSaved,
-          costSaved: costSaved
+          costSaved: costSaved,
+          validation: {
+            qualityScore: cachedQualityScore,
+            wasTruncated: cachedWasTruncated,
+            originalLength: cached.response.length,
+            finalLength: finalCachedResponse.length,
+            readTime: cachedMetrics.estimatedReadTime,
+            wordCount: cachedMetrics.wordCount
+          }
         }
       });
     }
@@ -773,8 +801,30 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // Validate and potentially truncate response
+    const userQuery = messages[messages.length - 1]?.content || ''
+    const validation = validateResponse(result.response, userQuery)
+    const qualityScore = getQualityScore(result.response, userQuery)
+    const metrics = analyzeResponse(result.response)
+
+    let finalResponse = result.response
+    let wasTruncated = false
+
+    // Auto-truncate if response is too long
+    if (validation.shouldTruncate && validation.suggestedMaxLength) {
+      finalResponse = truncateResponse(result.response, validation.suggestedMaxLength)
+      wasTruncated = true
+      console.log(`[VALIDATION] Truncated response from ${result.response.length} to ${finalResponse.length} chars`)
+    }
+
+    // Log quality issues
+    if (validation.issues.length > 0) {
+      console.log(`[VALIDATION] Quality issues: ${validation.issues.join(', ')}`)
+      console.log(`[VALIDATION] Quality score: ${qualityScore}/100`)
+    }
+
     return NextResponse.json({
-      response: result.response,
+      response: finalResponse,
       provider: result.provider,
       model: finalModel,
       metadata: {
@@ -782,7 +832,15 @@ export async function POST(request: NextRequest) {
         provider: result.provider,
         model: finalModel,
         responseTime,
-        cost: usingFreeProviders ? 0 : 0.001 // Rough estimate
+        cost: usingFreeProviders ? 0 : 0.001, // Rough estimate
+        validation: {
+          qualityScore,
+          wasTruncated,
+          originalLength: result.response.length,
+          finalLength: finalResponse.length,
+          readTime: metrics.estimatedReadTime,
+          wordCount: metrics.wordCount
+        }
       }
     });
 
