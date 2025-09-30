@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
+import { error as logError } from '@/lib/logger'
 
 // GET /api/conversations - Get ONLY the authenticated user's conversation list
 export async function GET(request: NextRequest) {
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
       })
 
     if (error) {
-      console.error('Error fetching conversations for user:', userId, error)
+      logError('Error fetching conversations for user', error, { userId })
       return NextResponse.json({ error: 'Failed to fetch conversations' }, { status: 500 })
     }
 
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
       total: conversations?.length || 0
     })
   } catch (error) {
-    console.error('Error in conversations API:', error)
+    logError('Error in conversations API', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

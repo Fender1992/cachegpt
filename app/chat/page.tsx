@@ -82,7 +82,9 @@ export default function ChatPage() {
 
   const loadConversations = async () => {
     try {
-      const response = await fetch('/api/conversations?limit=20&platform=web')
+      const response = await fetch('/api/conversations?limit=20&platform=web', {
+        credentials: 'include'
+      })
       if (response.ok) {
         const data = await response.json()
         setConversations(data.conversations || [])
@@ -94,7 +96,9 @@ export default function ChatPage() {
 
   const loadConversationMessages = async (conversationId: string, limit = MAX_MESSAGES_IN_MEMORY) => {
     try {
-      const response = await fetch(`/api/conversations/${conversationId}/messages?limit=${limit}`)
+      const response = await fetch(`/api/conversations/${conversationId}/messages?limit=${limit}`, {
+        credentials: 'include'
+      })
       if (response.ok) {
         const data = await response.json()
         const loadedMessages = data.messages || []
@@ -115,7 +119,8 @@ export default function ChatPage() {
     try {
       const oldestMessage = messages[0]
       const response = await fetch(
-        `/api/conversations/${currentConversationId}/messages?before=${oldestMessage?.created_at}&limit=20`
+        `/api/conversations/${currentConversationId}/messages?before=${oldestMessage?.created_at}&limit=20`,
+        { credentials: 'include' }
       )
       if (response.ok) {
         const data = await response.json()
