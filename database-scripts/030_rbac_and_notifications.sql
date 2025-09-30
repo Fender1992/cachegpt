@@ -98,7 +98,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Drop old admin policy
 DROP POLICY IF EXISTS "Admin can view all bugs" ON bugs;
 
--- Create new role-based policy
+-- Create new role-based policy for admins/moderators
 CREATE POLICY "Admins and moderators can manage all bugs" ON bugs
 FOR ALL
 USING (
@@ -108,6 +108,17 @@ USING (
     AND user_roles.role IN ('admin', 'moderator')
     AND (user_roles.expires_at IS NULL OR user_roles.expires_at > NOW())
   )
+);
+
+-- IMPORTANT: Preserve the user submission policy (don't drop it!)
+-- This policy allows anyone (authenticated or anonymous) to submit bugs
+-- It was created in 026_bug_tracker_system.sql
+-- If it doesn't exist, create it:
+DROP POLICY IF EXISTS "Users can submit bug reports" ON bugs;
+CREATE POLICY "Users can submit bug reports" ON bugs
+FOR INSERT
+WITH CHECK (
+  auth.uid() = user_id OR user_id IS NULL
 );
 
 -- =====================================================
