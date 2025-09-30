@@ -84,7 +84,18 @@ export default function ChatPage() {
   const loadConversations = async () => {
     try {
       console.log('[CHAT] Loading conversations...')
-      const response = await fetch('/api/conversations?limit=20&platform=web', {
+
+      // Get user ID from current session
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user?.id) {
+        console.warn('[CHAT] No session found, skipping conversations load')
+        return
+      }
+
+      const userId = session.user.id
+      console.log('[CHAT] Loading conversations for user:', userId)
+
+      const response = await fetch(`/api/conversations?limit=20&platform=web&user_id=${userId}`, {
         credentials: 'include'
       })
       console.log('[CHAT] Conversations response status:', response.status)
