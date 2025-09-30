@@ -101,6 +101,7 @@ export function needsRealTimeInfo(query: string): {
   confidence: number
 } {
   const lowerQuery = query.toLowerCase()
+  console.log('[CONTEXT-ANALYSIS] Analyzing query:', query)
 
   // Pattern matching for different categories
   const patterns = {
@@ -138,6 +139,7 @@ export function needsRealTimeInfo(query: string): {
   for (const [category, { keywords, confidence }] of Object.entries(patterns)) {
     for (const keyword of keywords) {
       if (lowerQuery.includes(keyword)) {
+        console.log(`[CONTEXT-ANALYSIS] ✅ Matched category: ${category}, keyword: "${keyword}", confidence: ${confidence}`)
         return {
           needsInfo: true,
           category,
@@ -147,6 +149,7 @@ export function needsRealTimeInfo(query: string): {
     }
   }
 
+  console.log('[CONTEXT-ANALYSIS] ❌ No real-time category matched')
   return {
     needsInfo: false,
     category: null,

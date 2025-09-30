@@ -2,15 +2,21 @@
 
 import { useState } from 'react'
 import { Bug, X, Send } from 'lucide-react'
+import Toast from './toast'
 
 interface BugReportButtonProps {
   className?: string
 }
 
+interface ToastNotification {
+  message: string
+  type: 'success' | 'error' | 'warning' | 'info'
+}
+
 export default function BugReportButton({ className = '' }: BugReportButtonProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
+  const [toast, setToast] = useState<ToastNotification | null>(null)
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -25,6 +31,7 @@ export default function BugReportButton({ className = '' }: BugReportButtonProps
     e.preventDefault()
 
     if (!formData.title.trim() || !formData.description.trim()) {
+      setToast({ message: 'Please fill in title and description', type: 'warning' })
       return
     }
 
@@ -36,6 +43,7 @@ export default function BugReportButton({ className = '' }: BugReportButtonProps
         headers: {
           'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({
           title: formData.title.trim(),
           description: formData.description.trim(),
@@ -49,27 +57,29 @@ export default function BugReportButton({ className = '' }: BugReportButtonProps
       })
 
       if (!response.ok) {
-        throw new Error('Failed to submit bug report')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to submit bug report')
       }
 
-      setSubmitted(true)
-      setTimeout(() => {
-        setIsOpen(false)
-        setSubmitted(false)
-        setFormData({
-          title: '',
-          description: '',
-          category: 'general',
-          priority: 'medium',
-          stepsToReproduce: '',
-          expectedBehavior: '',
-          actualBehavior: ''
-        })
-      }, 2000)
+      // Show success toast
+      setToast({ message: 'Bug report submitted successfully! Thank you for helping improve CacheGPT.', type: 'success' })
+
+      // Close modal and reset form
+      setIsOpen(false)
+      setFormData({
+        title: '',
+        description: '',
+        category: 'general',
+        priority: 'medium',
+        stepsToReproduce: '',
+        expectedBehavior: '',
+        actualBehavior: ''
+      })
 
     } catch (error) {
       console.error('Error submitting bug report:', error)
-      alert('Failed to submit bug report. Please try again.')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to submit bug report. Please try again.'
+      setToast({ message: errorMessage, type: 'error' })
     } finally {
       setIsSubmitting(false)
     }
@@ -90,26 +100,17 @@ export default function BugReportButton({ className = '' }: BugReportButtonProps
       {/* Bug Report Modal */}
       {isOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            {submitted ? (
-              <div className="p-6 text-center">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Send className="w-8 h-8 text-green-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Bug Report Submitted!</h3>
-                <p className="text-gray-600">Thank you for helping improve CacheGPT. We'll review your report soon.</p>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="p-6">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <form onSubmit={handleSubmit} className="p-6">
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                    <Bug className="w-6 h-6 text-red-600" />
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                    <Bug className="w-6 h-6 text-red-600 dark:text-red-400" />
                     Report a Bug
                   </h2>
                   <button
                     type="button"
                     onClick={() => setIsOpen(false)}
-                    className="p-1 text-gray-400 hover:text-gray-600"
+                    className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -243,10 +244,19 @@ export default function BugReportButton({ className = '' }: BugReportButtonProps
                     )}
                   </button>
                 </div>
-              </form>
-            )}
+            </form>
           </div>
         </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+          duration={5000}
+        />
       )}
     </>
   )

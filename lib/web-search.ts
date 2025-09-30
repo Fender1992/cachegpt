@@ -222,22 +222,30 @@ export async function performContextualSearch(
   category: string | null,
   confidence: number
 ): Promise<string | null> {
+  console.log(`[WEB-SEARCH] performContextualSearch called with category: ${category}, confidence: ${confidence}`)
+
   // Don't search for simple date/time queries (we provide that directly)
   if (category === 'datetime') {
+    console.log('[WEB-SEARCH] ⏭️  Skipping datetime query (context provides this)')
     return null
   }
 
   // Check if we should perform search
-  if (!shouldPerformSearch(category, confidence)) {
+  const shouldSearch = shouldPerformSearch(category, confidence)
+  console.log(`[WEB-SEARCH] shouldPerformSearch result: ${shouldSearch}`)
+
+  if (!shouldSearch) {
+    console.log(`[WEB-SEARCH] ❌ Not performing search. Category "${category}" not in searchable list or confidence ${confidence} < 0.80`)
     return null
   }
 
   try {
-    console.log(`[SEARCH] Performing search for category: ${category}, confidence: ${confidence}`)
+    console.log(`[WEB-SEARCH] 🔍 Performing search for category: ${category}, confidence: ${confidence}`)
     const searchResult = await intelligentSearch(query, category)
+    console.log(`[WEB-SEARCH] ✅ Search completed, results:`, searchResult.success ? `${searchResult.results.length} results` : 'failed')
     return formatSearchForContext(searchResult, query)
   } catch (error) {
-    console.error('[SEARCH] Error performing search:', error)
+    console.error('[WEB-SEARCH] ❌ Error performing search:', error)
     return null
   }
 }
