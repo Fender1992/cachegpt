@@ -1,8 +1,6 @@
-# Supabase Email Verification Setup Guide
+# Supabase Email Setup Guide
 
-## Issue: Email verification not being sent
-
-When users sign up, they see "Check your email to confirm your account!" but no email is received.
+This guide covers both **Auth Emails** (verification, password reset) and **Custom Emails** (bug notifications) using Supabase.
 
 ## Solution Steps:
 
@@ -138,8 +136,115 @@ View email sending logs:
 4. **Postmark** (Best deliverability)
 5. **Resend** (Developer-friendly)
 
+---
+
+## 🚀 Part 2: Custom Emails for Bug Notifications
+
+### Quick Setup (Recommended)
+
+Supabase integrates with Resend for custom emails via Edge Functions. This is the **easiest and recommended** approach.
+
+#### Step 1: Get Resend API Key
+1. Go to [resend.com](https://resend.com) and sign up (free: 3,000 emails/month)
+2. Create an API key (starts with `re_`)
+
+#### Step 2: Deploy Edge Function
+```bash
+# Install Supabase CLI
+npm install -g supabase
+
+# Login and link project
+supabase login
+supabase link --project-ref your-project-ref
+
+# Set Resend API key
+supabase secrets set RESEND_API_KEY=re_your_key_here
+
+# Deploy the email function
+supabase functions deploy send-email
+
+# Function will be available at:
+# https://YOUR-PROJECT.supabase.co/functions/v1/send-email
+```
+
+#### Step 3: Test It
+```bash
+curl -X POST 'https://YOUR-PROJECT.supabase.co/functions/v1/send-email' \
+  -H "Authorization: Bearer YOUR_ANON_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "to": "test@example.com",
+    "from": "onboarding@resend.dev",
+    "subject": "Test",
+    "html": "<h1>It works!</h1>",
+    "text": "It works!"
+  }'
+```
+
+#### Step 4: Set Environment Variable
+```bash
+# Optional: Set custom sender email
+EMAIL_FROM=notifications@yourdomain.com
+```
+
+**That's it!** Your application will automatically detect and use Supabase for emails.
+
+### How It Works
+
+The email system auto-detects Supabase:
+
+```typescript
+// In lib/email-notifications.ts
+if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
+  // Automatically uses Supabase Edge Function
+  provider: 'supabase'
+}
+```
+
+### Monitoring
+
+```bash
+# View Edge Function logs
+supabase functions logs send-email --tail
+
+# View email delivery in Resend Dashboard
+# https://resend.com/logs
+```
+
+### Pricing
+
+**Resend Free Tier:**
+- 3,000 emails/month
+- Perfect for most applications
+- 1 verified domain
+
+**Resend Pro ($20/month):**
+- 50,000 emails/month
+- Unlimited domains
+
+---
+
 ## Next Steps:
 
+### For Auth Emails:
 1. For immediate testing: Check spam folder or disable email confirmation
 2. For production: Set up custom SMTP with SendGrid or similar
 3. Monitor auth logs for any issues
+
+### For Bug Notification Emails:
+1. Deploy the `send-email` Edge Function (see above)
+2. Set `RESEND_API_KEY` secret in Supabase
+3. Set up cron job for `/api/cron/process-notifications`
+4. Test by submitting a high-priority bug
+
+---
+
+## Files Reference
+
+- `/supabase/functions/send-email/index.ts` - Edge Function for sending emails
+- `/lib/email-notifications.ts` - Email notification system
+- `/app/api/cron/process-notifications/route.ts` - Email queue processor
+
+---
+
+**Questions?** Check `/V11_11_RELEASE_NOTES.md` for full email setup documentation.

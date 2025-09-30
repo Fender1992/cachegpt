@@ -38,96 +38,105 @@ function AuthSuccessContent() {
     if (callbackPort) params.set('callback_port', callbackPort)
     const queryString = params.toString() ? `?${params.toString()}` : ''
 
-    if (profile?.selected_provider) {
-      // User has provider, go to chat
-      if (source === 'cli' && callbackPort) {
+    // Auto-set default provider if not selected (new users)
+    let selectedProvider = profile?.selected_provider
+    if (!selectedProvider) {
+      console.log('[AUTH SUCCESS] No provider selected, auto-setting default provider: auto')
 
-        // CLI user - redirect back to local callback WITH SESSION TOKEN
-        const callbackUrl = `http://localhost:${callbackPort}/auth/callback?` +
-          new URLSearchParams({
-            provider: profile.selected_provider,
-            supabase_jwt: session.access_token,  // Use same parameter name as CLI expects
-            user: JSON.stringify({
-              email: session.user.email || '',
-              name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
-              id: session.user.id
-            })
-          }).toString()
+      const { data: updatedProfile } = await supabase
+        .from('user_profiles')
+        .update({ selected_provider: 'auto' })
+        .eq('id', session.user.id)
+        .select()
+        .single()
 
-        // Try to redirect to CLI callback
-        // Many browsers block HTTPS -> HTTP localhost redirects for security
-        // Show a UI with manual click option as fallback
+      selectedProvider = updatedProfile?.selected_provider || 'auto'
+    }
 
-        // Log the callback URL for debugging
-        console.log('[CLI-REDIRECT] Callback URL:', callbackUrl)
+    // User has provider (existing or newly set), proceed to chat
+    if (source === 'cli' && callbackPort) {
 
-        // First, update the UI to show we're redirecting
-        const redirectUI = document.getElementById('redirect-status')
-        if (redirectUI) {
-          // Create button with onclick handler instead of href
-          redirectUI.innerHTML = `
-            <div style="text-align: center; padding: 20px;">
-              <h2 style="font-size: 28px; font-weight: bold; color: white; margin-bottom: 16px;">
-                ✅ Authentication Successful!
-              </h2>
-              <p style="color: #d1d5db; margin-bottom: 24px; font-size: 18px;">
-                Completing setup with your terminal...
+      // CLI user - redirect back to local callback WITH SESSION TOKEN
+      const callbackUrl = `http://localhost:${callbackPort}/auth/callback?` +
+        new URLSearchParams({
+          provider: selectedProvider,
+          supabase_jwt: session.access_token,  // Use same parameter name as CLI expects
+          user: JSON.stringify({
+            email: session.user.email || '',
+            name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+            id: session.user.id
+          })
+        }).toString()
+
+      // Try to redirect to CLI callback
+      // Many browsers block HTTPS -> HTTP localhost redirects for security
+      // Show a UI with manual click option as fallback
+
+      // Log the callback URL for debugging
+      console.log('[CLI-REDIRECT] Callback URL:', callbackUrl)
+
+      // First, update the UI to show we're redirecting
+      const redirectUI = document.getElementById('redirect-status')
+      if (redirectUI) {
+        // Create button with onclick handler instead of href
+        redirectUI.innerHTML = `
+          <div style="text-align: center; padding: 20px;">
+            <h2 style="font-size: 28px; font-weight: bold; color: white; margin-bottom: 16px;">
+              ✅ Authentication Successful!
+            </h2>
+            <p style="color: #d1d5db; margin-bottom: 24px; font-size: 18px;">
+              Completing setup with your terminal...
+            </p>
+
+            <div style="background: rgba(31, 41, 55, 0.5); border-radius: 12px; padding: 30px; margin-bottom: 24px; border: 2px solid rgba(34, 197, 94, 0.3);">
+              <p style="color: #9ca3af; margin-bottom: 20px; font-size: 16px;">
+                ⚠️ Your browser may be blocking the redirect to localhost.
               </p>
 
-              <div style="background: rgba(31, 41, 55, 0.5); border-radius: 12px; padding: 30px; margin-bottom: 24px; border: 2px solid rgba(34, 197, 94, 0.3);">
-                <p style="color: #9ca3af; margin-bottom: 20px; font-size: 16px;">
-                  ⚠️ Your browser may be blocking the redirect to localhost.
+              <p style="color: white; margin-bottom: 20px; font-size: 18px; font-weight: 600;">
+                👇 Click the button below to complete authentication:
+              </p>
+
+              <button
+                onclick="window.location.href='${callbackUrl}'"
+                style="padding: 16px 32px; background: #22c55e; color: white; font-weight: bold; font-size: 18px; border-radius: 8px; text-decoration: none; cursor: pointer; border: 2px solid #16a34a; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); transition: all 0.2s;"
+                onmouseover="this.style.background='#16a34a'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 8px rgba(0, 0, 0, 0.15)';"
+                onmouseout="this.style.background='#22c55e'; this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px rgba(0, 0, 0, 0.1)';"
+              >
+                🔐 CLICK HERE TO COMPLETE AUTHENTICATION
+              </button>
+
+              <div style="margin-top: 20px;">
+                <p style="color: #9ca3af; font-size: 14px; margin-bottom: 10px;">
+                  If the button doesn't work, copy and paste this URL in a new tab:
                 </p>
-
-                <p style="color: white; margin-bottom: 20px; font-size: 18px; font-weight: 600;">
-                  👇 Click the button below to complete authentication:
-                </p>
-
-                <button
-                  onclick="window.location.href='${callbackUrl}'"
-                  style="padding: 16px 32px; background: #22c55e; color: white; font-weight: bold; font-size: 18px; border-radius: 8px; text-decoration: none; cursor: pointer; border: 2px solid #16a34a; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); transition: all 0.2s;"
-                  onmouseover="this.style.background='#16a34a'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 8px rgba(0, 0, 0, 0.15)';"
-                  onmouseout="this.style.background='#22c55e'; this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px rgba(0, 0, 0, 0.1)';"
-                >
-                  🔐 CLICK HERE TO COMPLETE AUTHENTICATION
-                </button>
-
-                <div style="margin-top: 20px;">
-                  <p style="color: #9ca3af; font-size: 14px; margin-bottom: 10px;">
-                    If the button doesn't work, copy and paste this URL in a new tab:
-                  </p>
-                  <div style="background: rgba(0, 0, 0, 0.3); padding: 12px; border-radius: 6px; word-break: break-all;">
-                    <code style="color: #60a5fa; font-size: 12px; font-family: monospace;">
-                      ${callbackUrl}
-                    </code>
-                  </div>
+                <div style="background: rgba(0, 0, 0, 0.3); padding: 12px; border-radius: 6px; word-break: break-all;">
+                  <code style="color: #60a5fa; font-size: 12px; font-family: monospace;">
+                    ${callbackUrl}
+                  </code>
                 </div>
               </div>
-
-              <p style="color: #6b7280; font-size: 12px;">
-                This will complete authentication with your terminal on port ${callbackPort}
-              </p>
             </div>
-          `
 
-          // Also add a global function as backup
-          ;(window as any).completeCliAuth = () => {
-            console.log('[CLI-REDIRECT] Manual redirect triggered')
-            window.location.href = callbackUrl
-          }
-        }
+            <p style="color: #6b7280; font-size: 12px;">
+              This will complete authentication with your terminal on port ${callbackPort}
+            </p>
+          </div>
+        `
 
-        // Try automatic redirect
-        setTimeout(() => {
+        // Also add a global function as backup
+        ;(window as any).completeCliAuth = () => {
+          console.log('[CLI-REDIRECT] Manual redirect triggered')
           window.location.href = callbackUrl
-        }, 500)
-      } else {
-        router.push('/chat')
+        }
       }
-    } else {
 
-      // No provider selected, go to onboarding
-      router.push(`/onboarding/provider${queryString}`)
+      // Try automatic redirect
+      setTimeout(() => {
+        window.location.href = callbackUrl
+      }, 500)
+    } else {
+      router.push('/chat')
     }
   }
 

@@ -260,16 +260,25 @@ export default function ChatPage() {
 
     console.log('[CHAT] User authenticated:', session.user.email)
 
-    const { data: profile } = await supabase
+    let { data: profile } = await supabase
       .from('user_profiles')
       .select('*')
       .eq('id', session.user.id)
       .single()
 
+    // Auto-set default provider if not selected (new users)
     if (!profile?.selected_provider) {
-      // No provider selected, redirect to onboarding
-      router.push('/onboarding/provider')
-      return
+      console.log('[CHAT] No provider selected, auto-setting default provider: auto')
+
+      // Update profile with default provider
+      const { data: updatedProfile } = await supabase
+        .from('user_profiles')
+        .update({ selected_provider: 'auto' })
+        .eq('id', session.user.id)
+        .select()
+        .single()
+
+      profile = updatedProfile || profile
     }
 
     setUserProfile(profile)

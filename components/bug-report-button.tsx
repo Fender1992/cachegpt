@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import { Bug, X, Send } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { Bug, X, Send, Upload, Image as ImageIcon } from 'lucide-react'
 import Toast from './toast'
+import { supabase } from '@/lib/supabase-client'
 
 interface BugReportButtonProps {
   className?: string
@@ -17,6 +18,11 @@ export default function BugReportButton({ className = '' }: BugReportButtonProps
   const [isOpen, setIsOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [toast, setToast] = useState<ToastNotification | null>(null)
+  const [screenshot, setScreenshot] = useState<File | null>(null)
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null)
+  const [uploadingScreenshot, setUploadingScreenshot] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -26,6 +32,79 @@ export default function BugReportButton({ className = '' }: BugReportButtonProps
     expectedBehavior: '',
     actualBehavior: ''
   })
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setToast({ message: 'Please select an image file', type: 'warning' })
+      return
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      setToast({ message: 'Image must be less than 5MB', type: 'warning' })
+      return
+    }
+
+    setScreenshot(file)
+
+    // Create preview
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      setScreenshotPreview(e.target?.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleRemoveScreenshot = () => {
+    setScreenshot(null)
+    setScreenshotPreview(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const uploadScreenshot = async (): Promise<string | null> => {
+    if (!screenshot) return null
+
+    setUploadingScreenshot(true)
+
+    try {
+      // Generate unique filename
+      const timestamp = Date.now()
+      const fileExt = screenshot.name.split('.').pop()
+      const fileName = `bug-screenshots/${timestamp}-${Math.random().toString(36).substring(7)}.${fileExt}`
+
+      // Upload to Supabase Storage
+      const { data, error } = await supabase.storage
+        .from('bug-attachments')
+        .upload(fileName, screenshot, {
+          cacheControl: '3600',
+          upsert: false
+        })
+
+      if (error) {
+        console.error('Screenshot upload error:', error)
+        throw new Error('Failed to upload screenshot')
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('bug-attachments')
+        .getPublicUrl(fileName)
+
+      return urlData.publicUrl
+    } catch (error) {
+      console.error('Screenshot upload failed:', error)
+      setToast({ message: 'Failed to upload screenshot. Continuing without it.', type: 'warning' })
+      return null
+    } finally {
+      setUploadingScreenshot(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -38,6 +117,12 @@ export default function BugReportButton({ className = '' }: BugReportButtonProps
     setIsSubmitting(true)
 
     try {
+      // Upload screenshot if present
+      let screenshotUrl: string | null = null
+      if (screenshot) {
+        screenshotUrl = await uploadScreenshot()
+      }
+
       const response = await fetch('/api/bugs/report', {
         method: 'POST',
         headers: {
@@ -52,7 +137,8 @@ export default function BugReportButton({ className = '' }: BugReportButtonProps
           stepsToReproduce: formData.stepsToReproduce.trim() || null,
           expectedBehavior: formData.expectedBehavior.trim() || null,
           actualBehavior: formData.actualBehavior.trim() || null,
-          url: window.location.href
+          url: window.location.href,
+          screenshotUrl
         })
       })
 
@@ -75,6 +161,7 @@ export default function BugReportButton({ className = '' }: BugReportButtonProps
         expectedBehavior: '',
         actualBehavior: ''
       })
+      handleRemoveScreenshot()
 
     } catch (error) {
       console.error('Error submitting bug report:', error)
@@ -190,6 +277,49 @@ export default function BugReportButton({ className = '' }: BugReportButtonProps
                     />
                   </div>
 
+                  {/* Screenshot Upload */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Screenshot (Optional)
+                    </label>
+
+                    {!screenshotPreview ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleFileSelect}
+                          className="hidden"
+                          id="screenshot-upload"
+                        />
+                        <label
+                          htmlFor="screenshot-upload"
+                          className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg hover:border-red-500 hover:bg-red-50 cursor-pointer transition"
+                        >
+                          <Upload className="w-4 h-4 text-gray-600" />
+                          <span className="text-sm text-gray-600">Upload Image</span>
+                        </label>
+                        <span className="text-xs text-gray-500">Max 5MB</span>
+                      </div>
+                    ) : (
+                      <div className="relative inline-block">
+                        <img
+                          src={screenshotPreview}
+                          alt="Screenshot preview"
+                          className="max-w-full h-32 object-contain border border-gray-300 rounded-lg"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleRemoveScreenshot}
+                          className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1 hover:bg-red-700 transition"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -228,13 +358,13 @@ export default function BugReportButton({ className = '' }: BugReportButtonProps
                   </button>
                   <button
                     type="submit"
-                    disabled={!formData.title.trim() || !formData.description.trim() || isSubmitting}
+                    disabled={!formData.title.trim() || !formData.description.trim() || isSubmitting || uploadingScreenshot}
                     className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
-                    {isSubmitting ? (
+                    {isSubmitting || uploadingScreenshot ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Submitting...
+                        {uploadingScreenshot ? 'Uploading...' : 'Submitting...'}
                       </>
                     ) : (
                       <>
