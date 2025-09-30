@@ -24,6 +24,7 @@ import {
   getQualityScore,
   analyzeResponse
 } from '@/lib/response-validator';
+import { sanitizeResponse, hasExecutionArtifacts } from '@/lib/response-sanitizer';
 
 // Lazy load ranking modules to avoid build-time initialization
 const getTierCache = async () => {
@@ -698,13 +699,12 @@ export async function POST(request: NextRequest) {
       const costSaved = 0.0002; // Estimate based on typical API costs
 
       // Sanitize cached response
-      let sanitizedCachedResponse = cached.response
-        .replace(/<\|python_end\|>/g, '')
-        .replace(/<\|python_start\|>/g, '')
-        .replace(/<\|execution\|>/g, '')
-        .replace(/<\|end_execution\|>/g, '')
-        .replace(/```python\s*\n```/g, '')
-        .trim()
+      const sanitizedCachedResponse = sanitizeResponse(cached.response)
+
+      // Log if artifacts were removed
+      if (hasExecutionArtifacts(cached.response)) {
+        console.log('[SANITIZE] Cleaned cached response artifacts')
+      }
 
       // Analyze cached response quality
       const userQuery = messages[messages.length - 1]?.content || ''
@@ -798,13 +798,12 @@ export async function POST(request: NextRequest) {
     });
 
     // Sanitize response to remove execution tags and artifacts
-    let sanitizedResponse = result.response
-      .replace(/<\|python_end\|>/g, '')
-      .replace(/<\|python_start\|>/g, '')
-      .replace(/<\|execution\|>/g, '')
-      .replace(/<\|end_execution\|>/g, '')
-      .replace(/```python\s*\n```/g, '') // Remove empty code blocks
-      .trim()
+    const sanitizedResponse = sanitizeResponse(result.response)
+
+    // Log if artifacts were removed
+    if (hasExecutionArtifacts(result.response)) {
+      console.log('[SANITIZE] Cleaned response artifacts from', result.provider)
+    }
 
     // Analyze response quality
     const userQuery = messages[messages.length - 1]?.content || ''
