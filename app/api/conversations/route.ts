@@ -12,9 +12,8 @@ export async function GET(request: NextRequest) {
     const platform = searchParams.get('platform') || null
 
     // Create Supabase client with user session
-    const cookieStore = await cookies()
-    console.log('[CONVERSATIONS API] Cookies available:', cookieStore.getAll().map(c => c.name))
-    const supabase = createRouteHandlerClient({ cookies: async () => cookieStore })
+    const cookieStore = cookies()
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
 
     // Get current authenticated user
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
@@ -25,8 +24,13 @@ export async function GET(request: NextRequest) {
       error: sessionError?.message
     })
 
-    if (sessionError || !session?.user) {
-      console.error('[CONVERSATIONS API] Auth failed:', sessionError?.message || 'No session')
+    if (sessionError) {
+      console.error('[CONVERSATIONS API] Session error:', sessionError)
+      return NextResponse.json({ error: 'Unauthorized - Please log in', details: sessionError.message }, { status: 401 })
+    }
+
+    if (!session?.user) {
+      console.error('[CONVERSATIONS API] No session found')
       return NextResponse.json({ error: 'Unauthorized - Please log in' }, { status: 401 })
     }
 
@@ -52,8 +56,12 @@ export async function GET(request: NextRequest) {
       total: conversations?.length || 0
     })
   } catch (error) {
+    console.error('[CONVERSATIONS API] Exception:', error)
     logError('Error in conversations API', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
   }
 }
 
@@ -63,8 +71,8 @@ export async function POST(request: NextRequest) {
     const { title, provider, model, platform = 'web' } = await request.json()
 
     // Create Supabase client with user session
-    const cookieStore = await cookies()
-    const supabase = createRouteHandlerClient({ cookies: async () => cookieStore })
+    const cookieStore = cookies()
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
 
     // Get current authenticated user
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
