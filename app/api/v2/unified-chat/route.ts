@@ -28,6 +28,26 @@ import { sanitizeResponse, hasExecutionArtifacts } from '@/lib/response-sanitize
 import { enrichContext, generateSystemContext } from '@/lib/context-enrichment';
 import { performContextualSearch } from '@/lib/web-search';
 
+/**
+ * Cache Version Management
+ *
+ * Bump this version when:
+ * - Context enrichment system changes (date format, new data sources)
+ * - System prompts are updated
+ * - Response format changes
+ * - Model behavior expectations change
+ *
+ * This creates separate cache namespaces, preventing stale responses with:
+ * - Incorrect dates
+ * - Missing context enrichment
+ * - Outdated system instructions
+ *
+ * Version History:
+ * - v1 (implicit): Pre-context enrichment (before v11.4.0)
+ * - v2-enriched: Context enrichment with date/time + web search (v11.4.0+)
+ */
+const CACHE_VERSION = 'v2-enriched';
+
 // Lazy load ranking modules to avoid build-time initialization
 const getTierCache = async () => {
   const { tierCache } = await import('@/lib/tier-based-cache');
@@ -720,9 +740,10 @@ export async function POST(request: NextRequest) {
     const predictiveCacheInstance = await getPredictiveCache();
     await predictiveCacheInstance.trackPredictionAccuracy(userMessage);
 
-    // Check cache first using tier-based system
-    console.log('[CACHE] Checking for cached response...');
-    const cached = await findCachedResponse(userMessage, cacheModel, cacheProvider);
+    // Check cache first using tier-based system (with version to avoid stale entries)
+    console.log(`[CACHE] Checking for cached response (version: ${CACHE_VERSION})...`);
+    const versionedCacheModel = `${cacheModel}:${CACHE_VERSION}`;
+    const cached = await findCachedResponse(userMessage, versionedCacheModel, cacheProvider);
 
     if (cached) {
       console.log('[CACHE] ✅ Using cached response');
@@ -817,11 +838,11 @@ export async function POST(request: NextRequest) {
       console.log('[SANITIZE] Cleaned response artifacts from', result.provider)
     }
 
-    // Store in cache (original response - will be sanitized on retrieval)
+    // Store in cache with version (original response - will be sanitized on retrieval)
     await storeInCache(
       userMessage,
       result.response,
-      cacheModel,
+      versionedCacheModel, // Use versioned model to separate old/new cache entries
       cacheProvider,
       userId,
       responseTime
