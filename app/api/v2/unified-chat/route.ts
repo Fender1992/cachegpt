@@ -697,13 +697,22 @@ export async function POST(request: NextRequest) {
       const timeSaved = Math.round(Math.random() * 800 + 200); // Estimate 200-1000ms saved
       const costSaved = 0.0002; // Estimate based on typical API costs
 
+      // Sanitize cached response
+      let sanitizedCachedResponse = cached.response
+        .replace(/<\|python_end\|>/g, '')
+        .replace(/<\|python_start\|>/g, '')
+        .replace(/<\|execution\|>/g, '')
+        .replace(/<\|end_execution\|>/g, '')
+        .replace(/```python\s*\n```/g, '')
+        .trim()
+
       // Analyze cached response quality
       const userQuery = messages[messages.length - 1]?.content || ''
-      const cachedQualityScore = getQualityScore(cached.response, userQuery)
-      const cachedMetrics = analyzeResponse(cached.response)
+      const cachedQualityScore = getQualityScore(sanitizedCachedResponse, userQuery)
+      const cachedMetrics = analyzeResponse(sanitizedCachedResponse)
 
       return NextResponse.json({
-        response: cached.response,
+        response: sanitizedCachedResponse,
         metadata: {
           cached: true,
           cacheHit: true, // Add both for compatibility
@@ -716,7 +725,7 @@ export async function POST(request: NextRequest) {
           costSaved: costSaved,
           validation: {
             qualityScore: cachedQualityScore,
-            responseLength: cached.response.length,
+            responseLength: sanitizedCachedResponse.length,
             readTime: cachedMetrics.estimatedReadTime,
             wordCount: cachedMetrics.wordCount
           }
@@ -788,13 +797,22 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // Sanitize response to remove execution tags and artifacts
+    let sanitizedResponse = result.response
+      .replace(/<\|python_end\|>/g, '')
+      .replace(/<\|python_start\|>/g, '')
+      .replace(/<\|execution\|>/g, '')
+      .replace(/<\|end_execution\|>/g, '')
+      .replace(/```python\s*\n```/g, '') // Remove empty code blocks
+      .trim()
+
     // Analyze response quality
     const userQuery = messages[messages.length - 1]?.content || ''
-    const qualityScore = getQualityScore(result.response, userQuery)
-    const metrics = analyzeResponse(result.response)
+    const qualityScore = getQualityScore(sanitizedResponse, userQuery)
+    const metrics = analyzeResponse(sanitizedResponse)
 
     return NextResponse.json({
-      response: result.response,
+      response: sanitizedResponse,
       provider: result.provider,
       model: finalModel,
       metadata: {
@@ -805,7 +823,7 @@ export async function POST(request: NextRequest) {
         cost: usingFreeProviders ? 0 : 0.001, // Rough estimate
         validation: {
           qualityScore,
-          responseLength: result.response.length,
+          responseLength: sanitizedResponse.length,
           readTime: metrics.estimatedReadTime,
           wordCount: metrics.wordCount
         }
