@@ -110,7 +110,7 @@ export default function AdminBugsPage() {
       if (priorityFilter) params.append('priority', priorityFilter)
       if (categoryFilter) params.append('category', categoryFilter)
 
-      const response = await fetch(`/api/bugs/report?${params}`)
+      const response = await fetch(`/api/bugs/manage?${params}`)
 
       if (!response.ok) {
         throw new Error('Failed to load bugs')
