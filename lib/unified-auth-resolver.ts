@@ -145,7 +145,8 @@ async function validateBearerToken(token: string): Promise<UnifiedSession | null
  */
 async function validateCookieSession(): Promise<UnifiedSession | null> {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const cookieStore = cookies()
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
     const { data: { session }, error } = await supabase.auth.getSession();
 
     if (error) {

@@ -10,7 +10,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { rankingManager } from '@/lib/ranking-features-manager';
+
+// Lazy load to avoid build-time initialization
+const getRankingManager = async () => {
+  const { rankingManager } = await import('@/lib/ranking-features-manager');
+  return rankingManager;
+};
 
 /**
  * GET /api/ranking/features - Get all ranking features and their status
@@ -19,8 +24,9 @@ export async function GET(request: NextRequest) {
   try {
     console.log('[RANKING-FEATURES] Fetching feature status...');
 
-    const features = await rankingManager.getFeatures();
-    const metrics = await rankingManager.getCacheMetrics();
+    const manager = await getRankingManager();
+    const features = await manager.getFeatures();
+    const metrics = await manager.getCacheMetrics();
 
     const response = {
       features,
@@ -77,7 +83,8 @@ export async function PUT(request: NextRequest) {
 
     console.log(`[RANKING-FEATURES] Updating feature ${featureName}: enabled=${isEnabled}`);
 
-    const success = await rankingManager.updateFeature(featureName, isEnabled, config);
+    const manager = await getRankingManager();
+    const success = await manager.updateFeature(featureName, isEnabled, config);
 
     if (!success) {
       return NextResponse.json({
@@ -86,7 +93,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Get updated feature status
-    const features = await rankingManager.getFeatures();
+    const features = await manager.getFeatures();
     const updatedFeature = features.find(f => f.feature_name === featureName);
 
     return NextResponse.json({
@@ -111,11 +118,12 @@ export async function POST(request: NextRequest) {
   try {
     console.log('[RANKING-FEATURES] Auto-enabling features...');
 
-    await rankingManager.autoEnableFeatures();
+    const manager = await getRankingManager();
+    await manager.autoEnableFeatures();
 
     // Get updated feature status
-    const features = await rankingManager.getFeatures();
-    const metrics = await rankingManager.getCacheMetrics();
+    const features = await manager.getFeatures();
+    const metrics = await manager.getCacheMetrics();
 
     return NextResponse.json({
       success: true,

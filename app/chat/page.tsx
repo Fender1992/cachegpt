@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
 import { Send, Bot, Brain, Sparkles, Zap, Settings, LogOut, History } from 'lucide-react'
 import BugReportButton from '@/components/bug-report-button'
-import ModelSelector from '@/components/model-selector'
+import ProviderSelector from '@/components/provider-selector'
 
 const providerIcons = {
   chatgpt: Bot,
@@ -35,8 +35,7 @@ export default function ChatPage() {
   const [conversations, setConversations] = useState<any[]>([])
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
   const [showHistory, setShowHistory] = useState(false)
-  const [selectedProvider, setSelectedProvider] = useState('groq')
-  const [selectedModel, setSelectedModel] = useState('llama-3.3-70b-versatile')
+  const [selectedProvider, setSelectedProvider] = useState('auto')
   const [isLoading, setIsLoading] = useState(false)
   const [userProfile, setUserProfile] = useState<any>(null)
   const [usingPremium, setUsingPremium] = useState(false)
@@ -52,22 +51,8 @@ export default function ChatPage() {
   }, [])
 
   const loadUserPreferences = async () => {
-    try {
-      const response = await fetch('/api/user/model-preferences?platform=web')
-      if (response.ok) {
-        const data = await response.json()
-        const preferences = data.preferences || []
-
-        // Set the first available preference or keep defaults
-        if (preferences.length > 0) {
-          const pref = preferences[0]
-          setSelectedProvider(pref.provider)
-          setSelectedModel(pref.preferred_model)
-        }
-      }
-    } catch (error) {
-      console.error('Error loading user preferences:', error)
-    }
+    // No longer loading model preferences - system auto-selects best models
+    // Provider selection handled by ProviderSelector component
   }
 
   const loadConversations = async () => {
@@ -224,8 +209,6 @@ export default function ChatPage() {
     const newUserMessage: ChatMessage = {
       role: 'user',
       content: userMessage,
-      provider: selectedProvider,
-      model: selectedModel,
       created_at: new Date().toISOString()
     }
 
@@ -246,8 +229,7 @@ export default function ChatPage() {
         },
         body: JSON.stringify({
           messages: [...messages, newUserMessage],
-          provider: selectedProvider,
-          model: selectedModel
+          preferredProvider: selectedProvider === 'auto' ? undefined : selectedProvider
         })
       })
 
@@ -261,8 +243,8 @@ export default function ChatPage() {
       const assistantMessage: ChatMessage = {
         role: 'assistant',
         content: data.response,
-        provider: data.metadata?.provider || selectedProvider,
-        model: selectedModel,
+        provider: data.provider,
+        model: data.model,
         created_at: new Date().toISOString()
       }
 
@@ -275,8 +257,6 @@ export default function ChatPage() {
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: 'Sorry, I encountered an error. Please try again.',
-        provider: selectedProvider,
-        model: selectedModel,
         created_at: new Date().toISOString()
       }])
     } finally {
@@ -284,9 +264,8 @@ export default function ChatPage() {
     }
   }
 
-  const handleModelChange = (provider: string, model: string) => {
+  const handleProviderChange = (provider: string) => {
     setSelectedProvider(provider)
-    setSelectedModel(model)
   }
 
   const startNewConversation = () => {
@@ -333,16 +312,11 @@ export default function ChatPage() {
             <div>
               <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">CacheGPT</h1>
               <div className="flex items-center gap-2">
-                <ModelSelector
+                <ProviderSelector
                   currentProvider={selectedProvider}
-                  currentModel={selectedModel}
-                  onModelChange={handleModelChange}
-                  platform="web"
-                  className="hidden sm:block w-64"
+                  onProviderChange={handleProviderChange}
+                  className="hidden sm:block"
                 />
-                <div className="text-xs text-gray-600 dark:text-gray-400 sm:hidden">
-                  {providerNames[selectedProvider as keyof typeof providerNames]}
-                </div>
               </div>
             </div>
           </div>
@@ -367,12 +341,9 @@ export default function ChatPage() {
               )}
             </button>
             <div className="sm:hidden">
-              <ModelSelector
+              <ProviderSelector
                 currentProvider={selectedProvider}
-                currentModel={selectedModel}
-                onModelChange={handleModelChange}
-                platform="web"
-                className="w-32"
+                onProviderChange={handleProviderChange}
               />
             </div>
             <button

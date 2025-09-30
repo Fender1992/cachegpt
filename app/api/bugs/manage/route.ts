@@ -12,7 +12,8 @@ export async function GET(request: NextRequest) {
       return authResult.response
     }
 
-    const supabase = createRouteHandlerClient({ cookies })
+    const cookieStore = cookies()
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
 
     // Parse query parameters for filtering
     const { searchParams } = new URL(request.url)
@@ -76,7 +77,8 @@ export async function PUT(request: NextRequest) {
       return authResult.response
     }
 
-    const supabase = createRouteHandlerClient({ cookies })
+    const cookieStore = cookies()
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
     const body = await request.json()
     const { bugId, updates } = body
 
@@ -147,7 +149,8 @@ export async function DELETE(request: NextRequest) {
       return authResult.response
     }
 
-    const supabase = createRouteHandlerClient({ cookies })
+    const cookieStore = cookies()
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
     const { searchParams } = new URL(request.url)
     const bugId = searchParams.get('id')
 

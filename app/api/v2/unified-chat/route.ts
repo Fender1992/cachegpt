@@ -20,9 +20,22 @@ import {
   createSessionErrorMessage
 } from '@/lib/unified-auth-resolver';
 import { createClient } from '@supabase/supabase-js';
-import { tierCache } from '@/lib/tier-based-cache';
-import { predictiveCache } from '@/lib/predictive-cache';
-import { rankingManager } from '@/lib/ranking-features-manager';
+
+// Lazy load ranking modules to avoid build-time initialization
+const getTierCache = async () => {
+  const { tierCache } = await import('@/lib/tier-based-cache');
+  return tierCache;
+};
+
+const getPredictiveCache = async () => {
+  const { predictiveCache } = await import('@/lib/predictive-cache');
+  return predictiveCache;
+};
+
+const getRankingManager = async () => {
+  const { rankingManager } = await import('@/lib/ranking-features-manager');
+  return rankingManager;
+};
 
 /**
  * Simple embedding generation for cache similarity
@@ -76,8 +89,10 @@ async function findCachedResponse(
   threshold: number = 0.85
 ): Promise<any> {
   try {
+    const tierCacheInstance = await getTierCache();
+
     // Use the new tier-based cache system
-    const cached = await tierCache.findSimilarResponse(query, model, provider, {
+    const cached = await tierCacheInstance.findSimilarResponse(query, model, provider, {
       similarityThreshold: threshold,
       maxResults: 50,
       tierPriority: ['hot', 'warm', 'cool', 'cold', 'frozen'],
@@ -272,8 +287,10 @@ async function storeInCache(
   responseTimeMs: number
 ): Promise<void> {
   try {
+    const tierCacheInstance = await getTierCache();
+
     // Use the new tier-based cache system
-    const responseId = await tierCache.storeResponse(
+    const responseId = await tierCacheInstance.storeResponse(
       query,
       response,
       model,
@@ -346,7 +363,8 @@ async function storeInCache(
 async function callPremiumProvider(
   messages: any[],
   provider: string,
-  apiKey: string
+  apiKey: string,
+  model: string
 ): Promise<{ response: string; provider: string }> {
   console.log(`[PREMIUM-PROVIDER] Calling ${provider} with user's API key`);
 
@@ -358,23 +376,25 @@ async function callPremiumProvider(
     let body: any;
 
     switch (provider) {
+      case 'openai':
       case 'chatgpt':
         endpoint = 'https://api.openai.com/v1/chat/completions';
         headers['Authorization'] = `Bearer ${apiKey}`;
         body = {
-          model: 'gpt-4-turbo-preview',
+          model: model,  // Use the auto-selected best model
           messages,
           temperature: 0.7,
           max_tokens: 2000
         };
         break;
 
+      case 'anthropic':
       case 'claude':
         endpoint = 'https://api.anthropic.com/v1/messages';
         headers['x-api-key'] = apiKey;
         headers['anthropic-version'] = '2023-06-01';
         body = {
-          model: 'claude-3-opus-20240229',
+          model: model,  // Use the auto-selected best model
           messages: messages.map(m => ({
             role: m.role === 'assistant' ? 'assistant' : 'user',
             content: m.content
@@ -383,8 +403,10 @@ async function callPremiumProvider(
         };
         break;
 
+      case 'google':
       case 'gemini':
-        endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+        // Extract model name from full model ID (e.g., "gemini-2.0-flash-exp" -> "gemini-2.0-flash-exp")
+        endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
         body = {
           contents: messages.map(m => ({
             role: m.role === 'assistant' ? 'model' : 'user',
@@ -397,7 +419,7 @@ async function callPremiumProvider(
         endpoint = 'https://api.perplexity.ai/chat/completions';
         headers['Authorization'] = `Bearer ${apiKey}`;
         body = {
-          model: 'pplx-70b-online',
+          model: model,  // Use the auto-selected best model
           messages,
           temperature: 0.7
         };
@@ -450,19 +472,19 @@ async function callFreeProvider(messages: any[]): Promise<{ response: string; pr
       name: 'groq',
       apiKey: process.env.GROQ_API_KEY,
       endpoint: 'https://api.groq.com/openai/v1/chat/completions',
-      model: 'llama-3.3-70b-versatile'  // Updated to latest Llama 3.3 70B
+      model: 'llama-3.3-70b-versatile'  // Llama 3.3 70B - Latest from Meta (Sep 2025), 6x faster with speculative decoding
     },
     {
       name: 'openrouter',
       apiKey: process.env.OPENROUTER_API_KEY,
       endpoint: 'https://openrouter.ai/api/v1/chat/completions',
-      model: 'meta-llama/llama-4-scout:free'  // Updated to Llama 4 Scout (free)
+      model: 'meta-llama/llama-4-maverick:free'  // Llama 4 Maverick 17B (128 experts, 400B total) - Released April 2025, MoE architecture, 1M token context
     },
     {
       name: 'huggingface',
       apiKey: process.env.HUGGINGFACE_API_KEY,
-      endpoint: 'https://api-inference.huggingface.co/models/Qwen/Qwen3-8B',
-      model: 'Qwen/Qwen3-8B'  // Updated to latest Qwen3 8B model
+      endpoint: 'https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1',
+      model: 'mistralai/Mixtral-8x7B-Instruct-v0.1'  // Mixtral 8x7B (stable fallback)
     }
   ];
 
@@ -533,20 +555,35 @@ async function callFreeProvider(messages: any[]): Promise<{ response: string; pr
 }
 
 /**
+ * Get best model for a provider
+ */
+function getBestModelForProvider(provider: string): string {
+  const bestModels: Record<string, string> = {
+    'openai': 'gpt-5',  // GPT-5 (latest)
+    'anthropic': 'claude-sonnet-4-5-20250929',  // Claude Sonnet 4.5 (latest)
+    'google': 'gemini-2.0-flash-exp',  // Gemini 2.0 Flash
+    'perplexity': 'llama-3.1-sonar-huge-128k-online'  // Perplexity with online search
+  };
+
+  return bestModels[provider] || 'gpt-5';
+}
+
+/**
  * Main chat endpoint - Anonymous access allowed
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { messages, provider, model, authMethod } = body;
+    const { messages, preferredProvider: requestedProvider, authMethod } = body;
 
-    console.log('[UNIFIED-CHAT] Request:', { provider, model, authMethod, messageCount: messages?.length });
+    console.log('[UNIFIED-CHAT] Request:', { requestedProvider, authMethod, messageCount: messages?.length });
 
     // Try to authenticate user, but allow anonymous access
     let userId: string | null = null;
     let session: UnifiedSession | null = null;
     let userApiKey: string | null = null;
-    let preferredProvider: string = 'auto';
+    let selectedProvider: string = requestedProvider || 'auto';
+    let selectedModel: string | null = null;
 
     const authResult = await resolveAuthentication(request);
     if (!isAuthError(authResult)) {
@@ -578,18 +615,34 @@ export async function POST(request: NextRequest) {
             .not('api_key', 'is', null);
 
           if (credentials && credentials.length > 0) {
-            // Use the first available API key or the one matching selected provider
-            const selectedCred = credentials.find(c => c.provider === profile.selected_provider) || credentials[0];
+            // If user specified a provider, use that; otherwise use first available
+            const providerMap: Record<string, string> = {
+              'openai': 'chatgpt',
+              'anthropic': 'claude',
+              'google': 'gemini'
+            };
+
+            const dbProviderName = providerMap[requestedProvider] || requestedProvider;
+            const selectedCred = credentials.find(c => c.provider === dbProviderName) || credentials[0];
+
             if (selectedCred) {
               userApiKey = atob(selectedCred.api_key); // Decode from base64
-              preferredProvider = selectedCred.provider;
-              console.log(`[UNIFIED-CHAT] Using user's ${preferredProvider} API key`);
+              // Map back to our internal provider names
+              const reverseMap: Record<string, string> = {
+                'chatgpt': 'openai',
+                'claude': 'anthropic',
+                'gemini': 'google'
+              };
+              selectedProvider = reverseMap[selectedCred.provider] || selectedCred.provider;
+              selectedModel = getBestModelForProvider(selectedProvider);
+              console.log(`[UNIFIED-CHAT] Using user's ${selectedProvider} API key with model ${selectedModel}`);
             }
           }
         }
       }
     } else {
-      console.log('[UNIFIED-CHAT] Anonymous user access');
+      console.log('[UNIFIED-CHAT] Anonymous user - using free providers');
+      selectedProvider = 'auto';
     }
 
     const userMessage = messages[messages.length - 1]?.content;
@@ -599,12 +652,16 @@ export async function POST(request: NextRequest) {
 
     const startTime = Date.now();
 
+    // Determine if using free providers or user's API key
+    const usingFreeProviders = !userApiKey || selectedProvider === 'auto';
+
     // Use consistent cache parameters
-    const cacheModel = userApiKey ? `${preferredProvider}-model` : 'free-model';
-    const cacheProvider = userApiKey ? preferredProvider : 'mixed';
+    const cacheModel = usingFreeProviders ? 'free-model' : `${selectedProvider}-model`;
+    const cacheProvider = usingFreeProviders ? 'mixed' : selectedProvider;
 
     // Track prediction accuracy
-    await predictiveCache.trackPredictionAccuracy(userMessage);
+    const predictiveCacheInstance = await getPredictiveCache();
+    await predictiveCacheInstance.trackPredictionAccuracy(userMessage);
 
     // Check cache first using tier-based system
     console.log('[CACHE] Checking for cached response...');
@@ -654,20 +711,24 @@ export async function POST(request: NextRequest) {
 
     // No cache hit, call appropriate provider
     let result: { response: string; provider: string };
+    let finalModel: string;
 
-    if (userApiKey && preferredProvider !== 'auto') {
+    if (usingFreeProviders) {
+      // Use free providers (auto-rotates between Groq, OpenRouter, HuggingFace)
+      console.log('[CHAT] No cache hit, calling free providers...');
+      result = await callFreeProvider(messages);
+      finalModel = 'free-model';  // Don't expose which specific free model was used
+    } else {
       // Use premium provider with user's API key
-      console.log('[CHAT] No cache hit, calling premium provider with user API key...');
+      console.log(`[CHAT] No cache hit, calling ${selectedProvider} with user API key and model ${selectedModel}...`);
       try {
-        result = await callPremiumProvider(messages, preferredProvider, userApiKey);
+        result = await callPremiumProvider(messages, selectedProvider, userApiKey!, selectedModel!);
+        finalModel = selectedModel!;
       } catch (error) {
         console.error('[CHAT] Premium provider failed, falling back to free providers');
         result = await callFreeProvider(messages);
+        finalModel = 'free-model';
       }
-    } else {
-      // Use free providers
-      console.log('[CHAT] No cache hit, calling free providers...');
-      result = await callFreeProvider(messages);
     }
 
     const responseTime = Date.now() - startTime;
@@ -688,7 +749,7 @@ export async function POST(request: NextRequest) {
       messages,
       result.response,
       result.provider,
-      model || cacheModel,
+      finalModel,
       responseTime,
       'web' // Can be enhanced to detect platform
     );
@@ -714,10 +775,14 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       response: result.response,
+      provider: result.provider,
+      model: finalModel,
       metadata: {
         cached: false,
         provider: result.provider,
-        responseTime
+        model: finalModel,
+        responseTime,
+        cost: usingFreeProviders ? 0 : 0.001 // Rough estimate
       }
     });
 

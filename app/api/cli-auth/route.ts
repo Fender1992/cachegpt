@@ -8,7 +8,8 @@ export async function POST(request: Request) {
   try {
     const { email, password } = await request.json()
 
-    const supabase = createRouteHandlerClient({ cookies })
+    const cookieStore = cookies()
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
 
     // Sign in with email/password
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -56,7 +57,8 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const cookieStore = cookies()
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
 
     // Check current session
     const { data: { session }, error } = await supabase.auth.getSession()

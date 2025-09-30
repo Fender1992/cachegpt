@@ -18,7 +18,8 @@ export interface AdminSession {
  * Returns admin session if user is authenticated admin, otherwise throws/redirects
  */
 export async function verifyAdminAuth(): Promise<AdminSession> {
-  const supabase = createRouteHandlerClient({ cookies })
+  const cookieStore = cookies()
+  const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
 
   const { data: { session }, error } = await supabase.auth.getSession()
 

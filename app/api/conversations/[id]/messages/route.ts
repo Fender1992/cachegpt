@@ -12,7 +12,8 @@ export async function GET(
     const conversationId = id
 
     // Create Supabase client with user session
-    const supabase = createRouteHandlerClient({ cookies })
+    const cookieStore = cookies()
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
 
     // Get current authenticated user
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
@@ -72,7 +73,8 @@ export async function POST(
     const { role, content, provider, model, tokens_used, response_time_ms, cost, platform = 'web' } = await request.json()
 
     // Create Supabase client with user session
-    const supabase = createRouteHandlerClient({ cookies })
+    const cookieStore = cookies()
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
 
     // Get current authenticated user
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()

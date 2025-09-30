@@ -96,17 +96,7 @@ export default function SupportPage() {
 
       <div className="max-w-7xl mx-auto px-6 py-12">
         {/* Quick Links */}
-        <div className="grid md:grid-cols-3 gap-6 mb-12">
-          <Link href="/docs" className="bg-white rounded-lg p-6 shadow-sm border hover:shadow-md transition">
-            <div className="flex items-center mb-3">
-              <Book className="w-6 h-6 text-purple-600 mr-3" />
-              <h3 className="text-lg font-semibold">Documentation</h3>
-            </div>
-            <p className="text-gray-600 text-sm">
-              Comprehensive guides, API reference, and tutorials.
-            </p>
-          </Link>
-
+        <div className="grid md:grid-cols-2 gap-6 mb-12">
           <a href="mailto:support@cachegpt.io" className="bg-white rounded-lg p-6 shadow-sm border hover:shadow-md transition">
             <div className="flex items-center mb-3">
               <Mail className="w-6 h-6 text-purple-600 mr-3" />

@@ -10,7 +10,8 @@ export async function GET(request: NextRequest) {
     const freeOnly = searchParams.get('free_only') === 'true'
 
     // Create Supabase client (public read access to provider models)
-    const supabase = createRouteHandlerClient({ cookies })
+    const cookieStore = cookies()
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
 
     // Build query
     let query = supabase
@@ -64,7 +65,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Create Supabase client with user session
-    const supabase = createRouteHandlerClient({ cookies })
+    const cookieStore = cookies()
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
 
     // Get current authenticated user
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()

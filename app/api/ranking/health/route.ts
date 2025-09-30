@@ -10,9 +10,22 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { rankingManager } from '@/lib/ranking-features-manager';
-import { tierCache } from '@/lib/tier-based-cache';
-import { predictiveCache } from '@/lib/predictive-cache';
+
+// Lazy load to avoid build-time initialization
+const getRankingManager = async () => {
+  const { rankingManager } = await import('@/lib/ranking-features-manager');
+  return rankingManager;
+};
+
+const getTierCache = async () => {
+  const { tierCache } = await import('@/lib/tier-based-cache');
+  return tierCache;
+};
+
+const getPredictiveCache = async () => {
+  const { predictiveCache } = await import('@/lib/predictive-cache');
+  return predictiveCache;
+};
 
 /**
  * GET /api/ranking/health - Get ranking system health status
@@ -21,13 +34,17 @@ export async function GET(request: NextRequest) {
   try {
     console.log('[RANKING-HEALTH] Checking system health...');
 
+    const manager = await getRankingManager();
+    const tierCacheInstance = await getTierCache();
+    const predictiveCacheInstance = await getPredictiveCache();
+
     // Get comprehensive health check
-    const health = await rankingManager.getSystemHealth();
+    const health = await manager.getSystemHealth();
 
     // Get additional metrics
     const [tierStats, predictionMetrics] = await Promise.all([
-      tierCache.getTierStatistics(),
-      predictiveCache.getPredictionMetrics()
+      tierCacheInstance.getTierStatistics(),
+      predictiveCacheInstance.getPredictionMetrics()
     ]);
 
     const response = {
@@ -87,25 +104,29 @@ export async function POST(request: NextRequest) {
 
     let result: any = {};
 
+    const manager = await getRankingManager();
+    const tierCacheInstance = await getTierCache();
+
     switch (action) {
       case 'rebalance':
-        await tierCache.rebalanceTiers();
+        await tierCacheInstance.rebalanceTiers();
         result = { message: 'Tier rebalancing completed' };
         break;
 
       case 'auto-enable':
-        await rankingManager.autoEnableFeatures();
+        await manager.autoEnableFeatures();
         result = { message: 'Auto-feature enablement completed' };
         break;
 
       case 'archive':
-        const archivedCount = await tierCache.archiveOldResponses();
+        const archivedCount = await tierCacheInstance.archiveOldResponses();
         result = { message: `Archived ${archivedCount} old responses` };
         break;
 
       case 'predict':
-        const predictions = await predictiveCache.predictLikelyQueries();
-        const prewarmedCount = await predictiveCache.prewarmCache(predictions);
+        const predictiveCachePredict = await getPredictiveCache();
+        const predictions = await predictiveCachePredict.predictLikelyQueries();
+        const prewarmedCount = await predictiveCachePredict.prewarmCache(predictions);
         result = {
           message: `Generated ${predictions.length} predictions, prewarmed ${prewarmedCount} queries`,
           predictions: predictions.slice(0, 5) // Return top 5 predictions
@@ -113,7 +134,8 @@ export async function POST(request: NextRequest) {
         break;
 
       case 'cleanup':
-        predictiveCache.cleanupPredictionHistory();
+        const predictiveCacheCleanup = await getPredictiveCache();
+        predictiveCacheCleanup.cleanupPredictionHistory();
         result = { message: 'Prediction history cleaned up' };
         break;
 

@@ -67,7 +67,8 @@ export function getSupabaseService(): SupabaseClient {
  */
 export function getSupabaseRouteHandler() {
   try {
-    return createRouteHandlerClient({ cookies });
+    const cookieStore = cookies();
+    return createRouteHandlerClient({ cookies: () => cookieStore });
   } catch (error) {
     logger.error('Failed to create route handler client', error);
     throw error;

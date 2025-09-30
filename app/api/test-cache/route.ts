@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { tierCache } from '@/lib/tier-based-cache';
+
+// Lazy load to avoid build-time initialization
+const getTierCache = async () => {
+  const { tierCache } = await import('@/lib/tier-based-cache');
+  return tierCache;
+};
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,8 +15,10 @@ export async function POST(request: NextRequest) {
 
     console.log('[TEST-CACHE] Testing with query:', query);
 
+    const tierCacheInstance = await getTierCache();
+
     // Check for cached response
-    const cachedMatch = await tierCache.findSimilarResponse(
+    const cachedMatch = await tierCacheInstance.findSimilarResponse(
       query,
       'free-model',
       'mixed',
@@ -32,7 +39,7 @@ export async function POST(request: NextRequest) {
 
     // Cache the response
     console.log('[TEST-CACHE] Caching new response...');
-    await tierCache.storeResponse(
+    await tierCacheInstance.storeResponse(
       query,
       testResponse,
       'free-model',

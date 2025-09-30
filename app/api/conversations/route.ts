@@ -11,7 +11,8 @@ export async function GET(request: NextRequest) {
     const platform = searchParams.get('platform') || null
 
     // Create Supabase client with user session
-    const supabase = createRouteHandlerClient({ cookies })
+    const cookieStore = cookies()
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
 
     // Get current authenticated user
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
@@ -53,7 +54,8 @@ export async function POST(request: NextRequest) {
     const { title, provider, model, platform = 'web' } = await request.json()
 
     // Create Supabase client with user session
-    const supabase = createRouteHandlerClient({ cookies })
+    const cookieStore = cookies()
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
 
     // Get current authenticated user
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
