@@ -48,6 +48,19 @@ import { performContextualSearch } from '@/lib/web-search';
  */
 const CACHE_VERSION = 'v2-enriched';
 
+/**
+ * Cache TTL Management
+ *
+ * Maximum age for cached responses before they're considered stale.
+ * This provides automatic cache invalidation even without version bumps.
+ *
+ * Use cases:
+ * - Date-sensitive queries: Don't return yesterday's "What's today's date?"
+ * - Time-sensitive content: News, weather, stock prices
+ * - Context drift: System behavior changes over time
+ */
+const CACHE_MAX_AGE_DAYS = 30; // Responses older than 30 days are rejected
+
 // Lazy load ranking modules to avoid build-time initialization
 const getTierCache = async () => {
   const { tierCache } = await import('@/lib/tier-based-cache');
@@ -746,7 +759,17 @@ export async function POST(request: NextRequest) {
     const cached = await findCachedResponse(userMessage, versionedCacheModel, cacheProvider);
 
     if (cached) {
-      console.log('[CACHE] ✅ Using cached response');
+      // Check cache age (TTL) - reject if too old
+      const cacheAgeMs = cached.metadata?.created_at
+        ? Date.now() - new Date(cached.metadata.created_at).getTime()
+        : Infinity;
+      const cacheAgeDays = cacheAgeMs / (1000 * 60 * 60 * 24);
+
+      if (cacheAgeDays > CACHE_MAX_AGE_DAYS) {
+        console.log(`[CACHE] ⏱️  Cache entry too old (${Math.round(cacheAgeDays)} days), fetching fresh response`);
+        // Don't use this cached entry - fall through to fetch new response
+      } else {
+        console.log(`[CACHE] ✅ Using cached response (age: ${Math.round(cacheAgeDays)} days)`);
 
       // Log usage
       const supabase = createClient(
@@ -804,9 +827,10 @@ export async function POST(request: NextRequest) {
           }
         }
       });
+      }
     }
 
-    // No cache hit, call appropriate provider
+    // No cache hit or cache too old, call appropriate provider
     let result: { response: string; provider: string };
     let finalModel: string;
 
