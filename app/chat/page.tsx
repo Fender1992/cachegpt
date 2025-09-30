@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
-import { Send, Bot, Brain, Sparkles, Zap, Settings, LogOut, History, RefreshCw, Loader2 } from 'lucide-react'
+import { Send, Bot, Brain, Sparkles, Zap, Settings, LogOut, History, RefreshCw, Loader2, Home } from 'lucide-react'
 import BugReportButton from '@/components/bug-report-button'
 import ProviderSelector from '@/components/provider-selector'
 import { error as logError } from '@/lib/logger'
@@ -511,6 +511,14 @@ export default function ChatPage() {
                 onProviderChange={handleProviderChange}
               />
             </div>
+            <button
+              onClick={() => router.push('/')}
+              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+              title="Home"
+              aria-label="Go to home page"
+            >
+              <Home className="w-5 h-5" />
+            </button>
             <button
               onClick={handleSettings}
               className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"

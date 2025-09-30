@@ -5,15 +5,23 @@ import { requireAdminAuth } from '@/lib/admin-auth'
 
 // Get all bugs (admin only)
 export async function GET(request: NextRequest) {
+  console.log('[BUGS-MANAGE] === Starting bugs retrieval ===')
+
   try {
     // Verify admin access
+    console.log('[BUGS-MANAGE] Checking admin authentication...')
     const authResult = await requireAdminAuth()
+
     if (!authResult.success) {
+      console.log('[BUGS-MANAGE] ❌ Admin auth failed, returning 401/403')
       return authResult.response
     }
 
+    console.log('[BUGS-MANAGE] ✅ Admin auth successful:', authResult.session?.user.email)
+
     const cookieStore = cookies()
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+    console.log('[BUGS-MANAGE] Supabase client created')
 
     // Parse query parameters for filtering
     const { searchParams } = new URL(request.url)
@@ -23,7 +31,10 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50')
     const offset = parseInt(searchParams.get('offset') || '0')
 
+    console.log('[BUGS-MANAGE] Query params:', { status, priority, category, limit, offset })
+
     // Build query
+    console.log('[BUGS-MANAGE] Building query...')
     let query = supabase
       .from('bugs')
       .select('*')
@@ -31,25 +42,50 @@ export async function GET(request: NextRequest) {
       .range(offset, offset + limit - 1)
 
     // Apply filters
-    if (status) query = query.eq('status', status)
-    if (priority) query = query.eq('priority', priority)
-    if (category) query = query.eq('category', category)
+    if (status) {
+      query = query.eq('status', status)
+      console.log('[BUGS-MANAGE] Filter: status =', status)
+    }
+    if (priority) {
+      query = query.eq('priority', priority)
+      console.log('[BUGS-MANAGE] Filter: priority =', priority)
+    }
+    if (category) {
+      query = query.eq('category', category)
+      console.log('[BUGS-MANAGE] Filter: category =', category)
+    }
 
+    console.log('[BUGS-MANAGE] Executing query...')
     const { data: bugs, error } = await query
 
     if (error) {
-      console.error('Error fetching bugs:', error)
+      console.error('[BUGS-MANAGE] ❌ Database query error:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      })
       return NextResponse.json({
         error: 'Failed to fetch bugs'
       }, { status: 500 })
     }
 
+    console.log('[BUGS-MANAGE] ✅ Query successful, found', bugs?.length || 0, 'bugs')
+
     // Get statistics
-    const { data: stats } = await supabase
+    console.log('[BUGS-MANAGE] Fetching statistics...')
+    const { data: stats, error: statsError } = await supabase
       .from('bug_statistics')
       .select('*')
       .single()
 
+    if (statsError) {
+      console.log('[BUGS-MANAGE] ⚠️  Statistics view not available:', statsError.message)
+    } else {
+      console.log('[BUGS-MANAGE] ✅ Statistics fetched')
+    }
+
+    console.log('[BUGS-MANAGE] === Bugs retrieval complete ===')
     return NextResponse.json({
       bugs: bugs || [],
       statistics: stats,
@@ -61,9 +97,11 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Bug retrieval error:', error)
+    console.error('[BUGS-MANAGE] ❌ Uncaught error:', error)
+    console.error('[BUGS-MANAGE] Error stack:', (error as Error).stack)
     return NextResponse.json({
-      error: 'Internal server error'
+      error: 'Internal server error',
+      details: (error as Error).message
     }, { status: 500 })
   }
 }
