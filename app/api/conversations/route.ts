@@ -13,12 +13,20 @@ export async function GET(request: NextRequest) {
 
     // Create Supabase client with user session
     const cookieStore = cookies()
+    console.log('[CONVERSATIONS API] Cookies available:', cookieStore.getAll().map(c => c.name))
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
 
     // Get current authenticated user
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
+    console.log('[CONVERSATIONS API] Session check:', {
+      hasSession: !!session,
+      userId: session?.user?.id,
+      error: sessionError?.message
+    })
+
     if (sessionError || !session?.user) {
+      console.error('[CONVERSATIONS API] Auth failed:', sessionError?.message || 'No session')
       return NextResponse.json({ error: 'Unauthorized - Please log in' }, { status: 401 })
     }
 
