@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const platform = searchParams.get('platform') || null
 
     // Create Supabase client with user session
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     console.log('[CONVERSATIONS API] Cookies available:', cookieStore.getAll().map(c => c.name))
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
 
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     const { title, provider, model, platform = 'web' } = await request.json()
 
     // Create Supabase client with user session
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
 
     // Get current authenticated user
