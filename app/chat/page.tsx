@@ -70,6 +70,7 @@ export default function ChatPage() {
   }
 
   useEffect(() => {
+    console.log('[CHAT] Page mounted, initializing...')
     loadUserProfile()
     loadUserPreferences()
     loadConversations()
@@ -82,14 +83,22 @@ export default function ChatPage() {
 
   const loadConversations = async () => {
     try {
+      console.log('[CHAT] Loading conversations...')
       const response = await fetch('/api/conversations?limit=20&platform=web', {
         credentials: 'include'
       })
+      console.log('[CHAT] Conversations response status:', response.status)
+
       if (response.ok) {
         const data = await response.json()
+        console.log('[CHAT] Conversations loaded:', data.conversations?.length || 0)
         setConversations(data.conversations || [])
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('[CHAT] Failed to load conversations:', response.status, errorData)
       }
     } catch (error) {
+      console.error('[CHAT] Exception loading conversations:', error)
       logError('Error loading conversations', error)
     }
   }
@@ -208,12 +217,26 @@ export default function ChatPage() {
   }, [messages])
 
   const loadUserProfile = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
+    console.log('[CHAT] Loading user profile...')
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+
+    console.log('[CHAT] Session check:', {
+      hasSession: !!session,
+      userId: session?.user?.id,
+      error: sessionError?.message
+    })
+
+    if (sessionError) {
+      console.error('[CHAT] Session error:', sessionError)
+    }
 
     if (!session) {
+      console.warn('[CHAT] No session found, redirecting to login')
       router.push('/login')
       return
     }
+
+    console.log('[CHAT] User authenticated:', session.user.email)
 
     const { data: profile } = await supabase
       .from('user_profiles')
@@ -257,6 +280,7 @@ export default function ChatPage() {
     if (!message.trim() || isLoading) return
 
     const userMessage = message.trim()
+    console.log('[CHAT] Sending message:', userMessage.substring(0, 50) + '...')
     setMessage('')
 
     // Add user message with metadata
@@ -284,6 +308,7 @@ export default function ChatPage() {
 
     try {
       // Send message to our API with selected provider and model
+      console.log('[CHAT] Calling unified-chat API with provider:', selectedProvider)
       const response = await fetch('/api/v2/unified-chat', {
         method: 'POST',
         headers: {
@@ -295,11 +320,21 @@ export default function ChatPage() {
         })
       })
 
+      console.log('[CHAT] Unified-chat response:', response.status, response.statusText)
+
       if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('[CHAT] API error:', response.status, errorData)
         throw new Error('Failed to get response')
       }
 
       const data = await response.json()
+      console.log('[CHAT] Response received:', {
+        hasResponse: !!data.response,
+        provider: data.provider,
+        cached: data.metadata?.cached,
+        responseLength: data.response?.length
+      })
 
       // Add assistant message with metadata
       const assistantMessage: ChatMessage = {
