@@ -49,19 +49,6 @@ import { cacheLifecycleManager, QueryType, CacheLifecycle } from '@/lib/cache-li
  */
 const CACHE_VERSION = 'v2-enriched';
 
-/**
- * Cache TTL Management
- *
- * Maximum age for cached responses before they're considered stale.
- * This provides automatic cache invalidation even without version bumps.
- *
- * Use cases:
- * - Date-sensitive queries: Don't return yesterday's "What's today's date?"
- * - Time-sensitive content: News, weather, stock prices
- * - Context drift: System behavior changes over time
- */
-const CACHE_MAX_AGE_DAYS = 30; // Responses older than 30 days are rejected
-
 // Lazy load ranking modules to avoid build-time initialization
 const getTierCache = async () => {
   const { tierCache } = await import('@/lib/tier-based-cache');
@@ -770,8 +757,9 @@ export async function POST(request: NextRequest) {
 
     // Generate context hash for invalidation detection
     const contextHash = cacheLifecycleManager.generateContextHash({
-      enrichedContext,
-      systemContext,
+      enrichedQuery: contextAnalysis.enrichedQuery,
+      systemContext: contextAnalysis.systemContext,
+      searchContext,
       version: CACHE_VERSION
     });
 
