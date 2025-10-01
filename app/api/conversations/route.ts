@@ -46,8 +46,6 @@ export async function GET(request: NextRequest) {
       .from('conversations')
       .select('id, title, provider, model, is_pinned, created_at, updated_at')
       .eq('user_id', userId)
-      .eq('is_archived', false)
-      .order('is_pinned', { ascending: false })
       .order('updated_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
@@ -57,7 +55,15 @@ export async function GET(request: NextRequest) {
 
     const { data: conversations, error } = await query
 
+    console.log('[CONVERSATIONS API] Query result:', {
+      conversationsCount: conversations?.length || 0,
+      error: error?.message,
+      userId,
+      platform
+    })
+
     if (error) {
+      console.error('[CONVERSATIONS API] Database error:', error)
       logError('Error fetching conversations for user', error, { userId })
       return NextResponse.json({ error: 'Failed to fetch conversations' }, { status: 500 })
     }
