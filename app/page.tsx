@@ -209,6 +209,15 @@ export default function Home() {
                       <span>Settings</span>
                     </Link>
 
+                    {user?.email === 'rolandofender@gmail.com' && (
+                      <Link
+                        href="/admin/bugs"
+                        className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        <Bug className="w-4 h-4" />
+                        <span>Bug Tracker</span>
+                      </Link>
+                    )}
 
                     <div className="border-t border-gray-200 dark:border-gray-700 mt-1 pt-1">
                       <button
