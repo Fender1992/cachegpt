@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
-import { Send, Bot, Brain, Sparkles, Zap, Settings, LogOut, History, RefreshCw, Loader2, Home } from 'lucide-react'
+import { Send, Bot, Brain, Sparkles, Zap, Settings, LogOut, History, RefreshCw, Loader2, Home, Trash2 } from 'lucide-react'
 import BugReportButton from '@/components/bug-report-button'
 import ProviderSelector from '@/components/provider-selector'
 import { error as logError } from '@/lib/logger'
@@ -131,6 +131,51 @@ export default function ChatPage() {
       }
     } catch (error) {
       logError('Error loading conversation messages', error)
+    }
+  }
+
+  const deleteConversation = async (conversationId: string, event: React.MouseEvent) => {
+    event.stopPropagation() // Prevent loading the conversation when clicking delete
+
+    if (!confirm('Are you sure you want to delete this conversation? This cannot be undone.')) {
+      return
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: HeadersInit = {}
+
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+      }
+
+      const response = await fetch(`/api/conversations?id=${conversationId}`, {
+        method: 'DELETE',
+        headers,
+        credentials: 'include'
+      })
+
+      if (response.ok) {
+        console.log('[CHAT] Conversation deleted:', conversationId)
+
+        // If the deleted conversation was active, clear it
+        if (currentConversationId === conversationId) {
+          setMessages([])
+          setCurrentConversationId(null)
+          setActiveConversationId(null)
+        }
+
+        // Refresh conversations list
+        loadConversations()
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('[CHAT] Failed to delete conversation:', errorData)
+        alert('Failed to delete conversation. Please try again.')
+      }
+    } catch (error) {
+      console.error('[CHAT] Error deleting conversation:', error)
+      logError('Error deleting conversation', error)
+      alert('An error occurred while deleting the conversation.')
     }
   }
 
@@ -580,25 +625,37 @@ export default function ChatPage() {
               </p>
             ) : (
               conversations.map((conv) => (
-                <button
+                <div
                   key={conv.conversation_id}
-                  onClick={() => loadConversationMessages(conv.conversation_id)}
-                  className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                  className={`relative w-full p-3 rounded-lg border transition-colors group ${
                     currentConversationId === conv.conversation_id
                       ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
                       : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                 >
-                  <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                    {conv.title}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    {conv.message_count} messages • {providerNames[conv.provider as keyof typeof providerNames]}
-                  </div>
-                  <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                    {getRelativeTime(conv.last_message_at)}
-                  </div>
-                </button>
+                  <button
+                    onClick={() => loadConversationMessages(conv.conversation_id)}
+                    className="w-full text-left pr-8"
+                  >
+                    <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      {conv.title}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {conv.message_count} messages • {providerNames[conv.provider as keyof typeof providerNames]}
+                    </div>
+                    <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                      {getRelativeTime(conv.last_message_at)}
+                    </div>
+                  </button>
+                  <button
+                    onClick={(e) => deleteConversation(conv.conversation_id, e)}
+                    className="absolute top-3 right-3 p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Delete conversation"
+                    aria-label="Delete conversation"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               ))
             )}
           </div>

@@ -152,3 +152,70 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+// DELETE /api/conversations - Delete a conversation and its messages (cache remains untouched)
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const conversationId = searchParams.get('id')
+
+    if (!conversationId) {
+      return NextResponse.json({ error: 'Conversation ID is required' }, { status: 400 })
+    }
+
+    // Use unified authentication resolver
+    const authResult = await resolveAuthentication(request)
+
+    if (isAuthError(authResult)) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status })
+    }
+
+    const userId = getUserId(authResult)
+
+    // Create Supabase client with service key for database operations
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    )
+
+    // Verify the conversation belongs to this user before deleting
+    const { data: conversation, error: fetchError } = await supabase
+      .from('conversations')
+      .select('id, user_id')
+      .eq('id', conversationId)
+      .eq('user_id', userId)
+      .single()
+
+    if (fetchError || !conversation) {
+      return NextResponse.json({
+        error: 'Conversation not found or access denied'
+      }, { status: 404 })
+    }
+
+    // Delete the conversation (CASCADE will delete messages automatically)
+    const { error: deleteError } = await supabase
+      .from('conversations')
+      .delete()
+      .eq('id', conversationId)
+      .eq('user_id', userId)
+
+    if (deleteError) {
+      console.error('Error deleting conversation:', deleteError)
+      return NextResponse.json({
+        error: 'Failed to delete conversation',
+        details: deleteError.message
+      }, { status: 500 })
+    }
+
+    console.log(`[CONVERSATIONS] Deleted conversation ${conversationId} for user ${userId}`)
+
+    return NextResponse.json({
+      success: true,
+      message: 'Conversation deleted successfully'
+    })
+
+  } catch (error) {
+    console.error('Error in conversations DELETE:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
