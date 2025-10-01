@@ -1,1 +1,1 @@
-self.__REACT_LOADABLE_MANIFEST='{"node_modules/@supabase/auth-js/dist/module/lib/helpers.js -> @supabase/node-fetch":{"id":3537,"files":[]},"node_modules/@supabase/functions-js/dist/module/helper.js -> @supabase/node-fetch":{"id":3537,"files":[]},"node_modules/@supabase/realtime-js/dist/module/RealtimeClient.js -> @supabase/node-fetch":{"id":3415,"files":["static/chunks/3415.94f3d51fc2e3034c.js"]},"node_modules/@supabase/storage-js/dist/module/lib/helpers.js -> @supabase/node-fetch":{"id":3537,"files":[]}}';
+self.__REACT_LOADABLE_MANIFEST="{}"

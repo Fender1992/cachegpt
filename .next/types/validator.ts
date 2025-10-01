@@ -137,15 +137,6 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
-// Validate ../../app/conversations/page.tsx
-{
-  type __IsExpected<Specific extends AppPageConfig<"/conversations">> = Specific
-  const handler = {} as typeof import("../../app/conversations/page.js")
-  type __Check = __IsExpected<typeof handler>
-  // @ts-ignore
-  type __Unused = __Check
-}
-
 // Validate ../../app/dashboard/page.tsx
 {
   type __IsExpected<Specific extends AppPageConfig<"/dashboard">> = Specific
@@ -290,6 +281,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../app/api/cache/health/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/cache/health">> = Specific
+  const handler = {} as typeof import("../../app/api/cache/health/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../app/api/claude-sync/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/claude-sync">> = Specific
@@ -339,6 +339,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/cron/process-notifications">> = Specific
   const handler = {} as typeof import("../../app/api/cron/process-notifications/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../app/api/cron/scan-cache-metadata/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/cron/scan-cache-metadata">> = Specific
+  const handler = {} as typeof import("../../app/api/cron/scan-cache-metadata/route.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check
