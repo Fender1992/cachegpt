@@ -229,6 +229,14 @@ async function saveChatHistory(
   responseTime: number,
   platform: string = 'web'
 ) {
+  console.log('[CHAT-HISTORY] Starting save:', {
+    userId,
+    provider,
+    model,
+    platform,
+    messageCount: messages.length
+  });
+
   if (!userId) {
     console.log('[CHAT-HISTORY] Skipping save - anonymous user');
     return;
@@ -241,6 +249,8 @@ async function saveChatHistory(
     );
 
     const userMessage = messages[messages.length - 1];
+
+    console.log('[CHAT-HISTORY] Creating conversation with title:', userMessage.content.slice(0, 50));
 
     // Create or get existing conversation
     // For now, create a new conversation for each chat (can be optimized later)
