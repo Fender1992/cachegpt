@@ -44,6 +44,7 @@ export interface CacheMetadata {
 }
 
 export interface LifecycleStats {
+  scan_date?: string
   hot_count: number
   warm_count: number
   cool_count: number
@@ -56,6 +57,7 @@ export interface LifecycleStats {
   avg_access_count: number
   avg_age_days: number
   cache_health_score: number
+  created_at?: string
 }
 
 export class CacheLifecycleManager {
