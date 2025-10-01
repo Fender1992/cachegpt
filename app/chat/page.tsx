@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase-client'
 import { Send, Bot, Brain, Sparkles, Zap, Settings, LogOut, History, RefreshCw, Loader2, Home, Trash2 } from 'lucide-react'
 import BugReportButton from '@/components/bug-report-button'
 import ProviderSelector from '@/components/provider-selector'
+import Toast from '@/components/toast'
 import { error as logError } from '@/lib/logger'
 
 const providerIcons = {
@@ -49,6 +50,8 @@ export default function ChatPage() {
   const [usingPremium, setUsingPremium] = useState(false)
   const [keyboardVisible, setKeyboardVisible] = useState(false)
   const [loadingOlderMessages, setLoadingOlderMessages] = useState(false)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const router = useRouter()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -136,10 +139,14 @@ export default function ChatPage() {
 
   const deleteConversation = async (conversationId: string, event: React.MouseEvent) => {
     event.stopPropagation() // Prevent loading the conversation when clicking delete
+    setDeleteConfirmId(conversationId) // Show confirmation modal
+  }
 
-    if (!confirm('Are you sure you want to delete this conversation? This cannot be undone.')) {
-      return
-    }
+  const confirmDelete = async () => {
+    if (!deleteConfirmId) return
+
+    const conversationId = deleteConfirmId
+    setDeleteConfirmId(null) // Close modal
 
     try {
       const { data: { session } } = await supabase.auth.getSession()
@@ -167,15 +174,18 @@ export default function ChatPage() {
 
         // Refresh conversations list
         loadConversations()
+
+        // Show success toast
+        setToast({ message: 'Conversation deleted successfully', type: 'success' })
       } else {
         const errorData = await response.json().catch(() => ({}))
         console.error('[CHAT] Failed to delete conversation:', errorData)
-        alert('Failed to delete conversation. Please try again.')
+        setToast({ message: 'Failed to delete conversation', type: 'error' })
       }
     } catch (error) {
       console.error('[CHAT] Error deleting conversation:', error)
       logError('Error deleting conversation', error)
-      alert('An error occurred while deleting the conversation.')
+      setToast({ message: 'An error occurred while deleting the conversation', type: 'error' })
     }
   }
 
@@ -772,6 +782,44 @@ export default function ChatPage() {
 
       {/* Floating Bug Report Button */}
       <BugReportButton />
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[70]">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              Delete Conversation
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              Are you sure you want to delete this conversation? This action cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+          duration={3000}
+        />
+      )}
     </div>
   )
 }
