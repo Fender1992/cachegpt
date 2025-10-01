@@ -115,6 +115,12 @@ export async function verifyAdminAuth(): Promise<AdminSession> {
   const cookieStore = await cookies()
   console.log('[ADMIN-AUTH] Cookie store type:', typeof cookieStore)
 
+  // Debug: Log all cookies
+  const allCookies = cookieStore.getAll()
+  console.log('[ADMIN-AUTH] Total cookies:', allCookies.length)
+  console.log('[ADMIN-AUTH] Cookie names:', allCookies.map(c => c.name))
+  console.log('[ADMIN-AUTH] Supabase cookies:', allCookies.filter(c => c.name.includes('supabase') || c.name.includes('sb-')).map(c => ({ name: c.name, value: c.value.substring(0, 20) + '...' })))
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
