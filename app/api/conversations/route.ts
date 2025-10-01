@@ -41,14 +41,21 @@ export async function GET(request: NextRequest) {
       process.env.SUPABASE_SERVICE_KEY!
     )
 
-    // Get conversations using the database function - ONLY for this user
-    const { data: conversations, error } = await supabase
-      .rpc('get_user_conversations', {
-        p_user_id: userId,
-        p_limit: limit,
-        p_offset: offset,
-        p_platform: platform
-      })
+    // Get conversations directly from the table - ONLY for this user
+    let query = supabase
+      .from('conversations')
+      .select('id, title, provider, model, is_pinned, created_at, updated_at')
+      .eq('user_id', userId)
+      .eq('is_archived', false)
+      .order('is_pinned', { ascending: false })
+      .order('updated_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    if (platform) {
+      query = query.eq('platform', platform)
+    }
+
+    const { data: conversations, error } = await query
 
     if (error) {
       logError('Error fetching conversations for user', error, { userId })

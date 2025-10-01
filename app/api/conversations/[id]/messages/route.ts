@@ -38,12 +38,13 @@ export async function GET(
       }, { status: 404 })
     }
 
-    // Get messages using the database function - ONLY for this user's conversation
+    // Get messages directly from the table - ONLY for this user's conversation
     const { data: messages, error } = await supabase
-      .rpc('get_conversation_messages', {
-        p_conversation_id: conversationId,
-        p_user_id: userId
-      })
+      .from('messages')
+      .select('id, role, content, provider, model, tokens_used, created_at')
+      .eq('conversation_id', conversationId)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: true })
 
     if (error) {
       console.error('Error fetching messages for user:', userId, 'conversation:', conversationId, error)

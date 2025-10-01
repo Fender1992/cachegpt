@@ -301,7 +301,7 @@ export default function AdminBugsPage() {
         {/* Filters */}
         <div className="bg-white p-4 rounded-lg shadow-sm mb-6">
           <div className="flex flex-wrap gap-4">
-            <div className="flex-1 min-w-64">
+            <div className="flex-1 min-w-[200px] sm:min-w-64">
               <div className="relative">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <input
