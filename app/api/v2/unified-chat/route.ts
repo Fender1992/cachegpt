@@ -227,8 +227,9 @@ async function saveChatHistory(
   provider: string,
   model: string,
   responseTime: number,
-  platform: string = 'web'
-) {
+  platform: string = 'web',
+  conversationId?: string
+): Promise<string | null> {
   console.log('[CHAT-HISTORY] Starting save:', {
     userId,
     provider,
@@ -239,7 +240,7 @@ async function saveChatHistory(
 
   if (!userId) {
     console.log('[CHAT-HISTORY] Skipping save - anonymous user');
-    return;
+    return null;
   }
 
   try {
@@ -249,26 +250,46 @@ async function saveChatHistory(
     );
 
     const userMessage = messages[messages.length - 1];
+    let conversation;
 
-    console.log('[CHAT-HISTORY] Creating conversation with title:', userMessage.content.slice(0, 50));
+    // If conversationId provided, use existing conversation
+    if (conversationId) {
+      console.log('[CHAT-HISTORY] Appending to existing conversation:', conversationId);
+      const { data, error } = await supabase
+        .from('conversations')
+        .select()
+        .eq('id', conversationId)
+        .eq('user_id', userId)
+        .single();
 
-    // Create or get existing conversation
-    // For now, create a new conversation for each chat (can be optimized later)
-    const { data: conversation, error: convError } = await supabase
-      .from('conversations')
-      .insert([{
-        user_id: userId,
-        title: userMessage.content.slice(0, 50) + '...',
-        provider,
-        model,
-        platform
-      }])
-      .select()
-      .single();
+      if (error || !data) {
+        console.error('[CHAT-HISTORY] Conversation not found, creating new one');
+        conversationId = undefined;
+      } else {
+        conversation = data;
+      }
+    }
 
-    if (convError) {
-      console.error('[CHAT-HISTORY] Error creating conversation:', convError);
-      return;
+    // Create new conversation if needed
+    if (!conversationId) {
+      console.log('[CHAT-HISTORY] Creating new conversation with title:', userMessage.content.slice(0, 50));
+      const { data, error: convError } = await supabase
+        .from('conversations')
+        .insert([{
+          user_id: userId,
+          title: userMessage.content.slice(0, 50) + '...',
+          provider,
+          model,
+          platform
+        }])
+        .select()
+        .single();
+
+      if (convError) {
+        console.error('[CHAT-HISTORY] Error creating conversation:', convError);
+        return null;
+      }
+      conversation = data;
     }
 
     // Save user message
@@ -304,12 +325,15 @@ async function saveChatHistory(
 
     if (assistantMsgError) {
       console.error('[CHAT-HISTORY] Error saving assistant message:', assistantMsgError);
-    } else {
-      console.log(`[CHAT-HISTORY] ✅ Saved conversation ${conversation.id} for user ${userId}`);
+      return null;
     }
+
+    console.log(`[CHAT-HISTORY] ✅ Saved conversation ${conversation.id} for user ${userId}`);
+    return conversation.id;
 
   } catch (error) {
     console.error('[CHAT-HISTORY] Error saving chat history:', error);
+    return null;
   }
 }
 
@@ -622,7 +646,7 @@ function getBestModelForProvider(provider: string): string {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { messages, preferredProvider: requestedProvider, authMethod } = body;
+    const { messages, preferredProvider: requestedProvider, authMethod, conversationId: clientConversationId } = body;
 
     console.log('[UNIFIED-CHAT] Request:', { requestedProvider, authMethod, messageCount: messages?.length });
 
@@ -901,14 +925,15 @@ export async function POST(request: NextRequest) {
     );
 
     // Save to unified chat history system (use original messages + sanitized response)
-    await saveChatHistory(
+    const savedConversationId = await saveChatHistory(
       userId,
       messages, // Original messages without system context
       sanitizedResponse, // Use sanitized response
       result.provider,
       finalModel,
       responseTime,
-      'web' // Can be enhanced to detect platform
+      'web', // Can be enhanced to detect platform
+      clientConversationId // Pass existing conversation ID if provided
     );
 
     // Log usage
@@ -939,6 +964,7 @@ export async function POST(request: NextRequest) {
       response: sanitizedResponse,
       provider: result.provider,
       model: finalModel,
+      conversationId: savedConversationId, // Return conversation ID for next message
       metadata: {
         cached: false,
         provider: result.provider,

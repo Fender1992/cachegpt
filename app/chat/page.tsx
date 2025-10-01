@@ -41,6 +41,7 @@ export default function ChatPage() {
   const [hasOlderMessages, setHasOlderMessages] = useState(false)
   const [conversations, setConversations] = useState<any[]>([])
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null) // Track active conversation for current chat session
   const [showHistory, setShowHistory] = useState(false)
   const [selectedProvider, setSelectedProvider] = useState('auto')
   const [isLoading, setIsLoading] = useState(false)
@@ -357,7 +358,8 @@ export default function ChatPage() {
         credentials: 'include',
         body: JSON.stringify({
           messages: [...messages, newUserMessage],
-          preferredProvider: selectedProvider === 'auto' ? undefined : selectedProvider
+          preferredProvider: selectedProvider === 'auto' ? undefined : selectedProvider,
+          conversationId: activeConversationId // Send current conversation ID if exists
         })
       })
 
@@ -374,8 +376,14 @@ export default function ChatPage() {
         hasResponse: !!data.response,
         provider: data.provider,
         cached: data.metadata?.cached,
-        responseLength: data.response?.length
+        responseLength: data.response?.length,
+        conversationId: data.conversationId
       })
+
+      // Save conversation ID for next message in this session
+      if (data.conversationId) {
+        setActiveConversationId(data.conversationId)
+      }
 
       // Add assistant message with metadata
       const assistantMessage: ChatMessage = {
@@ -396,7 +404,7 @@ export default function ChatPage() {
         return updated
       })
 
-      // Refresh conversations list to include new conversation
+      // Refresh conversations list to include new/updated conversation
       loadConversations()
 
     } catch (error: any) {
@@ -443,6 +451,7 @@ export default function ChatPage() {
   const startNewConversation = () => {
     setMessages([])
     setCurrentConversationId(null)
+    setActiveConversationId(null) // Clear active conversation to start fresh
     setShowHistory(false)
   }
 
