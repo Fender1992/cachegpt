@@ -46,22 +46,15 @@ function AuthCallbackContent() {
         let error = null
 
         if (code) {
-          console.log('[DEBUG] Found OAuth code in URL, exchanging for session...')
           // Exchange the OAuth code for a session
           const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
           session = data?.session
           error = exchangeError
 
-          if (session) {
-            console.log('[DEBUG] Successfully exchanged code for session!', {
-              hasAccessToken: !!session.access_token,
-              userId: session.user?.id
-            })
-          } else {
+          if (!session) {
             console.error('[ERROR] Failed to exchange code:', exchangeError)
           }
         } else {
-          console.log('[DEBUG] No code in URL, trying to get existing session...')
           // No code, try to get existing session
           const result = await supabase.auth.getSession()
           session = result.data.session

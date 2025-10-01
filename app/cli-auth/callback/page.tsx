@@ -18,16 +18,10 @@ function CLIAuthCallbackContent() {
         let error = null
 
         if (code) {
-          console.log('[DEBUG] Found OAuth code, exchanging for session...')
           const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
           session = data?.session
           error = exchangeError
-
-          if (session) {
-            console.log('[DEBUG] Successfully got session from code exchange!')
-          }
         } else {
-          console.log('[DEBUG] No code, trying to get existing session...')
           const result = await supabase.auth.getSession()
           session = result.data.session
           error = result.error

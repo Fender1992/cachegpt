@@ -38,22 +38,23 @@ function AuthSuccessContent() {
     if (callbackPort) params.set('callback_port', callbackPort)
     const queryString = params.toString() ? `?${params.toString()}` : ''
 
-    // Auto-set default provider if not selected (new users)
-    let selectedProvider = profile?.selected_provider
+    // Check if new user needs onboarding
+    const selectedProvider = profile?.selected_provider
     if (!selectedProvider) {
-      console.log('[AUTH SUCCESS] No provider selected, auto-setting default provider: auto')
+      // New user without provider - send to onboarding
+      if (source !== 'cli') {
+        router.push('/onboarding/welcome')
+        return
+      }
 
-      const { data: updatedProfile } = await supabase
+      // CLI users get auto provider to skip web onboarding
+      await supabase
         .from('user_profiles')
         .update({ selected_provider: 'auto' })
         .eq('id', session.user.id)
-        .select()
-        .single()
-
-      selectedProvider = updatedProfile?.selected_provider || 'auto'
     }
 
-    // User has provider (existing or newly set), proceed to chat
+    // User has provider, proceed to chat or CLI callback
     if (source === 'cli' && callbackPort) {
 
       // CLI user - redirect back to local callback WITH SESSION TOKEN
@@ -71,9 +72,6 @@ function AuthSuccessContent() {
       // Try to redirect to CLI callback
       // Many browsers block HTTPS -> HTTP localhost redirects for security
       // Show a UI with manual click option as fallback
-
-      // Log the callback URL for debugging
-      console.log('[CLI-REDIRECT] Callback URL:', callbackUrl)
 
       // First, update the UI to show we're redirecting
       const redirectUI = document.getElementById('redirect-status')
@@ -126,7 +124,6 @@ function AuthSuccessContent() {
 
         // Also add a global function as backup
         ;(window as any).completeCliAuth = () => {
-          console.log('[CLI-REDIRECT] Manual redirect triggered')
           window.location.href = callbackUrl
         }
       }

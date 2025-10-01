@@ -74,7 +74,6 @@ export default function ChatPage() {
   }
 
   useEffect(() => {
-    console.log('[CHAT] Page mounted, initializing...')
     loadUserProfile()
     loadUserPreferences()
     loadConversations()
@@ -87,8 +86,6 @@ export default function ChatPage() {
 
   const loadConversations = async () => {
     try {
-      console.log('[CHAT] Loading conversations...')
-
       // Get user ID from current session
       const { data: { session } } = await supabase.auth.getSession()
       if (!session?.user?.id) {
@@ -97,16 +94,13 @@ export default function ChatPage() {
       }
 
       const userId = session.user.id
-      console.log('[CHAT] Loading conversations for user:', userId)
 
       const response = await fetch(`/api/conversations?limit=20&platform=web&user_id=${userId}`, {
         credentials: 'include'
       })
-      console.log('[CHAT] Conversations response status:', response.status)
 
       if (response.ok) {
         const data = await response.json()
-        console.log('[CHAT] Conversations loaded:', data.conversations?.length || 0)
         setConversations(data.conversations || [])
       } else {
         const errorData = await response.json().catch(() => ({}))
@@ -163,8 +157,6 @@ export default function ChatPage() {
       })
 
       if (response.ok) {
-        console.log('[CHAT] Conversation deleted:', conversationId)
-
         // If the deleted conversation was active, clear it
         if (currentConversationId === conversationId) {
           setMessages([])
@@ -296,14 +288,7 @@ export default function ChatPage() {
   }, [message])
 
   const loadUserProfile = async () => {
-    console.log('[CHAT] Loading user profile...')
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-
-    console.log('[CHAT] Session check:', {
-      hasSession: !!session,
-      userId: session?.user?.id,
-      error: sessionError?.message
-    })
 
     if (sessionError) {
       console.error('[CHAT] Session error:', sessionError)
@@ -315,8 +300,6 @@ export default function ChatPage() {
       return
     }
 
-    console.log('[CHAT] User authenticated:', session.user.email)
-
     let { data: profile } = await supabase
       .from('user_profiles')
       .select('*')
@@ -325,7 +308,6 @@ export default function ChatPage() {
 
     // Auto-set default provider if not selected (new users)
     if (!profile?.selected_provider) {
-      console.log('[CHAT] No provider selected, auto-setting default provider: auto')
 
       // Update profile with default provider
       const { data: updatedProfile } = await supabase
@@ -368,7 +350,6 @@ export default function ChatPage() {
     if (!message.trim() || isLoading) return
 
     const userMessage = message.trim()
-    console.log('[CHAT] Sending message:', userMessage.substring(0, 50) + '...')
     setMessage('')
 
     // Add user message with metadata
@@ -407,7 +388,6 @@ export default function ChatPage() {
       }
 
       // Send message to our API with selected provider and model
-      console.log('[CHAT] Calling unified-chat API with provider:', selectedProvider)
       const response = await fetch('/api/v2/unified-chat', {
         method: 'POST',
         headers,
@@ -419,8 +399,6 @@ export default function ChatPage() {
         })
       })
 
-      console.log('[CHAT] Unified-chat response:', response.status, response.statusText)
-
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
         console.error('[CHAT] API error:', response.status, errorData)
@@ -428,13 +406,6 @@ export default function ChatPage() {
       }
 
       const data = await response.json()
-      console.log('[CHAT] Response received:', {
-        hasResponse: !!data.response,
-        provider: data.provider,
-        cached: data.metadata?.cached,
-        responseLength: data.response?.length,
-        conversationId: data.conversationId
-      })
 
       // Save conversation ID for next message in this session
       if (data.conversationId) {

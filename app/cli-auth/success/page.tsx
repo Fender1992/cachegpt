@@ -21,24 +21,11 @@ function CLIAuthSuccessContent() {
   const checkSession = async () => {
     let { data: { session }, error } = await supabase.auth.getSession()
 
-    // Debug logging
-    console.log('[DEBUG] Initial session check:', {
-      hasSession: !!session,
-      hasAccessToken: !!session?.access_token,
-      error: error,
-      userId: session?.user?.id,
-      email: session?.user?.email,
-      callbackPort: callbackPort
-    })
-
     // If no session, try to get it from localStorage or URL hash
     if (!session || !session.access_token) {
-      console.log('[DEBUG] No session found, checking for auth hash...')
-
       // Check if we have auth data in the URL hash (from OAuth redirect)
       const hash = window.location.hash
       if (hash && hash.includes('access_token')) {
-        console.log('[DEBUG] Found auth hash, attempting to get session from URL')
 
         // Try to set session from URL (this is important!)
         const { data, error: urlError } = await supabase.auth.setSession({
@@ -50,10 +37,6 @@ function CLIAuthSuccessContent() {
         })
 
         if (data?.session) {
-          console.log('[DEBUG] Successfully set session from URL:', {
-            hasAccessToken: !!data.session.access_token,
-            userId: data.session.user?.id
-          })
           // Update our local session variable
           session = data.session
         } else {
@@ -63,10 +46,8 @@ function CLIAuthSuccessContent() {
 
       // If still no session, try one more time to get it
       if (!session || !session.access_token) {
-        console.log('[DEBUG] Making final attempt to get session...')
         const { data: { session: finalSession }, error: finalError } = await supabase.auth.getSession()
         if (finalSession && finalSession.access_token) {
-          console.log('[DEBUG] Got session on final attempt!')
           session = finalSession
         } else {
           console.error('[ERROR] Final attempt failed:', finalError)
@@ -91,46 +72,7 @@ function CLIAuthSuccessContent() {
   const selectProvider = async (selectedProvider: string) => {
     setProvider(selectedProvider)
 
-    // Debug: Check what's in localStorage
-    console.log('[DEBUG] Checking localStorage for Supabase session...')
-    if (typeof window !== 'undefined') {
-      const keys = Object.keys(localStorage)
-      console.log('[DEBUG] All localStorage keys:', keys)
-
-      // Look for Supabase auth token
-      const authKey = keys.find(k => k.includes('auth-token'))
-      if (authKey) {
-        const authData = localStorage.getItem(authKey)
-        console.log('[DEBUG] Found auth data in key:', authKey)
-        try {
-          const parsed = JSON.parse(authData || '{}')
-          console.log('[DEBUG] Auth data contains:', {
-            hasAccessToken: !!parsed.access_token,
-            hasRefreshToken: !!parsed.refresh_token,
-            hasUser: !!parsed.user,
-            expiresAt: parsed.expires_at,
-            expiresIn: parsed.expires_in
-          })
-        } catch (e) {
-          console.error('[DEBUG] Could not parse auth data')
-        }
-      } else {
-        console.error('[DEBUG] No Supabase auth token found in localStorage!')
-      }
-    }
-
     const { data: { session }, error } = await supabase.auth.getSession()
-
-    // Debug logging
-    console.log('[DEBUG] Session check:', {
-      hasSession: !!session,
-      hasAccessToken: !!session?.access_token,
-      accessTokenValue: session?.access_token ? session.access_token.substring(0, 30) + '...' : 'UNDEFINED',
-      sessionError: error,
-      userId: session?.user?.id,
-      email: session?.user?.email,
-      fullSession: session
-    })
 
     // CRITICAL FIX: Even if session exists but no access_token, we can't proceed
     if (!session || !session.access_token) {
@@ -138,7 +80,6 @@ function CLIAuthSuccessContent() {
 
       // Try to get it from the database as a fallback
       if (session?.user?.id) {
-        console.log('[DEBUG] Attempting to fetch token from cli_auth_sessions table...')
         const { data: cliSession } = await supabase
           .from('cli_auth_sessions')
           .select('access_token')
@@ -146,7 +87,6 @@ function CLIAuthSuccessContent() {
           .single()
 
         if (cliSession?.access_token) {
-          console.log('[DEBUG] Found token in database!')
           // Use the token from database
           session.access_token = cliSession.access_token
         } else {
@@ -188,13 +128,9 @@ function CLIAuthSuccessContent() {
           params.error = 'No access token available'
         }
 
-        // Debug: log what we're sending
-        console.log('[DEBUG] Sending callback with params:', params)
-
         // Send session token for keyless authentication
         const callbackUrl = `http://localhost:${callbackPort}/auth/callback?` + new URLSearchParams(params).toString()
 
-        console.log('[DEBUG] Redirecting to:', callbackUrl)
         window.location.href = callbackUrl
         return
       }

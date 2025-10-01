@@ -128,7 +128,6 @@ async function findCachedResponse(
     });
 
     if (cached) {
-      console.log(`[TIER-CACHE] Found cached response in ${cached.tier} tier with ${Math.round(cached.similarity * 100)}% similarity`);
       return {
         response: cached.response,
         similarity: cached.similarity,
@@ -150,8 +149,6 @@ async function findCachedResponse(
 
       const queryEmbedding = generateSimpleEmbedding(query);
 
-      console.log(`[CACHE-SEARCH-FALLBACK] Looking for: model=${model}, provider=${provider}, query="${query.substring(0, 50)}..."`);
-
       // Get potential matches from database
       const { data: candidates, error: dbError } = await supabase
         .from('cached_responses')
@@ -168,11 +165,8 @@ async function findCachedResponse(
       }
 
       if (!candidates || candidates.length === 0) {
-        console.log('[CACHE-SEARCH-FALLBACK] No candidates found');
         return null;
       }
-
-      console.log(`[CACHE-SEARCH-FALLBACK] Found ${candidates.length} candidates, checking similarity...`);
 
       // Find best match
       let bestMatch = null;
@@ -189,8 +183,6 @@ async function findCachedResponse(
       }
 
       if (bestMatch) {
-        console.log(`[CACHE-HIT-FALLBACK] Found match with ${Math.round(bestSimilarity * 100)}% similarity`);
-
         // Update access count
         await supabase
           .from('cached_responses')
@@ -207,7 +199,6 @@ async function findCachedResponse(
         };
       }
 
-      console.log('[CACHE-MISS-FALLBACK] No similar responses found');
       return null;
 
     } catch (fallbackError) {
@@ -230,16 +221,7 @@ async function saveChatHistory(
   platform: string = 'web',
   conversationId?: string
 ): Promise<string | null> {
-  console.log('[CHAT-HISTORY] Starting save:', {
-    userId,
-    provider,
-    model,
-    platform,
-    messageCount: messages.length
-  });
-
   if (!userId) {
-    console.log('[CHAT-HISTORY] Skipping save - anonymous user');
     return null;
   }
 
@@ -254,7 +236,6 @@ async function saveChatHistory(
 
     // If conversationId provided, use existing conversation
     if (conversationId) {
-      console.log('[CHAT-HISTORY] Appending to existing conversation:', conversationId);
       const { data, error } = await supabase
         .from('conversations')
         .select()
@@ -272,7 +253,6 @@ async function saveChatHistory(
 
     // Create new conversation if needed
     if (!conversationId) {
-      console.log('[CHAT-HISTORY] Creating new conversation with title:', userMessage.content.slice(0, 50));
       const { data, error: convError } = await supabase
         .from('conversations')
         .insert([{
@@ -328,7 +308,6 @@ async function saveChatHistory(
       return null;
     }
 
-    console.log(`[CHAT-HISTORY] ✅ Saved conversation ${conversation.id} for user ${userId}`);
     return conversation.id;
 
   } catch (error) {
@@ -362,9 +341,7 @@ async function storeInCache(
       responseTimeMs
     );
 
-    if (responseId) {
-      console.log(`[TIER-CACHE] ✅ Stored response with ID: ${responseId}`);
-    } else {
+    if (!responseId) {
       console.error('[TIER-CACHE] Failed to store response');
     }
 
@@ -378,8 +355,6 @@ async function storeInCache(
       );
 
       const embedding = generateSimpleEmbedding(query);
-
-      console.log(`[CACHE-STORE-FALLBACK] Storing: model=${model}, provider=${provider}, user=${userId}`);
 
       // Classify query type for lifecycle management
       const queryType = cacheLifecycleManager.classifyQueryType(query);
@@ -419,8 +394,6 @@ async function storeInCache(
 
       if (error) {
         console.error('[CACHE-STORE-FALLBACK] Database error:', error);
-      } else {
-        console.log(`[CACHE-STORE-FALLBACK] ✅ Stored response with ID: ${data?.[0]?.id}`);
       }
 
     } catch (fallbackError) {
@@ -438,8 +411,6 @@ async function callPremiumProvider(
   apiKey: string,
   model: string
 ): Promise<{ response: string; provider: string }> {
-  console.log(`[PREMIUM-PROVIDER] Calling ${provider} with user's API key`);
-
   try {
     let endpoint: string;
     let headers: any = {
@@ -526,7 +497,6 @@ async function callPremiumProvider(
         responseText = data.choices?.[0]?.message?.content || 'No response';
     }
 
-    console.log(`[PREMIUM-PROVIDER] ✅ Success with ${provider}`);
     return { response: responseText, provider };
 
   } catch (error: any) {
@@ -562,12 +532,10 @@ async function callFreeProvider(messages: any[]): Promise<{ response: string; pr
 
   for (const provider of providers) {
     if (!provider.apiKey) {
-      console.log(`[FREE-PROVIDER] ${provider.name} has no API key`);
       continue;
     }
 
     try {
-      console.log(`[FREE-PROVIDER] Trying ${provider.name}...`);
 
       let body: any;
       let headers: any = { 'Content-Type': 'application/json' };
@@ -600,8 +568,6 @@ async function callFreeProvider(messages: any[]): Promise<{ response: string; pr
       });
 
       if (!response.ok) {
-        const error = await response.text();
-        console.log(`[FREE-PROVIDER] ${provider.name} failed: ${error}`);
         continue;
       }
 
@@ -614,7 +580,6 @@ async function callFreeProvider(messages: any[]): Promise<{ response: string; pr
         responseText = data.choices[0]?.message?.content || 'No response';
       }
 
-      console.log(`[FREE-PROVIDER] ✅ Success with ${provider.name}`);
       return { response: responseText, provider: provider.name };
 
     } catch (error: any) {
@@ -648,8 +613,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { messages, preferredProvider: requestedProvider, authMethod, conversationId: clientConversationId } = body;
 
-    console.log('[UNIFIED-CHAT] Request:', { requestedProvider, authMethod, messageCount: messages?.length });
-
     // Try to authenticate user, but allow anonymous access
     let userId: string | null = null;
     let session: UnifiedSession | null = null;
@@ -662,7 +625,6 @@ export async function POST(request: NextRequest) {
       session = authResult as UnifiedSession;
       userId = getUserId(session);
       logAuthMethodUsage(session, '/api/v2/unified-chat');
-      console.log('[UNIFIED-CHAT] Authenticated user:', userId);
 
       // Check if user has API keys configured
       if (userId) {
@@ -707,13 +669,11 @@ export async function POST(request: NextRequest) {
               };
               selectedProvider = reverseMap[selectedCred.provider] || selectedCred.provider;
               selectedModel = getBestModelForProvider(selectedProvider);
-              console.log(`[UNIFIED-CHAT] Using user's ${selectedProvider} API key with model ${selectedModel}`);
             }
           }
         }
       }
     } else {
-      console.log('[UNIFIED-CHAT] Anonymous user - using free providers');
       selectedProvider = 'auto';
     }
 
@@ -723,21 +683,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Enrich context with current information and real-time data
-    console.log('[CONTEXT] Analyzing query for context enrichment...')
     const contextAnalysis = enrichContext(userMessage)
 
     // If query needs real-time information, attempt web search
     let searchContext: string | null = null
     if (contextAnalysis.needsRealTime && contextAnalysis.realTimeCategory) {
-      console.log(`[CONTEXT] Query needs real-time info: ${contextAnalysis.realTimeCategory}`)
       searchContext = await performContextualSearch(
         userMessage,
         contextAnalysis.realTimeCategory,
         0.80 // Confidence threshold (lowered for broader matching)
       )
-      if (searchContext) {
-        console.log('[CONTEXT] ✅ Web search results added to context')
-      }
     }
 
     // Build enriched messages with system context
@@ -765,13 +720,6 @@ export async function POST(request: NextRequest) {
       content: contextAnalysis.enrichedQuery
     }
 
-    console.log('[CONTEXT] Messages enriched:', {
-      hasSystemContext: true,
-      hasSearchResults: !!searchContext,
-      needsRealTime: contextAnalysis.needsRealTime,
-      category: contextAnalysis.realTimeCategory
-    })
-
     const startTime = Date.now();
 
     // Determine if using free providers or user's API key
@@ -786,7 +734,6 @@ export async function POST(request: NextRequest) {
     await predictiveCacheInstance.trackPredictionAccuracy(userMessage);
 
     // Check cache using lifecycle-aware system (replaces version + TTL)
-    console.log(`[CACHE] Checking for cached response (version: ${CACHE_VERSION}, lifecycle-aware)...`);
     const versionedCacheModel = `${cacheModel}:${CACHE_VERSION}`;
 
     // Generate context hash for invalidation detection
@@ -806,23 +753,14 @@ export async function POST(request: NextRequest) {
 
       // Reject stale or cold entries
       if (lifecycle === CacheLifecycle.STALE || lifecycle === CacheLifecycle.COLD) {
-        console.log(`[CACHE] ❌ Cache entry is ${lifecycle}, fetching fresh response`);
         // Don't use this cached entry - fall through to fetch new response
       }
       // Reject if context has changed
       else if (storedContextHash && storedContextHash !== contextHash) {
-        console.log(`[CACHE] 🔄 Context changed, fetching fresh response`);
         // Don't use this cached entry - fall through to fetch new response
       }
       else {
-        const cacheAgeMs = cached.metadata?.created_at
-          ? Date.now() - new Date(cached.metadata.created_at).getTime()
-          : 0;
-        const cacheAgeDays = Math.round(cacheAgeMs / (1000 * 60 * 60 * 24));
-
-        console.log(`[CACHE] ✅ Using cached response (age: ${cacheAgeDays} days, lifecycle: ${lifecycle})`);
-
-      // Log usage
+        // Log usage
       const supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_KEY!
@@ -847,11 +785,6 @@ export async function POST(request: NextRequest) {
 
       // Sanitize cached response
       const sanitizedCachedResponse = sanitizeResponse(cached.response)
-
-      // Log if artifacts were removed
-      if (hasExecutionArtifacts(cached.response)) {
-        console.log('[SANITIZE] Cleaned cached response artifacts')
-      }
 
       // Analyze cached response quality
       const userQuery = messages[messages.length - 1]?.content || ''
@@ -887,12 +820,10 @@ export async function POST(request: NextRequest) {
 
     if (usingFreeProviders) {
       // Use free providers (auto-rotates between Groq, OpenRouter, HuggingFace)
-      console.log('[CHAT] No cache hit, calling free providers...');
       result = await callFreeProvider(enrichedMessages);
       finalModel = 'free-model';  // Don't expose which specific free model was used
     } else {
       // Use premium provider with user's API key
-      console.log(`[CHAT] No cache hit, calling ${selectedProvider} with user API key and model ${selectedModel}...`);
       try {
         result = await callPremiumProvider(enrichedMessages, selectedProvider, userApiKey!, selectedModel!);
         finalModel = selectedModel!;
@@ -907,11 +838,6 @@ export async function POST(request: NextRequest) {
 
     // Sanitize response to remove execution tags and artifacts (do this early)
     const sanitizedResponse = sanitizeResponse(result.response)
-
-    // Log if artifacts were removed
-    if (hasExecutionArtifacts(result.response)) {
-      console.log('[SANITIZE] Cleaned response artifacts from', result.provider)
-    }
 
     // Store in cache with version and context hash for lifecycle management
     await storeInCache(

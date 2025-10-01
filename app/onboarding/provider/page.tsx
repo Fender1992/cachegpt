@@ -82,48 +82,11 @@ export default function ProviderSelectionPage() {
     setError(null)
 
     try {
-      // Debug: Check localStorage for session
-      if (typeof window !== 'undefined') {
-        const localStorageKeys = Object.keys(localStorage)
-        console.log('[DEBUG] localStorage keys:', localStorageKeys)
-
-        // Look for Supabase session keys
-        const supabaseKeys = localStorageKeys.filter(key => key.includes('supabase'))
-        console.log('[DEBUG] Supabase keys in localStorage:', supabaseKeys)
-
-        supabaseKeys.forEach(key => {
-          const value = localStorage.getItem(key)
-          if (value && value.includes('access_token')) {
-            console.log('[DEBUG] Found session in localStorage key:', key)
-            try {
-              const parsed = JSON.parse(value)
-              console.log('[DEBUG] Session has access_token:', !!parsed.access_token)
-            } catch (e) {
-              console.log('[DEBUG] Could not parse session from localStorage')
-            }
-          }
-        })
-      }
-
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
-      console.log('[DEBUG] getSession result:', {
-        hasSession: !!session,
-        hasAccessToken: !!session?.access_token,
-        accessTokenLength: session?.access_token?.length,
-        userId: session?.user?.id,
-        email: session?.user?.email,
-        error: sessionError
-      })
-
       if (!session) {
-        console.error('[ERROR] No session found, redirecting to login')
         router.push('/login')
         return
-      }
-
-      if (!session.access_token) {
-        console.error('[ERROR] Session exists but no access_token!', session)
       }
 
       // Get the most advanced model for the selected provider
@@ -180,8 +143,6 @@ export default function ProviderSelectionPage() {
         }
 
         const callbackUrl = `http://localhost:${callbackPort}/auth/callback?${params.toString()}`
-
-        console.log('[DEBUG] Redirecting to CLI with token:', session.access_token ? 'Present' : 'Missing')
         window.location.href = callbackUrl
       } else {
         // Web user - redirect to chat
