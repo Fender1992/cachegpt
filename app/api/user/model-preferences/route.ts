@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
 
     // Create Supabase client with user session
     const cookieStore = cookies()
-    const supabase = await createClient({ cookies: () => cookieStore })
+    const supabase = await createClient()
 
     // Get current authenticated user
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     // Create Supabase client with user session
     const cookieStore = cookies()
-    const supabase = await createClient({ cookies: () => cookieStore })
+    const supabase = await createClient()
 
     // Get current authenticated user
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
@@ -113,7 +113,7 @@ export async function DELETE(request: NextRequest) {
 
     // Create Supabase client with user session
     const cookieStore = cookies()
-    const supabase = await createClient({ cookies: () => cookieStore })
+    const supabase = await createClient()
 
     // Get current authenticated user
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()

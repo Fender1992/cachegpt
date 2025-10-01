@@ -9,7 +9,7 @@ export async function POST(request: Request) {
     const { email, password } = await request.json()
 
     const cookieStore = cookies()
-    const supabase = await createClient({ cookies: () => cookieStore })
+    const supabase = await createClient()
 
     // Sign in with email/password
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   try {
     const cookieStore = cookies()
-    const supabase = await createClient({ cookies: () => cookieStore })
+    const supabase = await createClient()
 
     // Check current session
     const { data: { session }, error } = await supabase.auth.getSession()
