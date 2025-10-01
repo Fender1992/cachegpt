@@ -3,11 +3,6 @@ import { createClient } from '@supabase/supabase-js'
 import { cookies, headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 
-// LEGACY: Fallback admin email for backwards compatibility with pre-RBAC deployments
-// This allows the original admin to access admin features even if user_roles table is empty
-// Can be removed once all admin users are added to user_roles table via admin UI
-const LEGACY_ADMIN_EMAIL = 'rolandofender@gmail.com'
-
 export interface AdminSession {
   user: {
     id: string
@@ -108,9 +103,7 @@ async function getUserRoles(userId: string): Promise<string[]> {
  * Verifies admin access for protected routes
  * Returns admin session if user is authenticated admin, otherwise throws/redirects
  *
- * Checks in order:
- * 1. user_roles table (preferred)
- * 2. Legacy hardcoded email (fallback for backwards compatibility)
+ * Checks user_roles table for admin role with proper RBAC validation
  */
 export async function verifyAdminAuth(): Promise<AdminSession> {
   // Try Bearer token first
@@ -134,9 +127,8 @@ export async function verifyAdminAuth(): Promise<AdminSession> {
     // Check admin role
     const roles = await getUserRoles(user.id)
     const hasAdminRoleInDb = await hasAdminRole(user.id)
-    const isLegacyAdmin = user.email === LEGACY_ADMIN_EMAIL
 
-    if (!hasAdminRoleInDb && !isLegacyAdmin) {
+    if (!hasAdminRoleInDb) {
       throw new Error('Admin access required')
     }
 
@@ -146,7 +138,7 @@ export async function verifyAdminAuth(): Promise<AdminSession> {
         email: user.email || ''
       },
       isAdmin: true,
-      roles: hasAdminRoleInDb ? roles : ['admin']
+      roles: roles
     }
   }
 
@@ -186,10 +178,7 @@ export async function verifyAdminAuth(): Promise<AdminSession> {
   // Check if user has admin role in database
   const hasAdminRoleInDb = await hasAdminRole(session.user.id)
 
-  // Legacy fallback: Check hardcoded email
-  const isLegacyAdmin = session.user.email === LEGACY_ADMIN_EMAIL
-
-  if (!hasAdminRoleInDb && !isLegacyAdmin) {
+  if (!hasAdminRoleInDb) {
     throw new Error('Admin access required')
   }
 
@@ -199,7 +188,7 @@ export async function verifyAdminAuth(): Promise<AdminSession> {
       email: session.user.email || ''
     },
     isAdmin: true,
-    roles: hasAdminRoleInDb ? roles : ['admin']
+    roles: roles
   }
 }
 
