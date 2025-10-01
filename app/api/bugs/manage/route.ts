@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { createClient } from '@supabase/supabase-js'
 import { requireAdminAuth } from '@/lib/admin-auth'
 
 // Get all bugs (admin only)
@@ -19,24 +18,18 @@ export async function GET(request: NextRequest) {
 
     console.log('[BUGS-MANAGE] ✅ Admin auth successful:', authResult.session?.user.email)
 
-    const cookieStore = await cookies()
-    const supabase = createServerClient(
+    // Use service role key for admin operations (bypasses RLS)
+    const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      process.env.SUPABASE_SERVICE_KEY!,
       {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          },
-        },
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
       }
     )
-    console.log('[BUGS-MANAGE] Supabase SSR client created')
+    console.log('[BUGS-MANAGE] Service role client created for admin operations')
 
     // Parse query parameters for filtering
     const { searchParams } = new URL(request.url)
@@ -130,21 +123,15 @@ export async function PUT(request: NextRequest) {
       return authResult.response
     }
 
-    const cookieStore = await cookies()
-    const supabase = createServerClient(
+    // Use service role key for admin operations (bypasses RLS)
+    const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      process.env.SUPABASE_SERVICE_KEY!,
       {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          },
-        },
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
       }
     )
     const body = await request.json()
@@ -217,21 +204,15 @@ export async function DELETE(request: NextRequest) {
       return authResult.response
     }
 
-    const cookieStore = await cookies()
-    const supabase = createServerClient(
+    // Use service role key for admin operations (bypasses RLS)
+    const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      process.env.SUPABASE_SERVICE_KEY!,
       {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          },
-        },
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
       }
     )
     const { searchParams } = new URL(request.url)
