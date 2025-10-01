@@ -36,12 +36,25 @@
     "build:all": "tsc && pkg dist/index.js --targets node18-win-x64,node18-linux-x64,node18-macos-x64 --out-path ../app/static/"
   },
   "keywords": [
+    "ai",
+    "chatgpt",
+    "claude",
+    "gemini",
     "llm",
     "cache",
-    "proxy",
+    "free-ai",
     "openai",
     "anthropic",
-    "cli"
+    "cli",
+    "terminal",
+    "chat",
+    "cost-optimization",
+    "api-cache",
+    "gpt",
+    "ai-chat",
+    "ai-assistant",
+    "zero-setup",
+    "oauth"
   ],
   "author": "CacheGPT Team <support@cachegpt.io>",
   "license": "MIT",

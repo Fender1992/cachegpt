@@ -200,23 +200,6 @@ export default function Home() {
                       <span>Chat</span>
                     </Link>
 
-                    {/* Debug User Info - TEMPORARY */}
-                    <div className="px-4 py-2 text-xs text-gray-500 border-t border-gray-200 dark:border-gray-600">
-                      <div>User ID: {user?.id?.substring(0, 8)}...</div>
-                      <div>Email: {user?.email || 'No email'}</div>
-                      <div>Is Admin: {user?.email === 'rolandofender@gmail.com' ? 'Yes' : 'No'}</div>
-                    </div>
-
-                    {/* Admin Bug Tracker Link - Only for admin email */}
-                    {user?.email === 'rolandofender@gmail.com' && (
-                      <Link
-                        href="/admin/bugs"
-                        className="flex items-center space-x-2 px-4 py-2 text-sm text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20"
-                      >
-                        <Bug className="w-4 h-4" />
-                        <span>Bug Tracker</span>
-                      </Link>
-                    )}
 
                     <Link
                       href="/settings"
