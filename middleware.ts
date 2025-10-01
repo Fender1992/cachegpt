@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
 import { rateLimit } from './middleware/rateLimit-simple'
 import { getApiVersion, addVersionHeaders } from './middleware/api-version'
 
@@ -9,8 +10,30 @@ export async function middleware(request: NextRequest) {
     return rateLimitResult
   }
 
-  // Create response with security headers
+  // Create response
   let response = NextResponse.next()
+
+  // Handle Supabase auth - refresh session and set cookies
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            request.cookies.set(name, value)
+            response.cookies.set(name, value, options)
+          })
+        },
+      },
+    }
+  )
+
+  // This will refresh the session if needed
+  await supabase.auth.getUser()
 
   // Add API versioning headers for API routes
   if (request.nextUrl.pathname.startsWith('/api/')) {
