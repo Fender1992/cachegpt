@@ -27,6 +27,7 @@ import {
 import { sanitizeResponse, hasExecutionArtifacts } from '@/lib/response-sanitizer';
 import { enrichContext, generateSystemContext } from '@/lib/context-enrichment';
 import { performContextualSearch } from '@/lib/web-search';
+import { cacheLifecycleManager, QueryType, CacheLifecycle } from '@/lib/cache-lifecycle';
 
 /**
  * Cache Version Management
@@ -324,7 +325,8 @@ async function storeInCache(
   model: string,
   provider: string,
   userId: string | null,
-  responseTimeMs: number
+  responseTimeMs: number,
+  contextHash?: string
 ): Promise<void> {
   try {
     const tierCacheInstance = await getTierCache();
@@ -358,6 +360,9 @@ async function storeInCache(
 
       console.log(`[CACHE-STORE-FALLBACK] Storing: model=${model}, provider=${provider}, user=${userId}`);
 
+      // Classify query type for lifecycle management
+      const queryType = cacheLifecycleManager.classifyQueryType(query);
+
       const insertData = {
         query,
         response,
@@ -375,9 +380,15 @@ async function storeInCache(
           initial_response_time: responseTimeMs,
           created_by_user: userId
         },
+        // Lifecycle metadata
+        lifecycle: 'hot',
+        query_type: queryType,
+        context_hash: contextHash || null,
+        quality_score: 0.0,
         created_at: new Date().toISOString(),
         last_accessed: new Date().toISOString(),
-        last_score_update: new Date().toISOString()
+        last_score_update: new Date().toISOString(),
+        lifecycle_updated_at: new Date().toISOString()
       };
 
       const { data, error } = await supabase
@@ -753,23 +764,41 @@ export async function POST(request: NextRequest) {
     const predictiveCacheInstance = await getPredictiveCache();
     await predictiveCacheInstance.trackPredictionAccuracy(userMessage);
 
-    // Check cache first using tier-based system (with version to avoid stale entries)
-    console.log(`[CACHE] Checking for cached response (version: ${CACHE_VERSION})...`);
+    // Check cache using lifecycle-aware system (replaces version + TTL)
+    console.log(`[CACHE] Checking for cached response (version: ${CACHE_VERSION}, lifecycle-aware)...`);
     const versionedCacheModel = `${cacheModel}:${CACHE_VERSION}`;
+
+    // Generate context hash for invalidation detection
+    const contextHash = cacheLifecycleManager.generateContextHash({
+      enrichedContext,
+      systemContext,
+      version: CACHE_VERSION
+    });
+
     const cached = await findCachedResponse(userMessage, versionedCacheModel, cacheProvider);
 
     if (cached) {
-      // Check cache age (TTL) - reject if too old
-      const cacheAgeMs = cached.metadata?.created_at
-        ? Date.now() - new Date(cached.metadata.created_at).getTime()
-        : Infinity;
-      const cacheAgeDays = cacheAgeMs / (1000 * 60 * 60 * 24);
+      // Check lifecycle and context hash
+      const lifecycle = cached.metadata?.lifecycle || 'hot';
+      const storedContextHash = cached.metadata?.context_hash;
 
-      if (cacheAgeDays > CACHE_MAX_AGE_DAYS) {
-        console.log(`[CACHE] ⏱️  Cache entry too old (${Math.round(cacheAgeDays)} days), fetching fresh response`);
+      // Reject stale or cold entries
+      if (lifecycle === CacheLifecycle.STALE || lifecycle === CacheLifecycle.COLD) {
+        console.log(`[CACHE] ❌ Cache entry is ${lifecycle}, fetching fresh response`);
         // Don't use this cached entry - fall through to fetch new response
-      } else {
-        console.log(`[CACHE] ✅ Using cached response (age: ${Math.round(cacheAgeDays)} days)`);
+      }
+      // Reject if context has changed
+      else if (storedContextHash && storedContextHash !== contextHash) {
+        console.log(`[CACHE] 🔄 Context changed, fetching fresh response`);
+        // Don't use this cached entry - fall through to fetch new response
+      }
+      else {
+        const cacheAgeMs = cached.metadata?.created_at
+          ? Date.now() - new Date(cached.metadata.created_at).getTime()
+          : 0;
+        const cacheAgeDays = Math.round(cacheAgeMs / (1000 * 60 * 60 * 24));
+
+        console.log(`[CACHE] ✅ Using cached response (age: ${cacheAgeDays} days, lifecycle: ${lifecycle})`);
 
       // Log usage
       const supabase = createClient(
@@ -862,14 +891,15 @@ export async function POST(request: NextRequest) {
       console.log('[SANITIZE] Cleaned response artifacts from', result.provider)
     }
 
-    // Store in cache with version (original response - will be sanitized on retrieval)
+    // Store in cache with version and context hash for lifecycle management
     await storeInCache(
       userMessage,
       result.response,
       versionedCacheModel, // Use versioned model to separate old/new cache entries
       cacheProvider,
       userId,
-      responseTime
+      responseTime,
+      contextHash // Add context hash for invalidation tracking
     );
 
     // Save to unified chat history system (use original messages + sanitized response)
