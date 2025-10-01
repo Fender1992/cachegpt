@@ -62,10 +62,32 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch conversations' }, { status: 500 })
     }
 
+    // Get message counts for each conversation
+    const conversationsWithCounts = await Promise.all(
+      (conversations || []).map(async (conv) => {
+        const { count } = await supabase
+          .from('messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('conversation_id', conv.id)
+          .eq('user_id', userId)
+
+        return {
+          conversation_id: conv.id,
+          title: conv.title,
+          provider: conv.provider,
+          model: conv.model,
+          message_count: count || 0,
+          last_message_at: conv.updated_at,
+          is_pinned: conv.is_pinned,
+          created_at: conv.created_at
+        }
+      })
+    )
+
     return NextResponse.json({
-      conversations,
+      conversations: conversationsWithCounts,
       user_id: userId, // Include for debugging
-      total: conversations?.length || 0
+      total: conversationsWithCounts.length
     })
   } catch (error) {
     console.error('[CONVERSATIONS API] Exception:', error)
