@@ -338,13 +338,22 @@ export default function ChatPage() {
     }
 
     try {
+      // Get session for authentication
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      }
+
+      // Add Bearer token if we have a session
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+      }
+
       // Send message to our API with selected provider and model
       console.log('[CHAT] Calling unified-chat API with provider:', selectedProvider)
       const response = await fetch('/api/v2/unified-chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         credentials: 'include',
         body: JSON.stringify({
           messages: [...messages, newUserMessage],
