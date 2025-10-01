@@ -1,7 +1,7 @@
-![npm version](https://img.shields.io/npm/v/cachegpt-cli)](https://www.npmjs.com/package/cachegpt-cli)
-![npm downloads](https://img.shields.io/npm/dm/cachegpt-cli)](https://www.npmjs.com/package/cachegpt-cli)
-![GitHub stars](https://img.shields.io/github/stars/Fender1992/cachegpt)](https://github.com/Fender1992/cachegpt)
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+ [![npm version](https://img.shields.io/npm/v/cachegpt-cli)](https://www.npmjs.com/package/cachegpt-cli)
+  [![npm downloads](https://img.shields.io/npm/dm/cachegpt-cli)](https://www.npmjs.com/package/cachegpt-cli)
+  [![GitHub stars](https://img.shields.io/github/stars/Fender1992/cachegpt)](https://github.com/Fender1992/cachegpt)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 # CacheGPT - Zero-Setup AI Chat
 
 Free AI chat with OAuth login - no API keys needed! Use premium models or add your own keys for enterprise mode.
