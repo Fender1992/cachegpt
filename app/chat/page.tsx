@@ -126,6 +126,7 @@ export default function ChatPage() {
         setMessages(loadedMessages)
         setHasOlderMessages(data.hasMore || false)
         setCurrentConversationId(conversationId)
+        setActiveConversationId(conversationId) // Set as active so new messages append to this conversation
         setShowHistory(false)
       }
     } catch (error) {
