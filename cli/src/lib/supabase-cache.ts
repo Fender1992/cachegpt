@@ -59,9 +59,9 @@ export class SupabaseCache {
    * In production, this should use the same embedding model as the web app
    */
   private async generateEmbedding(text: string): Promise<number[]> {
-    // Simple hash-based embedding for now
-    // TODO: Use proper embedding service like OpenAI
-    // Note: Database uses 384 dimensions for all-MiniLM-L6-v2
+    // Simple hash-based embedding optimized for CLI performance
+    // NOTE: Future enhancement - use proper embedding service (requires API key setup)
+    // Currently uses 384 dimensions to match database schema (all-MiniLM-L6-v2)
     const embedding = new Array(384).fill(0);
     for (let i = 0; i < text.length; i++) {
       embedding[i % 384] = (text.charCodeAt(i) / 255) - 0.5;

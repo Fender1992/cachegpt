@@ -3,8 +3,9 @@ import { createClient } from '@supabase/supabase-js'
 import { cookies, headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 
-// LEGACY: Fallback admin email for backwards compatibility
-// TODO: Remove after all admins are migrated to user_roles table
+// LEGACY: Fallback admin email for backwards compatibility with pre-RBAC deployments
+// This allows the original admin to access admin features even if user_roles table is empty
+// Can be removed once all admin users are added to user_roles table via admin UI
 const LEGACY_ADMIN_EMAIL = 'rolandofender@gmail.com'
 
 export interface AdminSession {

@@ -52,7 +52,7 @@ program
 
 program
   .command('init')
-  .description('Initialize LLM Cache configuration')
+  .description('Initialize CacheGPT configuration')
   .action(initCommand);
 
 program
@@ -132,17 +132,9 @@ program
   .command('login')
   .description('Login to your CacheGPT account (6-digit email code)')
   .option('--advanced', 'Use advanced login options (password setup, etc.)')
-  .option('--browser', 'Use browser-based OAuth login')
   .action(async (options) => {
-    if (options.advanced) {
-      const { loginConsoleCommand } = await import('./commands/login-console');
-      await loginConsoleCommand();
-    } else if (options.browser) {
-      const { loginCommandSimple } = await import('./commands/login-simple');
-      await loginCommandSimple();
-    } else {
-      await loginCommand();
-    }
+    // All login options now use the same OAuth browser flow
+    await loginCommand();
   });
 
 program

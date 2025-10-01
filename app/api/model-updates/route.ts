@@ -114,8 +114,8 @@ async function fetchLatestModels() {
     }
   }
 
-  // TODO: In future, add actual API calls to check for newer models
-  // For now, return the latest known configuration
+  // NOTE: Future enhancement - automatically fetch latest models from provider APIs
+  // Current approach: manually update configuration when new models are released
   return config
 }
 

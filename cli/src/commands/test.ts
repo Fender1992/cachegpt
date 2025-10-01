@@ -22,7 +22,7 @@ export async function testCommand(options: TestOptions): Promise<void> {
   }
 
   const apiClient = createApiClient(config as any);
-  const spinner = ora('Testing LLM Cache API...').start();
+  const spinner = ora('Testing CacheGPT API...').start();
 
   try {
     // Test 1: Health check
@@ -147,7 +147,7 @@ export async function testCommand(options: TestOptions): Promise<void> {
     console.log(chalk.blue('\n🔧 Troubleshooting:'));
     console.log('   1. Verify your base URL is correct and the server is running');
     console.log('   2. Check that your API key is valid and active');
-    console.log('   3. Ensure the LLM Cache Proxy is properly configured');
+    console.log('   3. Ensure the CacheGPT service is properly configured');
     console.log('   4. Run `cachegpt config --show` to verify your settings');
   }
 }
