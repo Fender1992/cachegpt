@@ -83,9 +83,18 @@ async function getUserRoles(userId: string): Promise<string[]> {
  */
 export async function verifyAdminAuth(): Promise<AdminSession> {
   const cookieStore = cookies()
+  console.log('[ADMIN-AUTH] Cookie store type:', typeof cookieStore)
+
   const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+  console.log('[ADMIN-AUTH] Supabase client created')
 
   const { data: { session }, error } = await supabase.auth.getSession()
+  console.log('[ADMIN-AUTH] getSession result:', {
+    hasSession: !!session,
+    hasError: !!error,
+    userId: session?.user?.id,
+    email: session?.user?.email
+  })
 
   if (error) {
     console.error('[ADMIN-AUTH] Session error:', error.message)
@@ -93,7 +102,7 @@ export async function verifyAdminAuth(): Promise<AdminSession> {
   }
 
   if (!session) {
-    console.log('[ADMIN-AUTH] No session found')
+    console.log('[ADMIN-AUTH] No session found - cookies might not be sent or session expired')
     throw new Error('Authentication required')
   }
 
