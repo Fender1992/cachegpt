@@ -381,6 +381,29 @@ export default function Home() {
             </div>
           </div>
 
+          {/* Demo Video Section */}
+          <div className={`mt-16 max-w-4xl mx-auto transition-all duration-700 delay-500 ${isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold mb-3 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                See CacheGPT in Action
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400">
+                Watch how easy it is to get started and start saving in under 60 seconds
+              </p>
+            </div>
+            <div className="glass-card rounded-2xl overflow-hidden shadow-2xl border-2 border-purple-200 dark:border-purple-900/50">
+              <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                <iframe
+                  src="https://www.loom.com/embed/d16eb3831d594a5199b5243315fd637f?sid=aa9f8908-8990-4708-83b1-ad4e58cb1384"
+                  frameBorder="0"
+                  allowFullScreen
+                  className="absolute top-0 left-0 w-full h-full"
+                  title="CacheGPT Demo Video"
+                ></iframe>
+              </div>
+            </div>
+          </div>
+
           {/* Savings Calculator */}
           <div className={`mt-12 max-w-4xl mx-auto transition-all duration-700 delay-600 ${isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
             <div className="glass-card rounded-2xl p-8">
