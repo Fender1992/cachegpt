@@ -3,6 +3,9 @@ import { createClient } from '@supabase/supabase-js'
 import { cookies, headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 
+// Hardcoded admin email for owner access
+const ADMIN_EMAIL = 'rolandofender@gmail.com'
+
 export interface AdminSession {
   user: {
     id: string
@@ -103,7 +106,9 @@ async function getUserRoles(userId: string): Promise<string[]> {
  * Verifies admin access for protected routes
  * Returns admin session if user is authenticated admin, otherwise throws/redirects
  *
- * Checks user_roles table for admin role with proper RBAC validation
+ * Checks in order:
+ * 1. Hardcoded admin email (owner access)
+ * 2. user_roles table (RBAC validation)
  */
 export async function verifyAdminAuth(): Promise<AdminSession> {
   // Try Bearer token first
@@ -127,8 +132,9 @@ export async function verifyAdminAuth(): Promise<AdminSession> {
     // Check admin role
     const roles = await getUserRoles(user.id)
     const hasAdminRoleInDb = await hasAdminRole(user.id)
+    const isHardcodedAdmin = user.email === ADMIN_EMAIL
 
-    if (!hasAdminRoleInDb) {
+    if (!hasAdminRoleInDb && !isHardcodedAdmin) {
       throw new Error('Admin access required')
     }
 
@@ -138,7 +144,7 @@ export async function verifyAdminAuth(): Promise<AdminSession> {
         email: user.email || ''
       },
       isAdmin: true,
-      roles: roles
+      roles: hasAdminRoleInDb ? roles : ['admin']
     }
   }
 
@@ -177,8 +183,9 @@ export async function verifyAdminAuth(): Promise<AdminSession> {
 
   // Check if user has admin role in database
   const hasAdminRoleInDb = await hasAdminRole(session.user.id)
+  const isHardcodedAdmin = session.user.email === ADMIN_EMAIL
 
-  if (!hasAdminRoleInDb) {
+  if (!hasAdminRoleInDb && !isHardcodedAdmin) {
     throw new Error('Admin access required')
   }
 
@@ -188,7 +195,7 @@ export async function verifyAdminAuth(): Promise<AdminSession> {
       email: session.user.email || ''
     },
     isAdmin: true,
-    roles: roles
+    roles: hasAdminRoleInDb ? roles : ['admin']
   }
 }
 
