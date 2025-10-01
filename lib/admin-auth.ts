@@ -1,4 +1,4 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
@@ -19,8 +19,23 @@ export interface AdminSession {
  * Check if user has admin role in user_roles table
  */
 async function hasAdminRole(userId: string): Promise<boolean> {
-  const cookieStore = cookies()
-  const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+  const cookieStore = await cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
 
   const { data, error } = await supabase
     .from('user_roles')
@@ -54,8 +69,23 @@ async function hasAdminRole(userId: string): Promise<boolean> {
  * Get all roles for a user
  */
 async function getUserRoles(userId: string): Promise<string[]> {
-  const cookieStore = cookies()
-  const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+  const cookieStore = await cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
 
   const { data, error } = await supabase
     .from('user_roles')
@@ -82,11 +112,26 @@ async function getUserRoles(userId: string): Promise<string[]> {
  * 2. Legacy hardcoded email (fallback for backwards compatibility)
  */
 export async function verifyAdminAuth(): Promise<AdminSession> {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   console.log('[ADMIN-AUTH] Cookie store type:', typeof cookieStore)
 
-  const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
-  console.log('[ADMIN-AUTH] Supabase client created')
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
+  console.log('[ADMIN-AUTH] Supabase SSR client created')
 
   const { data: { session }, error } = await supabase.auth.getSession()
   console.log('[ADMIN-AUTH] getSession result:', {
