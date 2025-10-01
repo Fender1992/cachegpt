@@ -26,29 +26,8 @@ CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON user_roles(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_roles_role ON user_roles(role);
 CREATE INDEX IF NOT EXISTS idx_user_roles_expires_at ON user_roles(expires_at) WHERE expires_at IS NOT NULL;
 
--- Enable RLS
+-- Enable RLS (policies will be created after functions to avoid recursion)
 ALTER TABLE user_roles ENABLE ROW LEVEL SECURITY;
-
--- Drop existing policies if they exist
-DROP POLICY IF EXISTS "Users can view their own roles" ON user_roles;
-DROP POLICY IF EXISTS "Admins can manage all roles" ON user_roles;
-
--- RLS Policy: Users can view their own roles
-CREATE POLICY "Users can view their own roles" ON user_roles
-FOR SELECT
-USING (auth.uid() = user_id);
-
--- RLS Policy: Admins can manage all roles
-CREATE POLICY "Admins can manage all roles" ON user_roles
-FOR ALL
-USING (
-  EXISTS (
-    SELECT 1 FROM user_roles
-    WHERE user_roles.user_id = auth.uid()
-    AND user_roles.role = 'admin'
-    AND (user_roles.expires_at IS NULL OR user_roles.expires_at > NOW())
-  )
-);
 
 -- Grant permissions
 GRANT ALL ON user_roles TO authenticated;
@@ -92,6 +71,25 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- =====================================================
+-- 2A. USER_ROLES TABLE RLS POLICIES (AFTER FUNCTIONS)
+-- =====================================================
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view their own roles" ON user_roles;
+DROP POLICY IF EXISTS "Admins can manage all roles" ON user_roles;
+
+-- RLS Policy: Users can view their own roles
+CREATE POLICY "Users can view their own roles" ON user_roles
+FOR SELECT
+USING (auth.uid() = user_id);
+
+-- RLS Policy: Admins can manage all roles
+-- Uses SECURITY DEFINER function to avoid infinite recursion
+CREATE POLICY "Admins can manage all roles" ON user_roles
+FOR ALL
+USING (current_user_has_role('admin'));
+
+-- =====================================================
 -- 3. UPDATE BUGS TABLE RLS POLICIES
 -- =====================================================
 
@@ -99,15 +97,11 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 DROP POLICY IF EXISTS "Admin can view all bugs" ON bugs;
 
 -- Create new role-based policy for admins/moderators
+-- Uses SECURITY DEFINER function to avoid recursion issues
 CREATE POLICY "Admins and moderators can manage all bugs" ON bugs
 FOR ALL
 USING (
-  EXISTS (
-    SELECT 1 FROM user_roles
-    WHERE user_roles.user_id = auth.uid()
-    AND user_roles.role IN ('admin', 'moderator')
-    AND (user_roles.expires_at IS NULL OR user_roles.expires_at > NOW())
-  )
+  current_user_has_role('admin') OR current_user_has_role('moderator')
 );
 
 -- IMPORTANT: Preserve the user submission policy (don't drop it!)
@@ -150,16 +144,10 @@ CREATE INDEX IF NOT EXISTS idx_bug_notifications_created_at ON bug_notifications
 ALTER TABLE bug_notifications ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policy: Admins can view all notifications
+-- Uses SECURITY DEFINER function to avoid recursion
 CREATE POLICY "Admins can view all notifications" ON bug_notifications
 FOR ALL
-USING (
-  EXISTS (
-    SELECT 1 FROM user_roles
-    WHERE user_roles.user_id = auth.uid()
-    AND user_roles.role = 'admin'
-    AND (user_roles.expires_at IS NULL OR user_roles.expires_at > NOW())
-  )
-);
+USING (current_user_has_role('admin'));
 
 -- Grant permissions
 GRANT ALL ON bug_notifications TO authenticated;
@@ -261,16 +249,10 @@ CREATE INDEX IF NOT EXISTS idx_bug_audit_log_created_at ON bug_audit_log(created
 ALTER TABLE bug_audit_log ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policy: Admins can view all audit logs
+-- Uses SECURITY DEFINER function to avoid recursion
 CREATE POLICY "Admins can view all audit logs" ON bug_audit_log
 FOR SELECT
-USING (
-  EXISTS (
-    SELECT 1 FROM user_roles
-    WHERE user_roles.user_id = auth.uid()
-    AND user_roles.role = 'admin'
-    AND (user_roles.expires_at IS NULL OR user_roles.expires_at > NOW())
-  )
-);
+USING (current_user_has_role('admin'));
 
 -- Grant permissions
 GRANT SELECT ON bug_audit_log TO authenticated;
