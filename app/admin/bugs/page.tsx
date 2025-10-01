@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
+import Toast from '@/components/toast'
 import {
   Bug, Filter, Search, Calendar, User, Globe,
   AlertTriangle, CheckCircle, Clock, XCircle,
@@ -65,6 +66,11 @@ const priorityColors = {
   critical: 'text-red-600 bg-red-50'
 }
 
+interface ToastNotification {
+  message: string
+  type: 'success' | 'error' | 'warning' | 'info'
+}
+
 export default function AdminBugsPage() {
   const [bugs, setBugs] = useState<BugReport[]>([])
   const [statistics, setStatistics] = useState<BugStatistics | null>(null)
@@ -75,6 +81,8 @@ export default function AdminBugsPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [priorityFilter, setPriorityFilter] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
+  const [toast, setToast] = useState<ToastNotification | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -157,24 +165,30 @@ export default function AdminBugsPage() {
         throw new Error('Failed to update bug')
       }
 
+      setToast({ message: 'Bug updated successfully', type: 'success' })
       await loadBugs()
       if (selectedBug?.id === bugId) {
         setSelectedBug(prev => prev ? { ...prev, ...updates } : null)
       }
     } catch (error) {
       console.error('Error updating bug:', error)
-      alert('Failed to update bug')
+      setToast({ message: 'Failed to update bug', type: 'error' })
     }
   }
 
   const deleteBug = async (bugId: string) => {
-    if (!confirm('Are you sure you want to delete this bug report?')) return
+    // Show custom confirmation dialog
+    setShowDeleteConfirm(bugId)
+  }
+
+  const confirmDelete = async () => {
+    if (!showDeleteConfirm) return
 
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
 
-      const response = await fetch(`/api/bugs/manage?id=${bugId}`, {
+      const response = await fetch(`/api/bugs/manage?id=${showDeleteConfirm}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${session.access_token}`
@@ -182,16 +196,20 @@ export default function AdminBugsPage() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to delete bug')
+        const data = await response.json()
+        throw new Error(data.details || 'Failed to delete bug')
       }
 
+      setToast({ message: 'Bug deleted successfully', type: 'success' })
       await loadBugs()
-      if (selectedBug?.id === bugId) {
+      if (selectedBug?.id === showDeleteConfirm) {
         setSelectedBug(null)
       }
+      setShowDeleteConfirm(null)
     } catch (error) {
       console.error('Error deleting bug:', error)
-      alert('Failed to delete bug')
+      setToast({ message: (error as Error).message, type: 'error' })
+      setShowDeleteConfirm(null)
     }
   }
 
@@ -545,6 +563,44 @@ export default function AdminBugsPage() {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              Confirm Deletion
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              Are you sure you want to delete this bug report? This action cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowDeleteConfirm(null)}
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+          duration={5000}
+        />
+      )}
     </div>
   )
 }
