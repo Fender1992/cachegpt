@@ -45,9 +45,8 @@ async function hasAdminRole(userId: string): Promise<boolean> {
     .eq('role', 'admin')
     .maybeSingle() // Changed from .single() to handle case when no rows exist
 
-  // If table doesn't exist or query fails, log and return false (legacy fallback will handle)
+  // If table doesn't exist or query fails, return false (legacy fallback will handle)
   if (error) {
-    console.log('[ADMIN-AUTH] user_roles query error (using legacy fallback):', error.message)
     return false
   }
 
@@ -119,7 +118,6 @@ export async function verifyAdminAuth(): Promise<AdminSession> {
 
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.substring(7)
-    console.log('[ADMIN-AUTH] Using Bearer token authentication')
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -129,11 +127,8 @@ export async function verifyAdminAuth(): Promise<AdminSession> {
     const { data: { user }, error } = await supabase.auth.getUser(token)
 
     if (error || !user) {
-      console.error('[ADMIN-AUTH] Bearer token invalid:', error?.message)
       throw new Error('Authentication required')
     }
-
-    console.log('[ADMIN-AUTH] Bearer auth successful:', user.email)
 
     // Check admin role
     const roles = await getUserRoles(user.id)
@@ -141,11 +136,8 @@ export async function verifyAdminAuth(): Promise<AdminSession> {
     const isLegacyAdmin = user.email === LEGACY_ADMIN_EMAIL
 
     if (!hasAdminRoleInDb && !isLegacyAdmin) {
-      console.error('[ADMIN-AUTH] User is not admin:', user.email)
       throw new Error('Admin access required')
     }
-
-    console.log('[ADMIN-AUTH] ✅ Admin access granted (Bearer):', user.email)
 
     return {
       user: {
@@ -158,10 +150,7 @@ export async function verifyAdminAuth(): Promise<AdminSession> {
   }
 
   // Fall back to cookie-based auth
-  console.log('[ADMIN-AUTH] No Bearer token, trying cookies...')
   const cookieStore = await cookies()
-  const allCookies = cookieStore.getAll()
-  console.log('[ADMIN-AUTH] Total cookies:', allCookies.length)
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -183,40 +172,25 @@ export async function verifyAdminAuth(): Promise<AdminSession> {
   const { data: { session }, error } = await supabase.auth.getSession()
 
   if (error) {
-    console.error('[ADMIN-AUTH] Session error:', error.message)
     throw new Error('Authentication required')
   }
 
   if (!session) {
-    console.log('[ADMIN-AUTH] No session found via cookies')
     throw new Error('Authentication required')
   }
 
-  console.log('[ADMIN-AUTH] Checking admin access for:', session.user.email)
-
   // Get user roles
   const roles = await getUserRoles(session.user.id)
-  console.log('[ADMIN-AUTH] User roles from DB:', roles)
 
   // Check if user has admin role in database
   const hasAdminRoleInDb = await hasAdminRole(session.user.id)
-  console.log('[ADMIN-AUTH] Has admin role in DB:', hasAdminRoleInDb)
 
   // Legacy fallback: Check hardcoded email
   const isLegacyAdmin = session.user.email === LEGACY_ADMIN_EMAIL
-  console.log('[ADMIN-AUTH] Is legacy admin:', isLegacyAdmin, '(email:', session.user.email, ')')
 
   if (!hasAdminRoleInDb && !isLegacyAdmin) {
-    console.error('[ADMIN-AUTH] Access denied for:', session.user.email)
     throw new Error('Admin access required')
   }
-
-  // Log if using legacy admin (for monitoring migration)
-  if (isLegacyAdmin && !hasAdminRoleInDb) {
-    console.warn(`[ADMIN-AUTH] User ${session.user.email} accessing via legacy email check. Please migrate to user_roles table.`)
-  }
-
-  console.log('[ADMIN-AUTH] ✅ Admin access granted for:', session.user.email)
 
   return {
     user: {
@@ -224,7 +198,7 @@ export async function verifyAdminAuth(): Promise<AdminSession> {
       email: session.user.email || ''
     },
     isAdmin: true,
-    roles: hasAdminRoleInDb ? roles : ['admin'] // Include all roles if in DB
+    roles: hasAdminRoleInDb ? roles : ['admin']
   }
 }
 
