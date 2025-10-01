@@ -200,9 +200,20 @@ export async function DELETE(request: NextRequest) {
       .eq('id', bugId)
 
     if (error) {
-      console.error('Error deleting bug:', error)
+      console.error('[BUGS-MANAGE] Delete error:', error)
+
+      // Check for specific error types
+      if (error.code === '23503') {
+        return NextResponse.json({
+          error: 'Cannot delete bug due to foreign key constraint',
+          details: 'Please run database migration 032_fix_bug_audit_log_constraint.sql',
+          hint: error.message
+        }, { status: 500 })
+      }
+
       return NextResponse.json({
-        error: 'Failed to delete bug'
+        error: 'Failed to delete bug',
+        details: error.message
       }, { status: 500 })
     }
 
