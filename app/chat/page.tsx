@@ -345,6 +345,7 @@ export default function ChatPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
           messages: [...messages, newUserMessage],
           preferredProvider: selectedProvider === 'auto' ? undefined : selectedProvider
