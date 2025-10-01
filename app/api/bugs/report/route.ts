@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { error as logError, info as logInfo } from '@/lib/logger'
 
@@ -7,8 +8,9 @@ export async function POST(request: NextRequest) {
   console.log('[BUG-REPORT] === Starting bug report submission ===')
 
   try {
+    // Use regular client for session check
     const cookieStore = await cookies()
-    const supabase = createServerClient(
+    const supabaseAuth = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
@@ -24,7 +26,20 @@ export async function POST(request: NextRequest) {
         },
       }
     )
-    console.log('[BUG-REPORT] Supabase SSR client created')
+    console.log('[BUG-REPORT] Auth client created for session check')
+
+    // Create service role client for database insert (bypasses RLS)
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    )
+    console.log('[BUG-REPORT] Service role client created for insert')
 
     // Parse request body
     const body = await request.json()
@@ -58,7 +73,7 @@ export async function POST(request: NextRequest) {
 
     // Get user session (optional - bugs can be submitted anonymously)
     console.log('[BUG-REPORT] Fetching user session...')
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    const { data: { session }, error: sessionError } = await supabaseAuth.auth.getSession()
 
     if (sessionError) {
       console.error('[BUG-REPORT] Session error:', sessionError)
