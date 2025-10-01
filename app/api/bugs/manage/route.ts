@@ -13,9 +13,17 @@ export async function GET(request: NextRequest) {
     }
 
     // Use service role key for admin operations (bypasses RLS)
+    const serviceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!serviceKey) {
+      console.error('[BUGS-MANAGE] Missing SUPABASE_SERVICE_KEY or SUPABASE_SERVICE_ROLE_KEY')
+      return NextResponse.json({
+        error: 'Server configuration error: Missing service key'
+      }, { status: 500 })
+    }
+
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_KEY!,
+      serviceKey,
       {
         auth: {
           autoRefreshToken: false,
@@ -94,9 +102,10 @@ export async function PUT(request: NextRequest) {
     }
 
     // Use service role key for admin operations (bypasses RLS)
+    const serviceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_KEY!,
+      serviceKey!,
       {
         auth: {
           autoRefreshToken: false,
@@ -175,9 +184,10 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Use service role key for admin operations (bypasses RLS)
+    const serviceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_KEY!,
+      serviceKey!,
       {
         auth: {
           autoRefreshToken: false,
