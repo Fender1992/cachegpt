@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/lib/supabase-server';
 import { cookies } from 'next/headers';
 import { error as logError } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = cookies();
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    const supabase = await createClient();
 
     // This endpoint provides system-wide metrics (no auth required for status page)
     // Get last 24 hours of data

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@/lib/supabase-server'
 import { cookies } from 'next/headers'
 
 // GET /api/user/model-preferences - Get user's model preferences (ONLY their own)
@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
 
     // Create Supabase client with user session
     const cookieStore = cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+    const supabase = await createClient({ cookies: () => cookieStore })
 
     // Get current authenticated user
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     // Create Supabase client with user session
     const cookieStore = cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+    const supabase = await createClient({ cookies: () => cookieStore })
 
     // Get current authenticated user
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
@@ -113,7 +113,7 @@ export async function DELETE(request: NextRequest) {
 
     // Create Supabase client with user session
     const cookieStore = cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+    const supabase = await createClient({ cookies: () => cookieStore })
 
     // Get current authenticated user
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()

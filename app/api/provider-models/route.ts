@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@/lib/supabase-server'
 import { cookies } from 'next/headers'
 
 // GET /api/provider-models - Get available models for each provider
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
 
     // Create Supabase client (public read access to provider models)
     const cookieStore = cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+    const supabase = await createClient({ cookies: () => cookieStore })
 
     // Build query
     let query = supabase
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
   try {
     // Create Supabase client with user session
     const cookieStore = cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+    const supabase = await createClient({ cookies: () => cookieStore })
 
     // Get current authenticated user
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
