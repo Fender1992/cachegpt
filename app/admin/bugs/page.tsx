@@ -105,13 +105,23 @@ export default function AdminBugsPage() {
   const loadBugs = async () => {
     try {
       setLoading(true)
+
+      // Get session token
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        router.push('/login')
+        return
+      }
+
       const params = new URLSearchParams()
       if (statusFilter) params.append('status', statusFilter)
       if (priorityFilter) params.append('priority', priorityFilter)
       if (categoryFilter) params.append('category', categoryFilter)
 
       const response = await fetch(`/api/bugs/manage?${params}`, {
-        credentials: 'include'
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
       })
 
       if (!response.ok) {
@@ -131,10 +141,15 @@ export default function AdminBugsPage() {
 
   const updateBugStatus = async (bugId: string, updates: Partial<BugReport>) => {
     try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+
       const response = await fetch('/api/bugs/manage', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({ bugId, updates })
       })
 
@@ -156,9 +171,14 @@ export default function AdminBugsPage() {
     if (!confirm('Are you sure you want to delete this bug report?')) return
 
     try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+
       const response = await fetch(`/api/bugs/manage?id=${bugId}`, {
         method: 'DELETE',
-        credentials: 'include'
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
       })
 
       if (!response.ok) {

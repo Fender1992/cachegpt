@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { createClient } from '@supabase/supabase-js'
+import { cookies, headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 // LEGACY: Fallback admin email for backwards compatibility
@@ -112,14 +113,55 @@ async function getUserRoles(userId: string): Promise<string[]> {
  * 2. Legacy hardcoded email (fallback for backwards compatibility)
  */
 export async function verifyAdminAuth(): Promise<AdminSession> {
-  const cookieStore = await cookies()
-  console.log('[ADMIN-AUTH] Cookie store type:', typeof cookieStore)
+  // Try Bearer token first
+  const headersList = await headers()
+  const authHeader = headersList.get('authorization')
 
-  // Debug: Log all cookies
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.substring(7)
+    console.log('[ADMIN-AUTH] Using Bearer token authentication')
+
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+
+    const { data: { user }, error } = await supabase.auth.getUser(token)
+
+    if (error || !user) {
+      console.error('[ADMIN-AUTH] Bearer token invalid:', error?.message)
+      throw new Error('Authentication required')
+    }
+
+    console.log('[ADMIN-AUTH] Bearer auth successful:', user.email)
+
+    // Check admin role
+    const roles = await getUserRoles(user.id)
+    const hasAdminRoleInDb = await hasAdminRole(user.id)
+    const isLegacyAdmin = user.email === LEGACY_ADMIN_EMAIL
+
+    if (!hasAdminRoleInDb && !isLegacyAdmin) {
+      console.error('[ADMIN-AUTH] User is not admin:', user.email)
+      throw new Error('Admin access required')
+    }
+
+    console.log('[ADMIN-AUTH] ✅ Admin access granted (Bearer):', user.email)
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email || ''
+      },
+      isAdmin: true,
+      roles: hasAdminRoleInDb ? roles : ['admin']
+    }
+  }
+
+  // Fall back to cookie-based auth
+  console.log('[ADMIN-AUTH] No Bearer token, trying cookies...')
+  const cookieStore = await cookies()
   const allCookies = cookieStore.getAll()
   console.log('[ADMIN-AUTH] Total cookies:', allCookies.length)
-  console.log('[ADMIN-AUTH] Cookie names:', allCookies.map(c => c.name))
-  console.log('[ADMIN-AUTH] Supabase cookies:', allCookies.filter(c => c.name.includes('supabase') || c.name.includes('sb-')).map(c => ({ name: c.name, value: c.value.substring(0, 20) + '...' })))
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -137,15 +179,8 @@ export async function verifyAdminAuth(): Promise<AdminSession> {
       },
     }
   )
-  console.log('[ADMIN-AUTH] Supabase SSR client created')
 
   const { data: { session }, error } = await supabase.auth.getSession()
-  console.log('[ADMIN-AUTH] getSession result:', {
-    hasSession: !!session,
-    hasError: !!error,
-    userId: session?.user?.id,
-    email: session?.user?.email
-  })
 
   if (error) {
     console.error('[ADMIN-AUTH] Session error:', error.message)
@@ -153,7 +188,7 @@ export async function verifyAdminAuth(): Promise<AdminSession> {
   }
 
   if (!session) {
-    console.log('[ADMIN-AUTH] No session found - cookies might not be sent or session expired')
+    console.log('[ADMIN-AUTH] No session found via cookies')
     throw new Error('Authentication required')
   }
 
