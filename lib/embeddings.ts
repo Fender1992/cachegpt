@@ -37,7 +37,9 @@ export async function generateEmbedding(text: string): Promise<number[]> {
     if (embeddingCache.size >= CACHE_SIZE_LIMIT) {
       // Remove oldest entry (first key)
       const firstKey = embeddingCache.keys().next().value;
-      embeddingCache.delete(firstKey);
+      if (firstKey !== undefined) {
+        embeddingCache.delete(firstKey);
+      }
     }
     embeddingCache.set(cacheKey, embedding);
 
