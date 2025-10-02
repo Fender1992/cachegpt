@@ -87,8 +87,10 @@ CREATE INDEX IF NOT EXISTS idx_cached_responses_provider_model_active
   ON public.cached_responses(provider, model, is_archived)
   WHERE is_archived = false;
 
--- 8. Vacuum analyze to update statistics
-VACUUM ANALYZE public.cached_responses;
+-- 8. Analyze to update statistics (run VACUUM separately if needed)
+ANALYZE public.cached_responses;
+
+-- Note: Run "VACUUM ANALYZE public.cached_responses;" manually outside transaction if desired
 
 -- =====================================================
 -- MIGRATION NOTES:
