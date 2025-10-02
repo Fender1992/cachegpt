@@ -65,9 +65,6 @@ const getRankingManager = async () => {
   return rankingManager;
 };
 
-// Import OpenAI embeddings for semantic caching
-import { generateEmbedding, calculateCosineSimilarity } from '@/lib/embeddings';
-
 /**
  * Search for cached responses using tier-based system
  */
@@ -109,6 +106,7 @@ async function findCachedResponse(
       );
 
       // Generate OpenAI embedding for the query
+      const { generateEmbedding } = await import('@/lib/embeddings');
       const queryEmbedding = await generateEmbedding(query);
 
       // Use pgvector similarity search via database function
@@ -301,6 +299,7 @@ async function storeInCache(
       );
 
       // Generate OpenAI embedding for semantic search
+      const { generateEmbedding } = await import('@/lib/embeddings');
       const embedding = await generateEmbedding(query);
 
       // Classify query type for lifecycle management
