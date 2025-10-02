@@ -9,6 +9,7 @@ import {
   AlertCircle, Check, ChevronLeft, CheckCircle, XCircle, Loader2
 } from 'lucide-react'
 import { validateApiKeyFormat, testApiKeyConnection } from '@/lib/api-key-validator'
+import CacheGPTApiKeys from '@/components/settings/cachegpt-api-keys'
 
 interface ApiKey {
   provider: string
@@ -376,6 +377,11 @@ export default function SettingsPage() {
               </button>
             </div>
           )}
+        </div>
+
+        {/* CacheGPT API Keys Section */}
+        <div className="mt-8">
+          <CacheGPTApiKeys />
         </div>
       </div>
     </div>
