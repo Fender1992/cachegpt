@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase-client'
+import { supabase } from '@/lib/supabase-client'
 import { useRouter } from 'next/navigation'
 
 export default function AdminEnterprisePage() {
@@ -12,7 +12,6 @@ export default function AdminEnterprisePage() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const router = useRouter()
-  const supabase = createClient()
 
   useEffect(() => {
     checkAuth()
