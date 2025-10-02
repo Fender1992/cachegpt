@@ -69,8 +69,7 @@ export async function validateApiKey(apiKey: string): Promise<ApiKeySession | nu
 
     // Increment usage counter asynchronously (don't wait)
     supabase.rpc('increment_api_key_usage', { api_key_hash: keyHash })
-      .then(() => {})
-      .catch(err => console.error('Failed to increment API key usage:', err));
+      .then(() => {}, err => console.error('Failed to increment API key usage:', err));
 
     return {
       user: {
