@@ -120,6 +120,11 @@ export async function freeChatCommand(): Promise<void> {
     terminal: true
   });
 
+  // Multi-line paste detection
+  let pasteBuffer: string[] = [];
+  let pasteTimeout: NodeJS.Timeout | null = null;
+  let isProcessing = false;
+
   // Handle graceful exit
   process.on('SIGINT', () => {
     console.log(chalk.dim('\n\n  Goodbye\n'));
@@ -134,8 +139,11 @@ export async function freeChatCommand(): Promise<void> {
     rl.prompt();
   };
 
-  // Handle input
-  rl.on('line', (input) => {
+  // Process the complete input (single line or multi-line paste)
+  const processInput = (input: string) => {
+    if (isProcessing) return;
+    isProcessing = true;
+
     if (input.toLowerCase() === 'exit' || input.toLowerCase() === 'quit') {
       console.log(chalk.dim('\n  Goodbye\n'));
       rl.close();
@@ -143,12 +151,12 @@ export async function freeChatCommand(): Promise<void> {
     }
 
     if (!input.trim()) {
+      isProcessing = false;
       promptNext();
       return;
     }
 
     // Show compressed version if input is very long
-    const displayInput = input.length > 200 ? compressText(input, 200) : input;
     if (input.length > 200) {
       console.log(chalk.dim('  [Input: ' + input.length + ' characters]'));
     }
@@ -177,6 +185,7 @@ export async function freeChatCommand(): Promise<void> {
         }
         console.log();
 
+        isProcessing = false;
         setImmediate(() => {
           rl.resume();
           promptNext();
@@ -193,11 +202,40 @@ export async function freeChatCommand(): Promise<void> {
         }
         console.log();
 
+        isProcessing = false;
         setImmediate(() => {
           rl.resume();
           promptNext();
         });
       });
+  };
+
+  // Handle input with paste detection
+  rl.on('line', (input) => {
+    // Add line to buffer
+    pasteBuffer.push(input);
+
+    // Clear any existing timeout
+    if (pasteTimeout) {
+      clearTimeout(pasteTimeout);
+    }
+
+    // Set a timeout to detect end of paste (50ms)
+    // If more lines come in quickly, this timeout gets reset
+    pasteTimeout = setTimeout(() => {
+      // Combine all buffered lines
+      const combinedInput = pasteBuffer.join('\n');
+      pasteBuffer = [];
+
+      // Show paste indicator if multi-line
+      const lineCount = combinedInput.split('\n').length;
+      if (lineCount > 1) {
+        console.log(chalk.dim(`  [Pasted: ${lineCount} lines]`));
+      }
+
+      // Process the combined input
+      processInput(combinedInput);
+    }, 50);
   });
 
   // Keep process alive

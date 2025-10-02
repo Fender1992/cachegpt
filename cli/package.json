@@ -1,6 +1,6 @@
 {
   "name": "cachegpt-cli",
-  "version": "11.2.5",
+  "version": "11.2.7",
   "description": "Zero-setup CLI for free AI chat. Just login with Google/GitHub and start chatting - no API keys needed! Uses rotating free providers with smart caching.",
   "main": "dist/index.js",
   "bin": {
