@@ -22,6 +22,7 @@ export default function Home() {
   const [monthlyCalls, setMonthlyCalls] = useState(10000)
   const [avgResponseSize, setAvgResponseSize] = useState(2)
   const [publicStats, setPublicStats] = useState({ userCount: 0, totalSavings: 0, cacheHits: 0 })
+  const [newBugCount, setNewBugCount] = useState(0)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -80,6 +81,30 @@ export default function Home() {
       .then(data => setPublicStats(data))
       .catch(err => console.error('Failed to fetch public stats:', err))
   }, [])
+
+  // Fetch new bug count for admin users
+  useEffect(() => {
+    if (user?.email === 'rolandofender@gmail.com') {
+      const fetchBugCount = async () => {
+        try {
+          const { count } = await supabase
+            .from('bug_reports')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'new')
+
+          setNewBugCount(count || 0)
+        } catch (err) {
+          console.error('Failed to fetch bug count:', err)
+        }
+      }
+
+      fetchBugCount()
+
+      // Refresh count every 30 seconds
+      const interval = setInterval(fetchBugCount, 30000)
+      return () => clearInterval(interval)
+    }
+  }, [user])
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -221,10 +246,17 @@ export default function Home() {
                     {user?.email === 'rolandofender@gmail.com' && (
                       <Link
                         href="/admin/bugs"
-                        className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        className="flex items-center justify-between px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 w-full"
                       >
-                        <Bug className="w-4 h-4" />
-                        <span>Bug Tracker</span>
+                        <div className="flex items-center space-x-2">
+                          <Bug className="w-4 h-4" />
+                          <span>Bug Tracker</span>
+                        </div>
+                        {newBugCount > 0 && (
+                          <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white bg-red-600 rounded-full">
+                            {newBugCount}
+                          </span>
+                        )}
                       </Link>
                     )}
 
