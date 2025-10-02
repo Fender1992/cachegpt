@@ -145,9 +145,20 @@ export default function PricingPage() {
     try {
       setProcessingTier(tier.id);
 
+      // Get session token for authentication
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        router.push('/login?redirect=/pricing');
+        return;
+      }
+
       const response = await fetch('/api/checkout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({
           priceId: tier.stripePriceId,
           tier: tier.id,

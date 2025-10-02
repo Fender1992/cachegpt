@@ -1,28 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { createClient } from '@/lib/supabase-server';
-import { createClient as createAdminClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-09-30.clover',
 });
 
-// Admin client for database operations
-const supabaseAdmin = createAdminClient(
+// Admin client for database operations and auth validation
+const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY!
 );
 
 export async function POST(req: NextRequest) {
   try {
-    // Get user from session using server-side Supabase client
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // Get user from Bearer token (consistent with rest of app)
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Unauthorized - No Bearer token' },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.substring(7);
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
 
     if (authError || !user) {
       console.error('Auth error:', authError);
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized - Invalid token' },
         { status: 401 }
       );
     }
