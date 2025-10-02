@@ -80,71 +80,118 @@ export async function loginSimpleCodeCommand() {
       // Create account with password
       await createAccountWithPassword(supabase, email, tokenManager);
     } else {
-      // Login flow - send 6-digit code
-      console.log(chalk.cyan('\n📧 Sending 6-digit code to your email...'));
-
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          shouldCreateUser: false
-        }
+      // Login flow - ask for login method
+      const { loginMethod } = await inquirer.prompt({
+        type: 'list',
+        name: 'loginMethod',
+        message: 'How would you like to login?',
+        choices: [
+          { name: '📧 Email code (6-digit OTP)', value: 'otp' },
+          { name: '🔑 Password', value: 'password' }
+        ]
       });
 
-      if (error) {
-        if (error.message.includes('User not found')) {
-          console.log(chalk.yellow('\n⚠️  No account found with this email.'));
+      if (loginMethod === 'password') {
+        // Password login
+        const { password } = await inquirer.prompt({
+          type: 'password',
+          name: 'password',
+          message: 'Enter your password:',
+          mask: '*'
+        });
 
-          const { createNew } = await inquirer.prompt({
-            type: 'confirm',
-            name: 'createNew',
-            message: 'Would you like to create a new account?',
-            default: true
-          });
+        console.log(chalk.dim('\n🔄 Logging in...'));
 
-          if (createNew) {
-            await createAccountWithPassword(supabase, email, tokenManager);
-          } else {
-            console.log(chalk.cyan('\n💡 Visit https://cachegpt.app to sign up!'));
-          }
-          return;
-        } else {
-          console.error(chalk.red(`\n❌ Failed to send code: ${error.message}`));
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+
+        if (error) {
+          console.error(chalk.red(`\n❌ Login failed: ${error.message}`));
+          console.log(chalk.yellow('\n💡 Tips:'));
+          console.log('• Make sure your email and password are correct');
+          console.log('• If you signed up on the web, confirm your email first');
+          console.log('• Try resetting your password at https://cachegpt.app');
           process.exit(1);
         }
-      }
 
-      console.log(chalk.green('✅ 6-digit code sent to ' + chalk.bold(email)));
-      console.log(chalk.cyan('📮 Check your email for the code\n'));
-
-      // Get the 6-digit code
-      const { code } = await inquirer.prompt({
-        type: 'input',
-        name: 'code',
-        message: 'Enter the 6-digit code from your email:',
-        validate: (input) => {
-          const cleaned = input.replace(/\s/g, '');
-          return /^\d{6}$/.test(cleaned) || 'Please enter a valid 6-digit code';
+        if (data.session) {
+          await saveSession(data.session, email, tokenManager);
         }
-      });
+      } else {
+        // OTP login
+        console.log(chalk.cyan('\n📧 Sending 6-digit code to your email...'));
 
-      const cleanedCode = code.replace(/\s/g, '');
+        const { error } = await supabase.auth.signInWithOtp({
+          email,
+          options: {
+            shouldCreateUser: false
+          }
+        });
 
-      console.log(chalk.dim('\n🔄 Verifying code...'));
+        if (error) {
+          if (error.message.includes('User not found')) {
+            console.log(chalk.yellow('\n⚠️  No account found with this email.'));
 
-      const { data, error: verifyError } = await supabase.auth.verifyOtp({
-        email,
-        token: cleanedCode,
-        type: 'email'
-      });
+            const { createNew } = await inquirer.prompt({
+              type: 'confirm',
+              name: 'createNew',
+              message: 'Would you like to create a new account?',
+              default: true
+            });
 
-      if (verifyError) {
-        console.error(chalk.red(`\n❌ Invalid code: ${verifyError.message}`));
-        console.log(chalk.yellow('💡 Make sure you entered the 6-digit code correctly'));
-        process.exit(1);
-      }
+            if (createNew) {
+              await createAccountWithPassword(supabase, email, tokenManager);
+            } else {
+              console.log(chalk.cyan('\n💡 Visit https://cachegpt.app to sign up!'));
+            }
+            return;
+          } else if (error.message.includes('email not confirmed') || error.message.includes('Email not confirmed')) {
+            console.log(chalk.yellow('\n⚠️  Please confirm your email first.'));
+            console.log(chalk.cyan('📧 Check your inbox for a confirmation email from CacheGPT'));
+            console.log(chalk.dim('\nAfter confirming your email, run: cachegpt login'));
+            process.exit(1);
+          } else {
+            console.error(chalk.red(`\n❌ Failed to send code: ${error.message}`));
+            console.log(chalk.yellow('\n💡 Try using password login instead'));
+            process.exit(1);
+          }
+        }
 
-      if (data.session) {
-        await saveSession(data.session, email, tokenManager);
+        console.log(chalk.green('✅ 6-digit code sent to ' + chalk.bold(email)));
+        console.log(chalk.cyan('📮 Check your email for the code\n'));
+
+        // Get the 6-digit code
+        const { code } = await inquirer.prompt({
+          type: 'input',
+          name: 'code',
+          message: 'Enter the 6-digit code from your email:',
+          validate: (input) => {
+            const cleaned = input.replace(/\s/g, '');
+            return /^\d{6}$/.test(cleaned) || 'Please enter a valid 6-digit code';
+          }
+        });
+
+        const cleanedCode = code.replace(/\s/g, '');
+
+        console.log(chalk.dim('\n🔄 Verifying code...'));
+
+        const { data, error: verifyError } = await supabase.auth.verifyOtp({
+          email,
+          token: cleanedCode,
+          type: 'email'
+        });
+
+        if (verifyError) {
+          console.error(chalk.red(`\n❌ Invalid code: ${verifyError.message}`));
+          console.log(chalk.yellow('💡 Make sure you entered the 6-digit code correctly'));
+          process.exit(1);
+        }
+
+        if (data.session) {
+          await saveSession(data.session, email, tokenManager);
+        }
       }
     }
 
