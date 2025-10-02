@@ -12,11 +12,11 @@ const supabase = supabaseUrl && supabaseKey
 export async function GET() {
   try {
     if (!supabase) {
-      // Return mock data if database is not configured
+      // Return minimal realistic data if database is not configured
       return NextResponse.json({
-        userCount: 847,
-        totalSavings: 127000,
-        cacheHits: 1200000,
+        userCount: 0,
+        totalSavings: 0,
+        cacheHits: 0,
       });
     }
 
@@ -39,7 +39,7 @@ export async function GET() {
       console.error('Failed to fetch cache stats:', statsError);
     }
 
-    // Calculate total savings
+    // Calculate total savings based on actual cache hits
     const cacheHits = stats?.total_accesses
       ? (stats.total_accesses - (stats.total_responses || 0))
       : 0;
@@ -47,19 +47,19 @@ export async function GET() {
     const totalSavings = Math.round(cacheHits * avgCostPerRequest);
 
     return NextResponse.json({
-      userCount: userCount || 847,
-      totalSavings: totalSavings || 127000,
-      cacheHits: cacheHits || 1200000,
+      userCount: userCount || 0,
+      totalSavings: totalSavings || 0,
+      cacheHits: cacheHits || 0,
     });
 
   } catch (error: any) {
     console.error('Public stats API error:', error);
 
-    // Return mock data on error
+    // Return zero on error to avoid misleading numbers
     return NextResponse.json({
-      userCount: 847,
-      totalSavings: 127000,
-      cacheHits: 1200000,
+      userCount: 0,
+      totalSavings: 0,
+      cacheHits: 0,
     });
   }
 }

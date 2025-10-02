@@ -21,7 +21,7 @@ export default function Home() {
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [monthlyCalls, setMonthlyCalls] = useState(10000)
   const [avgResponseSize, setAvgResponseSize] = useState(2)
-  const [publicStats, setPublicStats] = useState({ userCount: 847, totalSavings: 127000, cacheHits: 1200000 })
+  const [publicStats, setPublicStats] = useState({ userCount: 0, totalSavings: 0, cacheHits: 0 })
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -341,11 +341,13 @@ export default function Home() {
             </div>
 
             {/* Social Proof - User Count */}
-            <div className="text-center mt-8 mb-12">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Join <span className="font-bold text-purple-600">{publicStats.userCount.toLocaleString()}+ developers</span> who saved <span className="font-bold text-green-600">${(publicStats.totalSavings / 1000).toFixed(0)}K+</span> this month
-              </p>
-            </div>
+            {publicStats.userCount > 0 && (
+              <div className="text-center mt-8 mb-12">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Join <span className="font-bold text-purple-600">{publicStats.userCount.toLocaleString()}+ developers</span> and growing 🚀
+                </p>
+              </div>
+            )}
 
             {/* Before/After Comparison */}
             <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 max-w-4xl mx-auto px-4 sm:px-0 transition-all duration-700 delay-400 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}>
