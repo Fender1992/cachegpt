@@ -344,7 +344,7 @@ export default function Home() {
             {publicStats.userCount > 0 && (
               <div className="text-center mt-8 mb-12">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Join <span className="font-bold text-purple-600">{publicStats.userCount.toLocaleString()}+ developers</span> and growing 🚀
+                  Join <span className="font-bold text-purple-600">{publicStats.userCount.toLocaleString()}+ users</span> and growing 🚀
                 </p>
               </div>
             )}

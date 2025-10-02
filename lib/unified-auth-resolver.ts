@@ -13,6 +13,7 @@ import { NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { validateApiKey, extractApiKey } from './api-key-auth';
 
 /**
  * Unified authentication resolver
@@ -25,12 +26,13 @@ export interface UnifiedSession {
     email: string;
     user_metadata?: any;
   };
-  authMethod: 'cookie' | 'bearer';
-  token: string;
+  authMethod: 'cookie' | 'bearer' | 'api_key';
+  token?: string;
+  keyId?: string; // For API key auth
   provider?: string; // For tracking which provider the user authenticated with
   expiresAt?: number; // Unix timestamp when session expires
   refreshToken?: string; // For automatic session refresh
-  issuedAt: number; // Unix timestamp when session was created
+  issuedAt?: number; // Unix timestamp when session was created
   lastValidated?: number; // Unix timestamp when session was last validated
 }
 
@@ -42,30 +44,50 @@ export interface AuthenticationError {
 export type AuthResult = UnifiedSession | AuthenticationError;
 
 /**
- * Resolve authentication from either Bearer token or cookies
- * Tries Bearer token first (explicit auth), then cookies (implicit auth)
+ * Resolve authentication from API key, Bearer token, or cookies
+ * Priority: API key > Bearer token > Cookies
  * Includes automatic session refresh and expiry handling
  */
 export async function resolveAuthentication(request: NextRequest): Promise<AuthResult> {
-  // Priority 1: Check for Bearer token (CLI users, explicit auth)
   const authHeader = request.headers.get('authorization');
-  if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.substring(7);
 
-    try {
-      const bearerResult = await validateBearerToken(token);
-      if (bearerResult) {
-        // Check if session needs refresh or is expired
-        const refreshedSession = await handleSessionExpiry(bearerResult);
-        return refreshedSession;
+  // Priority 1: Check for CacheGPT API key (cgpt_sk_*)
+  if (authHeader) {
+    const apiKey = extractApiKey(authHeader);
+    if (apiKey) {
+      try {
+        const apiKeySession = await validateApiKey(apiKey);
+        if (apiKeySession && apiKeySession.isValid) {
+          return apiKeySession as UnifiedSession;
+        }
+      } catch (error) {
+        console.error('API key validation failed:', error);
+        // Don't return error here, fall back to other auth methods
       }
-    } catch (error) {
-      console.error('Bearer token validation failed:', error);
-      // Don't return error here, fall back to cookies
     }
   }
 
-  // Priority 2: Check for cookie session (web users, implicit auth)
+  // Priority 2: Check for Bearer token (Supabase JWT - CLI users, explicit auth)
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+
+    // Only try Bearer token if it's NOT an API key
+    if (!token.startsWith('cgpt_sk_')) {
+      try {
+        const bearerResult = await validateBearerToken(token);
+        if (bearerResult) {
+          // Check if session needs refresh or is expired
+          const refreshedSession = await handleSessionExpiry(bearerResult);
+          return refreshedSession;
+        }
+      } catch (error) {
+        console.error('Bearer token validation failed:', error);
+        // Don't return error here, fall back to cookies
+      }
+    }
+  }
+
+  // Priority 3: Check for cookie session (web users, implicit auth)
   try {
     const cookieResult = await validateCookieSession();
     if (cookieResult) {
@@ -79,7 +101,7 @@ export async function resolveAuthentication(request: NextRequest): Promise<AuthR
 
   // No valid authentication found
   return {
-    error: 'No valid authentication found. Please login or provide a valid Bearer token.',
+    error: 'No valid authentication found. Please login, provide a Bearer token, or use a CacheGPT API key.',
     status: 401
   };
 }
