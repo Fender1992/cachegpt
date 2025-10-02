@@ -65,47 +65,8 @@ const getRankingManager = async () => {
   return rankingManager;
 };
 
-/**
- * Simple embedding generation for cache similarity
- */
-function generateSimpleEmbedding(text: string): number[] {
-  const embedding = new Array(384).fill(0);
-  const words = text.toLowerCase().split(/\s+/);
-
-  for (let i = 0; i < words.length; i++) {
-    const word = words[i];
-    for (let j = 0; j < word.length; j++) {
-      const charCode = word.charCodeAt(j);
-      embedding[(i * 10 + j) % 384] += (charCode / 255) - 0.5;
-    }
-  }
-
-  // Normalize
-  const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
-  return magnitude > 0 ? embedding.map(val => val / magnitude) : embedding;
-}
-
-/**
- * Calculate cosine similarity between embeddings
- */
-function calculateSimilarity(embedding1: number[], embedding2: number[]): number {
-  if (!embedding1 || !embedding2 || embedding1.length !== embedding2.length) {
-    return 0;
-  }
-
-  let dotProduct = 0;
-  let norm1 = 0;
-  let norm2 = 0;
-
-  for (let i = 0; i < embedding1.length; i++) {
-    dotProduct += embedding1[i] * embedding2[i];
-    norm1 += embedding1[i] * embedding1[i];
-    norm2 += embedding2[i] * embedding2[i];
-  }
-
-  if (norm1 === 0 || norm2 === 0) return 0;
-  return dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2));
-}
+// Import OpenAI embeddings for semantic caching
+import { generateEmbedding, calculateCosineSimilarity } from '@/lib/embeddings';
 
 /**
  * Search for cached responses using tier-based system
@@ -147,59 +108,44 @@ async function findCachedResponse(
         process.env.SUPABASE_SERVICE_KEY!
       );
 
-      const queryEmbedding = generateSimpleEmbedding(query);
+      // Generate OpenAI embedding for the query
+      const queryEmbedding = await generateEmbedding(query);
 
-      // Get potential matches from database
-      const { data: candidates, error: dbError } = await supabase
-        .from('cached_responses')
-        .select('*')
-        .eq('model', model)
-        .eq('provider', provider)
-        .eq('is_archived', false)
-        .order('popularity_score', { ascending: false })
-        .limit(50);
+      // Use pgvector similarity search via database function
+      const { data: matches, error: dbError } = await supabase
+        .rpc('find_similar_cached_response', {
+          query_embedding: JSON.stringify(queryEmbedding),
+          similarity_threshold: threshold,
+          result_limit: 1,
+          provider_filter: provider,
+          model_filter: model
+        });
 
       if (dbError) {
         console.error('[CACHE-SEARCH-FALLBACK] Database error:', dbError);
         return null;
       }
 
-      if (!candidates || candidates.length === 0) {
+      if (!matches || matches.length === 0) {
         return null;
       }
 
-      // Find best match
-      let bestMatch = null;
-      let bestSimilarity = 0;
+      const bestMatch = matches[0];
 
-      for (const candidate of candidates) {
-        if (!candidate.embedding) continue;
+      // Update access count
+      await supabase
+        .from('cached_responses')
+        .update({
+          access_count: bestMatch.access_count + 1,
+          last_accessed: new Date().toISOString()
+        })
+        .eq('id', bestMatch.id);
 
-        const similarity = calculateSimilarity(queryEmbedding, candidate.embedding);
-        if (similarity >= threshold && similarity > bestSimilarity) {
-          bestMatch = candidate;
-          bestSimilarity = similarity;
-        }
-      }
-
-      if (bestMatch) {
-        // Update access count
-        await supabase
-          .from('cached_responses')
-          .update({
-            access_count: bestMatch.access_count + 1,
-            last_accessed: new Date().toISOString()
-          })
-          .eq('id', bestMatch.id);
-
-        return {
-          response: bestMatch.response,
-          similarity: bestSimilarity,
-          cached: true
-        };
-      }
-
-      return null;
+      return {
+        response: bestMatch.response,
+        similarity: bestMatch.similarity,
+        cached: true
+      };
 
     } catch (fallbackError) {
       console.error('[CACHE-SEARCH-FALLBACK] Error:', fallbackError);
@@ -354,7 +300,8 @@ async function storeInCache(
         process.env.SUPABASE_SERVICE_KEY!
       );
 
-      const embedding = generateSimpleEmbedding(query);
+      // Generate OpenAI embedding for semantic search
+      const embedding = await generateEmbedding(query);
 
       // Classify query type for lifecycle management
       const queryType = cacheLifecycleManager.classifyQueryType(query);
@@ -364,7 +311,7 @@ async function storeInCache(
         response,
         model,
         provider,
-        embedding,
+        embedding: JSON.stringify(embedding), // Store as JSON for pgvector
         user_id: userId,
         access_count: 1,
         popularity_score: 50.0,

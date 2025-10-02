@@ -3714,6 +3714,11 @@ once@^1.3.0:
   dependencies:
     wrappy "1"
 
+openai@^6.0.1:
+  version "6.0.1"
+  resolved "https://registry.yarnpkg.com/openai/-/openai-6.0.1.tgz#15c582a68ee7914db89cfab37cf8b54795c086b5"
+  integrity sha512-Xf9k3/Ezckp0aQmkU7LTXPg9dTxo3uspuJqxotHF3Jscq0r7EU0KEoqesQVxoQ6YeAzd/jlm7kxayZufpYRJUQ==
+
 optionator@^0.9.3:
   version "0.9.4"
   resolved "https://registry.yarnpkg.com/optionator/-/optionator-0.9.4.tgz#7ea1c1a5d91d764fb282139c88fe11e182a3a734"
