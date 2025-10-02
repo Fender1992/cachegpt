@@ -113,7 +113,14 @@
       "Bash(/root/cachegpt/app/api/user/model-preferences/route.ts )",
       "Bash(/root/cachegpt/app/api/provider-models/route.ts)",
       "Bash(__NEW_LINE__ echo \"Fixed all remaining files\")",
-      "Bash(PGPASSWORD=\"$SUPABASE_DB_PASSWORD\" psql -h \"aws-0-us-east-1.pooler.supabase.com\" -p 6543 -d \"postgres\" -U \"postgres.ntekfgvkbuzjwmftqchr\" -c \"\\df get_user_conversations\")"
+      "Bash(PGPASSWORD=\"$SUPABASE_DB_PASSWORD\" psql -h \"aws-0-us-east-1.pooler.supabase.com\" -p 6543 -d \"postgres\" -U \"postgres.ntekfgvkbuzjwmftqchr\" -c \"\\df get_user_conversations\")",
+      "Read(//mnt/**)",
+      "Bash(rsync:*)",
+      "Bash(cachegpt/ /mnt/d/cachegpt-backup/)",
+      "Bash(printenv)",
+      "Bash(PGPASSWORD=\"$SUPABASE_DB_PASSWORD\" psql -h \"aws-0-us-east-1.pooler.supabase.com\" -p 6543 -d \"postgres\" -U \"postgres.ntekfgvkbuzjwmftqchr\" -f database-scripts/030_cachegpt_api_keys.sql)",
+      "Bash(PGPASSWORD=\"$SUPABASE_DB_PASSWORD\" psql -h \"aws-0-us-east-1.pooler.supabase.com\" -p 6543 -d \"postgres\" -U \"postgres.ntekfgvkbuzjwmftqchr\" -f database-scripts/032_pricing_tiers.sql)",
+      "Bash(NEXT_PUBLIC_SUPABASE_URL=placeholder NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder yarn build)"
     ],
     "deny": [],
     "ask": []

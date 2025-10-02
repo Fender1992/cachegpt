@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-12-18.acacia',
+  apiVersion: '2025-09-30.clover',
 });
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
@@ -125,6 +125,15 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
 
   const status = mapStripeStatus(subscription.status);
 
+  // Get current period dates from subscription (use type assertion for Stripe API compatibility)
+  const subData = subscription as any;
+  const currentPeriodStart = subData.current_period_start
+    ? new Date(subData.current_period_start * 1000).toISOString()
+    : new Date().toISOString();
+  const currentPeriodEnd = subData.current_period_end
+    ? new Date(subData.current_period_end * 1000).toISOString()
+    : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
   // Update or insert subscription record
   const { error } = await supabase
     .from('subscriptions')
@@ -134,9 +143,9 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
       stripe_customer_id: subscription.customer as string,
       tier: tier || 'pro',
       status: status,
-      current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-      cancel_at_period_end: subscription.cancel_at_period_end,
+      current_period_start: currentPeriodStart,
+      current_period_end: currentPeriodEnd,
+      cancel_at_period_end: subData.cancel_at_period_end || false,
       updated_at: new Date().toISOString(),
     }, {
       onConflict: 'stripe_subscription_id',
@@ -152,8 +161,8 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
     .from('user_profiles')
     .update({
       subscription_status: status,
-      subscription_current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-      subscription_current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+      subscription_current_period_start: currentPeriodStart,
+      subscription_current_period_end: currentPeriodEnd,
       updated_at: new Date().toISOString(),
     })
     .eq('id', userId);
@@ -188,7 +197,8 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 }
 
 async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
-  const subscriptionId = invoice.subscription as string;
+  const invoiceData = invoice as any;
+  const subscriptionId = invoiceData.subscription as string;
 
   if (!subscriptionId) return;
 
@@ -205,7 +215,8 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
 }
 
 async function handlePaymentFailed(invoice: Stripe.Invoice) {
-  const subscriptionId = invoice.subscription as string;
+  const invoiceData = invoice as any;
+  const subscriptionId = invoiceData.subscription as string;
 
   if (!subscriptionId) return;
 

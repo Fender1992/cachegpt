@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase-client';
 import { CreditCard, TrendingUp, Calendar, AlertCircle } from 'lucide-react';
 
 interface SubscriptionData {
@@ -16,7 +16,6 @@ interface SubscriptionData {
 export default function SubscriptionInfo({ userId }: { userId: string }) {
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
 
   useEffect(() => {
     loadSubscription();
