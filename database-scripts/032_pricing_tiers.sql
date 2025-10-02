@@ -142,7 +142,7 @@ SELECT
   up.subscription_status,
   up.monthly_request_count,
   up.monthly_request_limit,
-  ROUND((up.monthly_request_count::FLOAT / up.monthly_request_limit::FLOAT) * 100, 2) as usage_percentage,
+  ROUND(CAST((up.monthly_request_count::FLOAT / up.monthly_request_limit::FLOAT) * 100 AS NUMERIC), 2) as usage_percentage,
   up.request_count_reset_at,
   up.stripe_customer_id,
   s.current_period_end as subscription_end_date,
