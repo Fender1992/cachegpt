@@ -579,6 +579,21 @@ export async function POST(request: NextRequest) {
           process.env.SUPABASE_SERVICE_KEY!
         );
 
+        // Check usage limits for authenticated users
+        const { data: usageLimitCheck, error: limitError } = await supabase
+          .rpc('check_usage_limit', { user_id_param: userId });
+
+        if (limitError) {
+          console.error('[USAGE-LIMIT] Error checking limit:', limitError);
+        } else if (!usageLimitCheck) {
+          // User has exceeded their monthly limit
+          return NextResponse.json({
+            error: 'Monthly request limit exceeded',
+            message: 'You have reached your monthly request limit. Please upgrade your plan or wait until next month.',
+            upgradeUrl: '/pricing'
+          }, { status: 429 });
+        }
+
         // Check user profile for enterprise mode
         const { data: profile } = await supabase
           .from('user_profiles')
@@ -737,6 +752,16 @@ export async function POST(request: NextRequest) {
       const cachedQualityScore = getQualityScore(sanitizedCachedResponse, userQuery)
       const cachedMetrics = analyzeResponse(sanitizedCachedResponse)
 
+      // Increment usage counter for authenticated users (async, non-blocking)
+      if (userId) {
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_KEY!
+        );
+        supabase.rpc('increment_usage_count', { user_id_param: userId })
+          .then(() => {}, err => console.error('[USAGE] Failed to increment:', err));
+      }
+
       return NextResponse.json({
         response: sanitizedCachedResponse,
         metadata: {
@@ -835,6 +860,16 @@ export async function POST(request: NextRequest) {
     const userQuery = messages[messages.length - 1]?.content || ''
     const qualityScore = getQualityScore(sanitizedResponse, userQuery)
     const metrics = analyzeResponse(sanitizedResponse)
+
+    // Increment usage counter for authenticated users (async, non-blocking)
+    if (userId) {
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_KEY!
+      );
+      supabase.rpc('increment_usage_count', { user_id_param: userId })
+        .then(() => {}, err => console.error('[USAGE] Failed to increment:', err));
+    }
 
     return NextResponse.json({
       response: sanitizedResponse,
