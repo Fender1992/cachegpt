@@ -823,9 +823,11 @@ export async function POST(request: NextRequest) {
 
     // Save to unified chat history system (use original messages + sanitized response)
     // Skip saving for:
-    // - API key users (programmatic access with cgpt_sk_* keys)
-    // - CLI users (identified by authMethod: 'oauth' in request body)
-    const shouldSaveHistory = session?.authMethod !== 'api_key' && authMethod !== 'oauth';
+    // - CacheGPT API key users (session.authMethod === 'api_key')
+    // - CLI users (identified by User-Agent header containing 'cachegpt-cli')
+    const userAgent = request.headers.get('user-agent') || '';
+    const isCliRequest = userAgent.includes('cachegpt-cli');
+    const shouldSaveHistory = session?.authMethod !== 'api_key' && !isCliRequest;
     const savedConversationId = shouldSaveHistory
       ? await saveChatHistory(
           userId,
