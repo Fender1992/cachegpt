@@ -851,16 +851,20 @@ export async function POST(request: NextRequest) {
     );
 
     // Save to unified chat history system (use original messages + sanitized response)
-    const savedConversationId = await saveChatHistory(
-      userId,
-      messages, // Original messages without system context
-      sanitizedResponse, // Use sanitized response
-      result.provider,
-      finalModel,
-      responseTime,
-      'web', // Can be enhanced to detect platform
-      clientConversationId // Pass existing conversation ID if provided
-    );
+    // Skip saving for API key and CLI users (programmatic/headless access)
+    const shouldSaveHistory = session?.authMethod !== 'api_key' && session?.authMethod !== 'bearer';
+    const savedConversationId = shouldSaveHistory
+      ? await saveChatHistory(
+          userId,
+          messages, // Original messages without system context
+          sanitizedResponse, // Use sanitized response
+          result.provider,
+          finalModel,
+          responseTime,
+          'web', // Can be enhanced to detect platform
+          clientConversationId // Pass existing conversation ID if provided
+        )
+      : null;
 
     // Log usage
     const supabase = createClient(
