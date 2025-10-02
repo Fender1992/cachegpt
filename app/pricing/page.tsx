@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase-client';
 import { Check } from 'lucide-react';
+import Toast from '@/components/toast';
 
 interface PricingTier {
   id: string;
@@ -96,6 +97,7 @@ export default function PricingPage() {
   const [currentTier, setCurrentTier] = useState<string>('free');
   const [loading, setLoading] = useState(true);
   const [processingTier, setProcessingTier] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
 
   useEffect(() => {
     async function loadUserData() {
@@ -160,7 +162,10 @@ export default function PricingPage() {
       window.location.href = url;
     } catch (error) {
       console.error('Error creating checkout session:', error);
-      alert('Failed to start checkout. Please try again.');
+      setToast({
+        message: 'Failed to start checkout. Please try again.',
+        type: 'error'
+      });
       setProcessingTier(null);
     }
   }
@@ -348,6 +353,15 @@ export default function PricingPage() {
           <p>&copy; 2025 CacheGPT. All rights reserved.</p>
         </div>
       </footer>
+
+      {/* Toast Notifications */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }
