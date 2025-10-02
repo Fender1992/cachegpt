@@ -610,48 +610,41 @@ export async function POST(request: NextRequest) {
           }, { status: 429 });
         }
 
-        // Check user profile for enterprise mode
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('enterprise_mode, selected_provider')
+        // Check if user has their own API keys configured
+        // If they do, use their keys for flagship models
+        // Otherwise, use free providers (default for all users)
+        const { data: credentials } = await supabase
+          .from('user_provider_credentials')
+          .select('provider, api_key')
           .eq('user_id', userId)
-          .single();
+          .not('api_key', 'is', null);
 
-        if (profile?.enterprise_mode) {
-          // Get user's API keys
-          const { data: credentials } = await supabase
-            .from('user_provider_credentials')
-            .select('provider, api_key')
-            .eq('user_id', userId)
-            .not('api_key', 'is', null);
+        if (credentials && credentials.length > 0) {
+          // User has API keys - use their flagship models
+          const providerMap: Record<string, string> = {
+            'openai': 'chatgpt',
+            'anthropic': 'claude',
+            'google': 'gemini'
+          };
 
-          if (credentials && credentials.length > 0) {
-            // If user specified a provider, use that; otherwise use first available
-            const providerMap: Record<string, string> = {
-              'openai': 'chatgpt',
-              'anthropic': 'claude',
-              'google': 'gemini'
+          const dbProviderName = providerMap[requestedProvider] || requestedProvider;
+          const selectedCred = credentials.find(c => c.provider === dbProviderName) || credentials[0];
+
+          if (selectedCred) {
+            userApiKey = atob(selectedCred.api_key); // Decode from base64
+            // Map back to our internal provider names
+            const reverseMap: Record<string, string> = {
+              'chatgpt': 'openai',
+              'claude': 'anthropic',
+              'gemini': 'google'
             };
-
-            const dbProviderName = providerMap[requestedProvider] || requestedProvider;
-            const selectedCred = credentials.find(c => c.provider === dbProviderName) || credentials[0];
-
-            if (selectedCred) {
-              userApiKey = atob(selectedCred.api_key); // Decode from base64
-              // Map back to our internal provider names
-              const reverseMap: Record<string, string> = {
-                'chatgpt': 'openai',
-                'claude': 'anthropic',
-                'gemini': 'google'
-              };
-              selectedProvider = reverseMap[selectedCred.provider] || selectedCred.provider;
-              selectedModel = getBestModelForProvider(selectedProvider);
-            }
-          } else {
-            // Enterprise mode enabled but no API keys configured
-            // Fall back to free providers (user should add keys to avoid rate limits)
-            console.log('[CHAT] Enterprise mode enabled but no API keys configured - using free providers');
+            selectedProvider = reverseMap[selectedCred.provider] || selectedCred.provider;
+            selectedModel = getBestModelForProvider(selectedProvider);
+            console.log('[CHAT] Using user API key for flagship model:', selectedModel);
           }
+        } else {
+          // No API keys - use free providers (default)
+          console.log('[CHAT] No user API keys found - using free providers');
         }
       }
     } else {
