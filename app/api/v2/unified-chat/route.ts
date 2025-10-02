@@ -28,6 +28,7 @@ import { sanitizeResponse, hasExecutionArtifacts } from '@/lib/response-sanitize
 import { enrichContext, generateSystemContext } from '@/lib/context-enrichment';
 import { performContextualSearch } from '@/lib/web-search';
 import { cacheLifecycleManager, QueryType, CacheLifecycle } from '@/lib/cache-lifecycle';
+import { getNewsService } from '@/lib/news-service';
 
 /**
  * Cache Version Management
@@ -534,7 +535,22 @@ async function callFreeProvider(messages: any[]): Promise<{ response: string; pr
     }
   }
 
-  throw new Error('All free providers failed');
+  // Log which providers were attempted
+  const attemptedProviders = providers
+    .filter(p => p.apiKey)
+    .map(p => p.name)
+    .join(', ');
+
+  const missingProviders = providers
+    .filter(p => !p.apiKey)
+    .map(p => p.name)
+    .join(', ');
+
+  console.error('[FREE-PROVIDER] All providers failed.');
+  console.error('[FREE-PROVIDER] Attempted:', attemptedProviders || 'none');
+  console.error('[FREE-PROVIDER] Missing keys:', missingProviders || 'none');
+
+  throw new Error('All free providers failed. Please add your own API keys in Settings or contact support.');
 }
 
 /**
@@ -631,6 +647,10 @@ export async function POST(request: NextRequest) {
               selectedProvider = reverseMap[selectedCred.provider] || selectedCred.provider;
               selectedModel = getBestModelForProvider(selectedProvider);
             }
+          } else {
+            // Enterprise mode enabled but no API keys configured
+            // Fall back to free providers (user should add keys to avoid rate limits)
+            console.log('[CHAT] Enterprise mode enabled but no API keys configured - using free providers');
           }
         }
       }
@@ -656,6 +676,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Fetch real-time news context if needed
+    const newsService = getNewsService();
+    const newsContext = await newsService.getNewsContextIfNeeded(userMessage);
+
     // Build enriched messages with system context
     const enrichedMessages = [...messages]
 
@@ -672,6 +696,14 @@ export async function POST(request: NextRequest) {
       enrichedMessages.splice(enrichedMessages.length - 1, 0, {
         role: 'system',
         content: searchContext
+      })
+    }
+
+    // If we have news context, add it before the user's last message
+    if (newsContext) {
+      enrichedMessages.splice(enrichedMessages.length - 1, 0, {
+        role: 'system',
+        content: newsContext
       })
     }
 
@@ -702,6 +734,7 @@ export async function POST(request: NextRequest) {
       enrichedQuery: contextAnalysis.enrichedQuery,
       systemContext: contextAnalysis.systemContext,
       searchContext,
+      newsContext,
       version: CACHE_VERSION
     });
 
