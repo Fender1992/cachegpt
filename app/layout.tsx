@@ -6,9 +6,59 @@ import { ProviderCacheProvider } from '@/lib/provider-cache-context'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'CacheGPT - Free AI Chat with Smart Caching',
-  description: 'Zero-setup AI chat with automatic caching. Login with Google/GitHub and start chatting instantly.',
+  title: 'CacheGPT - Reduce LLM API Costs by 80% | Smart Caching for AI',
+  description: 'Cut your AI API costs by 80% and speed up responses to <10ms with intelligent caching. Works with OpenAI, Anthropic, Google Gemini, and all major LLM providers. Free to start.',
   viewport: 'width=device-width, initial-scale=1.0, viewport-fit=cover',
+  keywords: [
+    'AI caching',
+    'LLM cache',
+    'OpenAI cache',
+    'reduce AI costs',
+    'ChatGPT cache',
+    'Claude cache',
+    'GPT-4 cost reduction',
+    'AI cost optimization',
+    'semantic cache',
+    'vector cache'
+  ],
+  authors: [{ name: 'CacheGPT' }],
+  creator: 'CacheGPT',
+  publisher: 'CacheGPT',
+  metadataBase: new URL('https://cachegpt.app'),
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    url: 'https://cachegpt.app',
+    title: 'CacheGPT - Reduce LLM API Costs by 80%',
+    description: 'Intelligent caching for AI APIs. Cut costs by 80% and speed up responses to <10ms. Works with OpenAI, Anthropic, Google, and all major LLM providers.',
+    siteName: 'CacheGPT',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'CacheGPT - Smart Caching for AI APIs',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'CacheGPT - Reduce LLM API Costs by 80%',
+    description: 'Cut your AI costs by 80% and speed up responses to <10ms. Free intelligent caching for OpenAI, Claude, Gemini & more.',
+    images: ['/og-image.png'],
+    creator: '@cachegpt',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
 }
 
 export default function RootLayout({
