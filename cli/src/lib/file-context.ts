@@ -11,26 +11,34 @@ export interface FileContext {
 
 /**
  * Detect file paths in user message
- * Supports: ./file.txt, /abs/path.txt, ~/file.txt, file.txt
+ * Supports: ./file.txt, /abs/path.txt, ~/file.txt, file.txt, package.json, etc.
  */
 export function detectFilePaths(message: string): string[] {
-  const patterns = [
-    // Absolute paths
-    /(?:^|\s)(\/[\w\-\.\/]+)/g,
-    // Relative paths with ./
-    /(?:^|\s)(\.\/[\w\-\.\/]+)/g,
-    // Home directory paths
-    /(?:^|\s)(~\/[\w\-\.\/]+)/g,
-    // Just filename with extension
-    /(?:^|\s)([\w\-]+\.[\w]+)/g,
-  ];
-
   const matches = new Set<string>();
+
+  // More permissive patterns to catch various file references
+  const patterns = [
+    // Absolute paths: /path/to/file.txt
+    /(?:^|\s)(\/[^\s]+)/g,
+    // Relative paths with ./: ./src/file.js
+    /(?:^|\s)(\.\.[^\s]*)/g,
+    /(?:^|\s)(\.[^\s]+)/g,
+    // Home directory: ~/Documents/file.txt
+    /(?:^|\s)(~\/[^\s]+)/g,
+    // Common filenames: package.json, README.md, etc.
+    /(?:^|\s)([a-zA-Z0-9_\-]+\.[a-zA-Z0-9]+)/g,
+  ];
 
   for (const pattern of patterns) {
     const found = message.match(pattern);
     if (found) {
-      found.forEach(match => matches.add(match.trim()));
+      found.forEach(match => {
+        const cleaned = match.trim();
+        // Filter out false positives (like URLs with dots)
+        if (!cleaned.includes('http://') && !cleaned.includes('https://')) {
+          matches.add(cleaned);
+        }
+      });
     }
   }
 

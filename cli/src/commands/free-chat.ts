@@ -182,11 +182,14 @@ When asked about the current directory, refer to the working directory above.`
     // Show what files were read
     if (fileContexts.length > 0) {
       fileContexts.forEach(ctx => {
-        if (ctx.type === 'directory') {
+        if (ctx.error) {
+          console.log(chalk.dim(`  ❌ ${ctx.path}: ${ctx.error}`));
+        } else if (ctx.type === 'directory') {
           console.log(chalk.dim(`  📁 Read directory: ${ctx.path} (${ctx.files?.length || 0} files)`));
         } else if (ctx.content) {
           const lines = ctx.content.split('\n').length;
-          console.log(chalk.dim(`  📄 Read file: ${ctx.path} (${lines} lines)`));
+          const chars = ctx.content.length;
+          console.log(chalk.dim(`  📄 Read file: ${ctx.path} (${lines} lines, ${chars} chars)`));
         }
       });
     }
