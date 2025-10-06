@@ -241,7 +241,7 @@ System power commands (shutdown, reboot) show warnings but can execute.
   // Prompt function
   const promptNext = () => {
     rl.resume();
-    rl.setPrompt(chalk.bold.green('❯ '));
+    rl.setPrompt(chalk.bold.green('› '));
     rl.prompt();
   };
 
