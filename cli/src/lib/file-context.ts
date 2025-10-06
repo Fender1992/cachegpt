@@ -134,6 +134,23 @@ export function formatFileContext(contexts: FileContext[]): string {
 }
 
 /**
+ * Check if message is asking about current directory
+ */
+export function isAskingAboutCurrentDir(message: string): boolean {
+  const patterns = [
+    /current\s+(directory|dir|folder|location)/i,
+    /what\s+(directory|dir|folder)/i,
+    /where\s+am\s+i/i,
+    /list\s+(files|directories|this\s+directory|current\s+directory)/i,
+    /scan\s+(this\s+directory|current\s+directory|here|\.|current\s+dir)/i,
+    /show\s+(files|this\s+directory|current\s+directory)/i,
+    /what'?s\s+in\s+(this\s+directory|here|current\s+directory)/i,
+  ];
+
+  return patterns.some(pattern => pattern.test(message));
+}
+
+/**
  * Process user message and add file context
  */
 export async function enrichMessageWithFiles(message: string): Promise<{
@@ -141,7 +158,12 @@ export async function enrichMessageWithFiles(message: string): Promise<{
   enrichedMessage: string;
   fileContexts: FileContext[];
 }> {
-  const filePaths = detectFilePaths(message);
+  let filePaths = detectFilePaths(message);
+
+  // If asking about current directory, add '.' to scan it
+  if (isAskingAboutCurrentDir(message) && !filePaths.includes('.')) {
+    filePaths.push('.');
+  }
 
   if (filePaths.length === 0) {
     return {

@@ -4,7 +4,7 @@ import { TokenManager } from '../lib/token-manager';
 import { enrichMessageWithFiles, FileContext } from '../lib/file-context';
 
 interface ChatMessage {
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'system';
   content: string;
 }
 
@@ -115,8 +115,21 @@ export async function freeChatCommand(): Promise<void> {
     return;
   }
 
-  // Start chat
-  const messages: ChatMessage[] = [];
+  // Start chat with system context
+  const messages: ChatMessage[] = [
+    {
+      role: 'system',
+      content: `You are a helpful AI assistant in a terminal environment.
+
+Current working directory: ${process.cwd()}
+Operating system: ${process.platform}
+User home directory: ${process.env.HOME || process.env.USERPROFILE || 'unknown'}
+
+When the user asks about files or directories, you have access to their local filesystem context.
+When asked about the current directory, refer to the working directory above.`
+    }
+  ];
+
   const rl = createInterface({
     input: process.stdin,
     output: process.stdout,
