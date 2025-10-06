@@ -11,6 +11,15 @@ import {
   showDiff,
   FileOperation
 } from '../lib/file-operations';
+import {
+  parseShellOperations,
+  executeCommand,
+  formatShellResult,
+  isDangerousCommand,
+  isSafeCommand,
+  getSafetyWarning,
+  ShellOperation
+} from '../lib/shell-operations';
 import * as readline from 'readline';
 
 interface ChatMessage {
@@ -166,12 +175,33 @@ DELETE_FILE: path/to/file.txt
 Example:
 DELETE_FILE: old-script.js
 
+## Shell Commands
+
+You can execute shell/terminal commands. Use this syntax:
+EXECUTE: command here
+
+Or use bash code blocks:
+\`\`\`bash
+command here
+\`\`\`
+
+Examples:
+EXECUTE: curl https://api.github.com/users/octocat
+EXECUTE: ls -la
+EXECUTE: npm install
+
+Safe commands include: curl, wget, ls, cat, grep, git, npm, yarn, node, python, docker ps, etc.
+Dangerous commands (rm -rf /, mkfs, shutdown) will be blocked for safety.
+
 ## Guidelines
-- Always explain what you're about to do before performing file operations
+- Always explain what you're about to do before performing file or shell operations
 - For edits, show the user what will change
+- For shell commands, explain what the command does
 - Use relative paths when possible
 - Ask for confirmation on destructive operations (delete, overwrite large files)
-- When asked to create/modify code files, use the appropriate language syntax in code blocks`
+- When asked to create/modify code files, use the appropriate language syntax in code blocks
+- Shell commands timeout after 30 seconds
+- Output longer than 20 lines will be truncated`
     }
   ];
 
@@ -256,19 +286,20 @@ DELETE_FILE: old-script.js
         // Clear thinking indicator
         process.stdout.write('\x1B[2A\x1B[2K\x1B[1A\x1B[2K');
 
-        // Parse AI response for file operations
-        const { cleanResponse, operations } = parseFileOperations(response.response);
+        // Parse AI response for file and shell operations
+        const { cleanResponse: cleanResponseAfterFiles, operations: fileOps } = parseFileOperations(response.response);
+        const { cleanResponse: finalCleanResponse, operations: shellOps } = parseShellOperations(cleanResponseAfterFiles);
 
         messages.push({ role: 'assistant', content: response.response });
 
         // Format and display response
-        console.log(formatResponse(cleanResponse));
+        console.log(formatResponse(finalCleanResponse));
 
         // Execute file operations if any
-        if (operations.length > 0) {
+        if (fileOps.length > 0) {
           console.log(chalk.dim('\n  File Operations:\n'));
 
-          for (const op of operations) {
+          for (const op of fileOps) {
             let result: FileOperation;
 
             if (op.type === 'write') {
@@ -290,6 +321,29 @@ DELETE_FILE: old-script.js
               result = await deleteFile(op.path);
               console.log('  ' + formatOperationResult(result));
             }
+          }
+
+          console.log();
+        }
+
+        // Execute shell commands if any
+        if (shellOps.length > 0) {
+          console.log(chalk.dim('\n  Shell Commands:\n'));
+
+          for (const op of shellOps) {
+            // Safety check
+            const warning = getSafetyWarning(op.command);
+            if (warning) {
+              console.log(chalk.yellow(`  ${warning}\n`));
+              if (isDangerousCommand(op.command)) {
+                // Skip dangerous commands
+                continue;
+              }
+            }
+
+            // Execute command
+            const result = await executeCommand(op.command);
+            console.log(formatShellResult(result));
           }
 
           console.log();
