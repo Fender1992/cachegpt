@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import { createInterface } from 'readline';
 import { TokenManager } from '../lib/token-manager';
+import { enrichMessageWithFiles, FileContext } from '../lib/file-context';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -93,6 +94,8 @@ export async function freeChatCommand(): Promise<void> {
   console.log(chalk.bold('  CacheGPT') + chalk.dim(' · Free AI Chat'));
   console.log(chalk.dim('─'.repeat(50)));
   console.log();
+  console.log(chalk.dim('  Working directory: ') + chalk.white(process.cwd()));
+  console.log();
 
   const tokenManager = new TokenManager();
 
@@ -140,7 +143,7 @@ export async function freeChatCommand(): Promise<void> {
   };
 
   // Process the complete input (single line or multi-line paste)
-  const processInput = (input: string) => {
+  const processInput = async (input: string) => {
     if (isProcessing) return;
     isProcessing = true;
 
@@ -156,13 +159,28 @@ export async function freeChatCommand(): Promise<void> {
       return;
     }
 
-    // Show compressed version if input is very long
-    if (input.length > 200) {
-      console.log(chalk.dim('  [Input: ' + input.length + ' characters]'));
+    // Check for file/directory references and add context
+    const { enrichedMessage, fileContexts } = await enrichMessageWithFiles(input);
+
+    // Show what files were read
+    if (fileContexts.length > 0) {
+      fileContexts.forEach(ctx => {
+        if (ctx.type === 'directory') {
+          console.log(chalk.dim(`  📁 Read directory: ${ctx.path} (${ctx.files?.length || 0} files)`));
+        } else if (ctx.content) {
+          const lines = ctx.content.split('\n').length;
+          console.log(chalk.dim(`  📄 Read file: ${ctx.path} (${lines} lines)`));
+        }
+      });
     }
 
-    // Add message
-    messages.push({ role: 'user', content: input });
+    // Show compressed version if input is very long
+    if (enrichedMessage.length > 200) {
+      console.log(chalk.dim('  [Input: ' + enrichedMessage.length + ' characters]'));
+    }
+
+    // Add message (use enriched message with file context)
+    messages.push({ role: 'user', content: enrichedMessage });
     rl.pause();
 
     // Minimal thinking indicator
