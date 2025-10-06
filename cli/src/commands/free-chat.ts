@@ -1,7 +1,8 @@
 import chalk from 'chalk';
-import { createInterface } from 'readline';
+import { createInterface, Interface } from 'readline';
 import { TokenManager } from '../lib/token-manager';
 import { enrichMessageWithFiles, FileContext } from '../lib/file-context';
+import * as readline from 'readline';
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -133,13 +134,16 @@ When asked about the current directory, refer to the working directory above.`
   const rl = createInterface({
     input: process.stdin,
     output: process.stdout,
-    terminal: true
+    terminal: true,
   });
 
   // Multi-line paste detection
   let pasteBuffer: string[] = [];
   let pasteTimeout: NodeJS.Timeout | null = null;
   let isProcessing = false;
+
+  // Input history (readline has built-in support, we just track it)
+  const commandHistory: string[] = [];
 
   // Handle graceful exit
   process.on('SIGINT', () => {
@@ -257,6 +261,16 @@ When asked about the current directory, refer to the working directory above.`
       // Combine all buffered lines
       const combinedInput = pasteBuffer.join('\n');
       pasteBuffer = [];
+
+      // Add to command history for up/down arrow navigation
+      if (combinedInput.trim() && !combinedInput.toLowerCase().match(/^(exit|quit)$/)) {
+        commandHistory.push(combinedInput);
+        // Add to readline's internal history (property exists but not in types)
+        const rlWithHistory = rl as any;
+        if (rlWithHistory.history && !rlWithHistory.history.includes(combinedInput)) {
+          rlWithHistory.history.unshift(combinedInput);
+        }
+      }
 
       // Show paste indicator if multi-line
       const lineCount = combinedInput.split('\n').length;
