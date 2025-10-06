@@ -477,7 +477,12 @@ async function callFreeProvider(messages: any[]): Promise<{ response: string; pr
     }
   ];
 
-  for (const provider of providers) {
+  // Shuffle providers for load balancing (prevents always hitting Groq first)
+  const shuffledProviders = [...providers].sort(() => Math.random() - 0.5);
+
+  console.log('[FREE-PROVIDER] Load balancing order:', shuffledProviders.map(p => p.name).join(' -> '));
+
+  for (const provider of shuffledProviders) {
     if (!provider.apiKey) {
       continue;
     }
