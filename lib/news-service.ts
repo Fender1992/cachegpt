@@ -15,18 +15,16 @@ interface NewsResult {
 
 /**
  * News Service - Aggregates news from multiple APIs
- * Supports: NewsAPI, NewsData.io, The Guardian, GNews
+ * Supports: NewsAPI, NewsData.io, GNews
  */
 export class NewsService {
   private newsApiKey: string;
   private newsDataKey: string;
-  private guardianKey: string;
   private gnewsKey: string;
 
   constructor() {
     this.newsApiKey = process.env.NEWS_API_KEY || '';
     this.newsDataKey = process.env.NEWSDATA_API_KEY || '';
-    this.guardianKey = process.env.GUARDIAN_API_KEY || '';
     this.gnewsKey = process.env.GNEWS_API_KEY || '';
   }
 
@@ -120,36 +118,6 @@ export class NewsService {
     }
   }
 
-  /**
-   * Fetch from The Guardian API (free with registration)
-   */
-  private async fetchGuardian(query: string): Promise<NewsArticle[]> {
-    if (!this.guardianKey) return [];
-
-    try {
-      const response = await axios.get('https://content.guardianapis.com/search', {
-        params: {
-          q: query,
-          'api-key': this.guardianKey,
-          'page-size': 5,
-          'show-fields': 'trailText,shortUrl',
-          'order-by': 'newest'
-        },
-        timeout: 5000
-      });
-
-      return response.data.response?.results?.map((article: any) => ({
-        title: article.webTitle,
-        description: article.fields?.trailText || '',
-        url: article.fields?.shortUrl || article.webUrl,
-        publishedAt: article.webPublicationDate,
-        source: 'The Guardian'
-      })) || [];
-    } catch (error: any) {
-      console.error('Guardian API error:', error.message);
-      return [];
-    }
-  }
 
   /**
    * Fetch from GNews API (100 req/day free)
@@ -189,10 +157,9 @@ export class NewsService {
     const query = this.extractQuery(userMessage);
 
     // Fetch from all APIs in parallel
-    const [newsApiResults, newsDataResults, guardianResults, gnewsResults] = await Promise.all([
+    const [newsApiResults, newsDataResults, gnewsResults] = await Promise.all([
       this.fetchNewsAPI(query),
       this.fetchNewsData(query),
-      this.fetchGuardian(query),
       this.fetchGNews(query)
     ]);
 
@@ -200,7 +167,6 @@ export class NewsService {
     const allArticles = [
       ...newsApiResults,
       ...newsDataResults,
-      ...guardianResults,
       ...gnewsResults
     ];
 
@@ -216,7 +182,6 @@ export class NewsService {
     const sources = [];
     if (newsApiResults.length > 0) sources.push('NewsAPI');
     if (newsDataResults.length > 0) sources.push('NewsData.io');
-    if (guardianResults.length > 0) sources.push('The Guardian');
     if (gnewsResults.length > 0) sources.push('GNews');
 
     return {

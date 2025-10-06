@@ -22,12 +22,6 @@ export async function GET(request: NextRequest) {
       preview: process.env.NEWSDATA_API_KEY.substring(0, 8) + '...'
     } : { configured: false },
 
-    GUARDIAN_API_KEY: process.env.GUARDIAN_API_KEY ? {
-      configured: true,
-      length: process.env.GUARDIAN_API_KEY.length,
-      preview: process.env.GUARDIAN_API_KEY.substring(0, 8) + '...'
-    } : { configured: false },
-
     GNEWS_API_KEY: process.env.GNEWS_API_KEY ? {
       configured: true,
       length: process.env.GNEWS_API_KEY.length,
@@ -42,9 +36,9 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     summary: {
-      total: 4,
+      total: 3,
       configured: configuredCount,
-      missing: 4 - configuredCount
+      missing: 3 - configuredCount
     },
     keys: keysStatus,
     missingKeys,
@@ -54,7 +48,7 @@ export async function GET(request: NextRequest) {
       'See docs/NEWS_API_SETUP.md for setup instructions'
     ] : [
       'All news API keys are configured!',
-      'You have access to ~500 news requests/day'
+      'You have access to ~400 news requests/day'
     ]
   });
 }
