@@ -15,40 +15,118 @@ export interface ShellOperation {
 
 /**
  * List of potentially dangerous commands that require extra caution
+ * These will be completely blocked for safety
  */
 const DANGEROUS_COMMANDS = [
   'rm -rf /',
   'rm -rf /*',
+  'rm -rf ~',
+  'rm -rf /usr',
+  'rm -rf /bin',
+  'rm -rf /sbin',
+  'rm -rf /etc',
+  'rm -rf /var',
+  'rm -rf /boot',
   'mkfs',
   'dd if=/dev/zero',
+  'dd if=/dev/random',
   '> /dev/sda',
+  '> /dev/hda',
   'format c:',
   'del /f /s /q c:\\*',
+  ':(){:|:&};:',  // Fork bomb
+  ':(){ :|:& };:',  // Fork bomb variant
+];
+
+/**
+ * Commands that should show warnings but can still execute
+ * These require user awareness but aren't completely blocked
+ */
+const WARNING_COMMANDS = [
   'shutdown',
+  'poweroff',
   'reboot',
   'halt',
   'init 0',
   'init 6',
-  ':(){:|:&};:',  // Fork bomb
+  'systemctl reboot',
+  'systemctl poweroff',
+  'systemctl halt',
 ];
 
 /**
  * Commands that are generally safe and commonly used
+ * Comprehensive list including Linux, Docker, system management, etc.
  */
 const SAFE_COMMAND_PREFIXES = [
-  'ls', 'dir', 'pwd', 'cd', 'cat', 'echo', 'grep', 'find', 'which', 'whereis',
-  'curl', 'wget', 'git', 'npm', 'yarn', 'node', 'python', 'pip',
-  'docker ps', 'docker images', 'docker logs',
-  'ps', 'top', 'df', 'du', 'free', 'uptime', 'whoami', 'date',
-  'env', 'printenv', 'export', 'alias',
-  'mkdir', 'touch', 'cp', 'mv', 'ln',
-  'chmod', 'chown', 'stat',
-  'head', 'tail', 'wc', 'sort', 'uniq', 'diff',
-  'tar', 'zip', 'unzip', 'gzip', 'gunzip',
-  'make', 'gcc', 'g++', 'javac', 'java',
-  'ping', 'traceroute', 'netstat', 'ifconfig', 'ip',
-  'ssh', 'scp', 'rsync',
-  'systemctl status', 'service status',
+  // File operations
+  'ls', 'dir', 'pwd', 'cd', 'cat', 'echo', 'grep', 'egrep', 'fgrep', 'find', 'which', 'whereis',
+  'locate', 'file', 'basename', 'dirname', 'realpath', 'readlink',
+  'mkdir', 'touch', 'cp', 'mv', 'ln', 'chmod', 'chown', 'chgrp', 'stat',
+  'head', 'tail', 'less', 'more', 'wc', 'sort', 'uniq', 'diff', 'patch', 'cut', 'sed', 'awk',
+
+  // Archiving and compression
+  'tar', 'zip', 'unzip', 'gzip', 'gunzip', 'bzip2', 'bunzip2', 'xz', 'unxz', '7z',
+
+  // Network operations
+  'curl', 'wget', 'ping', 'traceroute', 'tracert', 'nslookup', 'dig', 'host',
+  'netstat', 'ss', 'lsof', 'ifconfig', 'ip', 'route', 'arp', 'hostname',
+  'nc', 'telnet', 'ftp', 'sftp', 'ssh', 'scp', 'rsync',
+
+  // Process management
+  'ps', 'top', 'htop', 'pgrep', 'pkill', 'kill', 'killall', 'pstree',
+  'jobs', 'bg', 'fg', 'nohup', 'screen', 'tmux',
+
+  // System information
+  'uname', 'hostname', 'uptime', 'whoami', 'who', 'w', 'id', 'groups',
+  'date', 'cal', 'timedatectl', 'localectl',
+  'df', 'du', 'free', 'lscpu', 'lsmem', 'lsblk', 'lspci', 'lsusb',
+  'dmesg', 'journalctl', 'systemd-analyze',
+
+  // Package managers
+  'apt list', 'apt search', 'apt show', 'apt-cache', 'apt-get update', 'apt-get upgrade',
+  'yum list', 'yum search', 'yum info', 'dnf list', 'dnf search', 'dnf info',
+  'brew list', 'brew search', 'brew info', 'brew update', 'brew upgrade',
+  'npm', 'yarn', 'pnpm', 'pip', 'pip3', 'pipenv', 'poetry',
+  'gem', 'bundle', 'cargo', 'composer', 'go get', 'go mod',
+
+  // Docker
+  'docker', 'docker ps', 'docker images', 'docker logs', 'docker inspect', 'docker stats',
+  'docker exec', 'docker run', 'docker pull', 'docker push', 'docker build',
+  'docker-compose', 'docker compose', 'docker network', 'docker volume',
+
+  // Kubernetes
+  'kubectl', 'kubectl get', 'kubectl describe', 'kubectl logs', 'kubectl exec',
+  'helm', 'minikube', 'k9s',
+
+  // System services
+  'systemctl', 'systemctl status', 'systemctl list-units', 'systemctl show',
+  'service', 'service status', 'service list',
+
+  // Development tools
+  'git', 'svn', 'hg', 'make', 'cmake', 'autoconf',
+  'gcc', 'g++', 'clang', 'javac', 'java', 'mvn', 'gradle',
+  'node', 'deno', 'bun', 'python', 'python3', 'ruby', 'perl', 'php',
+  'rustc', 'go', 'dotnet', 'mono',
+
+  // Text editors (view mode)
+  'vim -R', 'vi -R', 'nano -v', 'emacs --batch',
+
+  // Database clients (read operations)
+  'mysql -e', 'psql -c', 'mongo --eval', 'redis-cli',
+
+  // Cloud CLIs
+  'aws', 'az', 'gcloud', 'doctl', 'heroku',
+
+  // Monitoring and logging
+  'watch', 'tail -f', 'journalctl -f', 'tcpdump', 'strace', 'ltrace',
+
+  // Testing
+  'jest', 'mocha', 'pytest', 'phpunit', 'rspec', 'cargo test',
+
+  // Environment
+  'env', 'printenv', 'export', 'set', 'alias', 'unalias',
+  'source', '.', 'eval', 'type', 'command',
 ];
 
 /**
@@ -92,6 +170,21 @@ export function isSafeCommand(command: string): boolean {
   // Check if it starts with any safe command prefix
   for (const prefix of SAFE_COMMAND_PREFIXES) {
     if (trimmed.startsWith(prefix.toLowerCase())) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Check if command requires a warning (but isn't completely blocked)
+ */
+export function isWarningCommand(command: string): boolean {
+  const lowerCmd = command.toLowerCase().trim();
+
+  for (const warning of WARNING_COMMANDS) {
+    if (lowerCmd.includes(warning.toLowerCase())) {
       return true;
     }
   }
@@ -256,11 +349,15 @@ export function formatShellResult(op: ShellOperation): string {
  */
 export function getSafetyWarning(command: string): string | null {
   if (isDangerousCommand(command)) {
-    return `⚠️  WARNING: This command appears dangerous and could harm your system:\n  ${command}\n\nThis command will NOT be executed for safety.`;
+    return `⚠️  DANGER: This command appears dangerous and could harm your system:\n  ${command}\n\n❌ This command will NOT be executed for safety.`;
+  }
+
+  if (isWarningCommand(command)) {
+    return `⚠️  WARNING: This command will affect system power state:\n  ${command}\n\n⚡ Proceeding with execution...`;
   }
 
   if (!isSafeCommand(command)) {
-    return `⚠️  CAUTION: This command is not in the safe list:\n  ${command}\n\nPlease review carefully before execution.`;
+    return `ℹ️  INFO: This command is not in the standard safe list:\n  ${command}\n\n✓ Proceeding with execution...`;
   }
 
   return null;

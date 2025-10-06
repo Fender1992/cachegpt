@@ -187,11 +187,23 @@ command here
 
 Examples:
 EXECUTE: curl https://api.github.com/users/octocat
-EXECUTE: ls -la
-EXECUTE: npm install
+EXECUTE: docker ps -a
+EXECUTE: systemctl status nginx
+EXECUTE: kubectl get pods
 
-Safe commands include: curl, wget, ls, cat, grep, git, npm, yarn, node, python, docker ps, etc.
-Dangerous commands (rm -rf /, mkfs, shutdown) will be blocked for safety.
+Supported systems and tools:
+- Linux utilities: ls, cat, grep, find, sed, awk, ps, top, df, du, etc.
+- Docker: docker ps, docker logs, docker exec, docker-compose, etc.
+- Kubernetes: kubectl, helm, minikube, etc.
+- System services: systemctl, service, journalctl, etc.
+- Package managers: apt, yum, brew, npm, pip, cargo, etc.
+- Development: git, make, gcc, node, python, go, rust, etc.
+- Cloud CLIs: aws, az, gcloud, doctl, heroku, etc.
+- Networking: curl, wget, ping, netstat, ss, dig, etc.
+- Databases: mysql -e, psql -c, redis-cli, etc.
+
+Dangerous commands (rm -rf /, mkfs, dd if=/dev/zero) are blocked for safety.
+System power commands (shutdown, reboot) show warnings but can execute.
 
 ## Guidelines
 - Always explain what you're about to do before performing file or shell operations
