@@ -92,10 +92,11 @@ export default function Dashboard() {
   }, [user, loading, router])
 
   useEffect(() => {
-    if (user) {
+    // Only fetch if we have a user and we're done loading
+    if (user && !loading) {
       fetchDashboardData()
     }
-  }, [user, timeRange])
+  }, [user, loading, timeRange])
 
   const fetchDashboardData = async () => {
     // Skip data fetching during static generation
@@ -119,6 +120,11 @@ export default function Dashboard() {
       })
 
       if (!response.ok) {
+        // If unauthorized, redirect to login
+        if (response.status === 401) {
+          router.push('/')
+          return
+        }
         throw new Error('Failed to fetch metrics')
       }
 
