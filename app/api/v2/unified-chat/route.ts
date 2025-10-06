@@ -515,6 +515,9 @@ async function callFreeProvider(messages: any[]): Promise<{ response: string; pr
       });
 
       if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unable to read error');
+        console.error(`[FREE-PROVIDER] ${provider.name} failed: ${response.status} ${response.statusText}`);
+        console.error(`[FREE-PROVIDER] ${provider.name} error body:`, errorText.substring(0, 200));
         continue;
       }
 
@@ -549,6 +552,15 @@ async function callFreeProvider(messages: any[]): Promise<{ response: string; pr
   console.error('[FREE-PROVIDER] All providers failed.');
   console.error('[FREE-PROVIDER] Attempted:', attemptedProviders || 'none');
   console.error('[FREE-PROVIDER] Missing keys:', missingProviders || 'none');
+
+  // Check if we have server-side premium keys as emergency fallback
+  const hasServerOpenAI = !!process.env.OPENAI_API_KEY;
+  const hasServerAnthropic = !!process.env.ANTHROPIC_API_KEY;
+
+  if (hasServerOpenAI || hasServerAnthropic) {
+    console.log('[FREE-PROVIDER] Attempting emergency fallback to server premium keys');
+    // Will be caught and handled by caller
+  }
 
   throw new Error('All free providers failed. Please add your own API keys in Settings or contact support.');
 }
@@ -817,8 +829,26 @@ export async function POST(request: NextRequest) {
 
     if (usingFreeProviders) {
       // Use free providers (auto-rotates between Groq, OpenRouter, HuggingFace)
-      result = await callFreeProvider(enrichedMessages);
-      finalModel = 'free-model';  // Don't expose which specific free model was used
+      try {
+        result = await callFreeProvider(enrichedMessages);
+        finalModel = 'free-model';  // Don't expose which specific free model was used
+      } catch (freeProviderError: any) {
+        // If free providers fail and we have server premium keys, use them as emergency fallback
+        if (process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY) {
+          console.log('[EMERGENCY-FALLBACK] Free providers failed, using server premium keys');
+          const fallbackProvider = process.env.ANTHROPIC_API_KEY ? 'anthropic' : 'openai';
+          const fallbackKey = process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY;
+          const fallbackModel = fallbackProvider === 'anthropic'
+            ? 'claude-sonnet-4-5-20250929'
+            : 'gpt-5';
+
+          result = await callPremiumProvider(enrichedMessages, fallbackProvider, fallbackKey!, fallbackModel);
+          finalModel = fallbackModel;
+        } else {
+          // No fallback available, re-throw the error
+          throw freeProviderError;
+        }
+      }
     } else {
       // Use premium provider with user's API key
       try {
