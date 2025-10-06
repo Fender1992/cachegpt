@@ -62,6 +62,13 @@ export default function ModelSelector({
     fetchAvailableModels()
   }, [])
 
+  // Refetch when dropdown opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchAvailableModels()
+    }
+  }, [isOpen])
+
   // Redirect to API key setup if no premium providers and user wants to access premium models
   const handleUpgradeRedirect = () => {
     window.location.href = '/dashboard?tab=api-keys&setup=true'

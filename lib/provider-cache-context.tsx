@@ -94,9 +94,10 @@ export function ProviderCacheProvider({ children }: { children: React.ReactNode 
       // Fetch from database
       const { data: credentials, error: fetchError } = await supabase
         .from('user_provider_credentials')
-        .select('provider, status')
+        .select('provider, status, api_key, is_active')
         .eq('user_id', session.user.id)
-        .eq('status', 'ready')
+        .or('status.eq.ready,is_active.eq.true')
+        .not('api_key', 'is', null)
 
       if (fetchError) {
         setError('Failed to fetch providers')
