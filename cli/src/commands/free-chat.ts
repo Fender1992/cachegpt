@@ -2,6 +2,15 @@ import chalk from 'chalk';
 import { createInterface, Interface } from 'readline';
 import { TokenManager } from '../lib/token-manager';
 import { enrichMessageWithFiles, FileContext } from '../lib/file-context';
+import {
+  parseFileOperations,
+  writeFile,
+  editFile,
+  deleteFile,
+  formatOperationResult,
+  showDiff,
+  FileOperation
+} from '../lib/file-operations';
 import * as readline from 'readline';
 
 interface ChatMessage {
@@ -120,14 +129,49 @@ export async function freeChatCommand(): Promise<void> {
   const messages: ChatMessage[] = [
     {
       role: 'system',
-      content: `You are a helpful AI assistant in a terminal environment.
+      content: `You are a helpful AI assistant in a terminal environment with file operation capabilities.
 
 Current working directory: ${process.cwd()}
 Operating system: ${process.platform}
 User home directory: ${process.env.HOME || process.env.USERPROFILE || 'unknown'}
 
-When the user asks about files or directories, you have access to their local filesystem context.
-When asked about the current directory, refer to the working directory above.`
+## File Operations
+
+You can read, write, edit, and delete files. When the user mentions files, they are automatically read and added to context.
+
+### Writing/Creating Files
+To create or overwrite a file, use this syntax:
+WRITE_FILE: path/to/file.txt
+\`\`\`language
+file content here
+\`\`\`
+
+Example:
+WRITE_FILE: src/hello.js
+\`\`\`javascript
+console.log('Hello, World!');
+\`\`\`
+
+### Editing Files
+To edit an existing file (find and replace), use:
+EDIT_FILE: path/to/file.txt REPLACE "old text" WITH "new text"
+
+Example:
+EDIT_FILE: config.json REPLACE "debug": false WITH "debug": true
+
+### Deleting Files
+To delete a file, use:
+DELETE_FILE: path/to/file.txt
+
+Example:
+DELETE_FILE: old-script.js
+
+## Guidelines
+- Always explain what you're about to do before performing file operations
+- For edits, show the user what will change
+- Use relative paths when possible
+- Ask for confirmation on destructive operations (delete, overwrite large files)
+- When asked to create/modify code files, use the appropriate language syntax in code blocks`
     }
   ];
 
@@ -208,14 +252,48 @@ When asked about the current directory, refer to the working directory above.`
 
     // Call API
     callFreeProviderAPI(authToken.value, messages)
-      .then(response => {
+      .then(async response => {
         // Clear thinking indicator
         process.stdout.write('\x1B[2A\x1B[2K\x1B[1A\x1B[2K');
+
+        // Parse AI response for file operations
+        const { cleanResponse, operations } = parseFileOperations(response.response);
 
         messages.push({ role: 'assistant', content: response.response });
 
         // Format and display response
-        console.log(formatResponse(response.response));
+        console.log(formatResponse(cleanResponse));
+
+        // Execute file operations if any
+        if (operations.length > 0) {
+          console.log(chalk.dim('\n  File Operations:\n'));
+
+          for (const op of operations) {
+            let result: FileOperation;
+
+            if (op.type === 'write') {
+              result = await writeFile(op.path, op.content || '');
+              console.log('  ' + formatOperationResult(result));
+
+              if (result.success && result.content) {
+                const lines = result.content.split('\n').length;
+                console.log(chalk.dim(`    ${lines} lines written`));
+              }
+            } else if (op.type === 'edit') {
+              result = await editFile(op.path, 'replace', op.searchText, op.replaceText);
+              console.log('  ' + formatOperationResult(result));
+
+              if (result.success && result.oldContent && result.newContent) {
+                console.log(showDiff(result.oldContent, result.newContent, 5));
+              }
+            } else if (op.type === 'delete') {
+              result = await deleteFile(op.path);
+              console.log('  ' + formatOperationResult(result));
+            }
+          }
+
+          console.log();
+        }
 
         // Show metadata if cached
         if (response.cached) {
