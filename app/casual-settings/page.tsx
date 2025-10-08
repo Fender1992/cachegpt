@@ -9,6 +9,7 @@ import {
   Save, Check, LogOut, ChevronLeft
 } from 'lucide-react';
 import { telemetry } from '@/lib/telemetry';
+import Navigation from '@/components/Navigation';
 
 type Tab = 'profile' | 'themes' | 'privacy' | 'providers';
 type Theme = 'light' | 'dark' | 'solarized' | 'neon';
@@ -110,7 +111,9 @@ export default function CasualSettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
+    <>
+      <Navigation />
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
         <div className="mb-8">
@@ -361,6 +364,7 @@ export default function CasualSettingsPage() {
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </>
   );
 }

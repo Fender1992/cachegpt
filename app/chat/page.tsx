@@ -785,10 +785,10 @@ function ChatPageContent() {
       </div>
 
       {/* Input - Fixed at bottom with safe area and mobile protection */}
-      <div className="flex-shrink-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm"
+      <div className="flex-shrink-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm sticky bottom-0 z-10"
            style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
         <div className="max-w-4xl mx-auto">
-          <div className="flex gap-2 mb-2 sm:mb-0">
+          <div className="flex gap-2">
             <textarea
               ref={inputRef}
               value={message}
@@ -799,8 +799,16 @@ function ChatPageContent() {
                   handleSendMessage()
                 }
               }}
-              placeholder="Type your message... (Shift+Enter for new line)"
-              className="flex-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none min-h-[44px] max-h-[200px] overflow-y-auto"
+              onFocus={(e) => {
+                // On mobile, prevent scrolling when focusing
+                if (window.innerWidth < 640) {
+                  setTimeout(() => {
+                    e.target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                  }, 300);
+                }
+              }}
+              placeholder="Type your message..."
+              className="flex-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none min-h-[44px] max-h-[120px] overflow-y-auto touch-manipulation"
               disabled={isLoading}
               autoComplete="off"
               autoCorrect="off"

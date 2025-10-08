@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { telemetry } from '@/lib/telemetry';
 import { Loader2, ArrowRight } from 'lucide-react';
+import Navigation from '@/components/Navigation';
 
 interface Mode {
   id: string;
@@ -49,18 +50,23 @@ export default function ModesPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <>
+        <Navigation />
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-8 h-8 text-purple-600 dark:text-purple-400 animate-spin mx-auto mb-4" />
           <p className="text-gray-600 dark:text-gray-400">Loading modes...</p>
         </div>
-      </div>
+        </div>
+      </>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <>
+        <Navigation />
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center max-w-md px-4">
           <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
           <button
@@ -70,12 +76,15 @@ export default function ModesPage() {
             Try Again
           </button>
         </div>
-      </div>
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
+    <>
+      <Navigation />
+      <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
         <div className="text-center mb-12">
@@ -145,6 +154,7 @@ export default function ModesPage() {
           </button>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
