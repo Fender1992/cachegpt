@@ -227,33 +227,81 @@ database-scripts/
 
 ---
 
-### 🔨 Phase 2: Chat UI Refresh (PENDING)
+### ✅ Phase 2: Chat UI Refresh (COMPLETE)
 
-**Branch:** `feat/casual-ui-chat`
-**Status:** Waiting for Phase 1
+**Branch:** `feat/casual-ui-chat` (committed 07adcb1, pushed)
+**Status:** Components complete, ready for integration
 
-#### Changes
+#### Components Built
 
-- Top bar: Logo, presets dropdown ("Smart", "Creative", "Code"), profile
-- Example prompts grid (empty state only):
-  - "Write me a 3-day meal plan"
-  - "Explain today's top news"
-  - "Help me debug this JS function"
-  - "5 biz ideas I could start this weekend"
-- Input enhancements:
-  - Voice input (Web Speech API, flag: `ux_voice_input`)
-  - File upload (size/type limits, flag: `ux_file_upload`)
-- Cache indicators:
-  - Inline badge: "⚡ from cache"
-  - Toast: "You saved 2¢!" (flag: `ux_gamified_toasts`)
-- Left sidebar: Home, My Chats, Analytics, Modes, Settings
+- ✅ `components/chat/ExamplePrompts.tsx` - Empty state prompts with telemetry (130+ lines)
+- ✅ `components/chat/CacheBadge.tsx` - Inline/standalone cache indicators (60 lines)
+- ✅ `components/chat/CacheToast.tsx` - Gamified cache hit notification (110 lines)
+- ✅ `components/chat/ModelPreset.tsx` - Preset dropdown selector (160+ lines)
 
-#### Components
+#### Features Implemented
 
-- `components/chat/ExamplePrompts.tsx`
-- `components/chat/CacheBadge.tsx`
-- `components/chat/Toast.tsx` (reusable)
-- `components/chat/ModelPreset.tsx`
+**ExamplePrompts Component:**
+- ✅ Grid/list layout support (A/B test ready)
+- ✅ 4 example prompts with category icons
+- ✅ Click handlers with telemetry (`example_prompt_clicked`)
+- ✅ Category-based color coding (purple, blue, green, yellow)
+- ✅ Hover animations and smooth transitions
+- ✅ Empty state guidance text
+
+**CacheBadge Component:**
+- ✅ Two variants: inline (compact) and standalone (detailed)
+- ✅ Shows cache status with lightning bolt icon
+- ✅ Displays cents saved when available
+- ✅ Gradient yellow/gold styling
+- ✅ Tooltip on hover for inline variant
+
+**CacheToast Component:**
+- ✅ Gamified notification: "⚡ Lightning fast!"
+- ✅ Shows cents saved with bold emphasis
+- ✅ Auto-dismiss with animated progress bar
+- ✅ Close button for manual dismissal
+- ✅ Telemetry tracking (`cache_hit_notice_shown`)
+- ✅ Smooth slide-in/fade-out animations
+
+**ModelPreset Component:**
+- ✅ 3 presets: Smart (purple), Creative (yellow), Code (blue)
+- ✅ Dropdown selector with icons (Sparkles, Zap, Code)
+- ✅ Active state indicator
+- ✅ Descriptions for each preset
+- ✅ Color-coded for easy identification
+- ✅ Accessible keyboard navigation
+
+#### Design Patterns
+
+- **Colors**: Category-based gradients (purple, blue, green, yellow)
+- **Icons**: Lucide icons (Sparkles, Code, BookOpen, Lightbulb, Zap)
+- **Animations**: Fade-in, slide-up, hover effects
+- **Spacing**: Consistent padding (3, 4 for compact elements)
+- **Dark Mode**: Full support across all components
+- **Accessibility**: ARIA labels, keyboard navigation, focus states
+
+#### Pending Tasks
+
+- ⏳ Integrate components into `app/chat/page.tsx`
+- ⏳ Wire ExamplePrompts to message input
+- ⏳ Wire CacheBadge to message responses
+- ⏳ Wire CacheToast to cache hit events
+- ⏳ Wire ModelPreset to provider selection
+- ⏳ Add voice input button (Web Speech API, flag: `ux_voice_input`)
+- ⏳ Add file upload button (flag: `ux_file_upload`)
+- ⏳ Update left sidebar navigation
+
+#### Acceptance Criteria
+
+- ✅ All 4 components created and functional
+- ✅ Telemetry integrated
+- ✅ Dark mode support
+- ✅ Responsive design
+- ✅ Type-safe props
+- ⏳ Components integrated into chat page
+- ⏳ Feature flags wired (`ux_example_prompts`, `ux_cache_badges`, `ux_gamified_toasts`)
+- ⏳ Voice input and file upload implemented
 
 ---
 
