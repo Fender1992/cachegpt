@@ -98,9 +98,12 @@ function ChatPageContent() {
         if (mode) {
           setCurrentMode(mode)
         }
+      } else {
+        console.warn('[CHAT] Modes API unavailable, skipping mode loading')
       }
     } catch (error) {
-      console.error('[CHAT] Error loading mode:', error)
+      console.error('[CHAT] Error loading mode (non-blocking):', error)
+      // Don't block chat if modes API fails
     }
   }
 
