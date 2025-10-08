@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { MessageSquare, Zap, Cpu, Award, TrendingUp } from 'lucide-react';
-import telemetry from '@/lib/telemetry';
+import { telemetry } from '@/lib/telemetry';
 
 interface DashboardStats {
   totalChats: number;
