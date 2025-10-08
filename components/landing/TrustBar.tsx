@@ -5,7 +5,7 @@ export default function TrustBar() {
     { name: 'OpenAI', icon: '🤖' },
     { name: 'Claude', icon: '🧠' },
     { name: 'Gemini', icon: '✨' },
-    { name: 'Groq', icon: '⚡' },
+    { name: 'Perplexity', icon: '⚡' },
   ];
 
   return (
