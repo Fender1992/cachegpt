@@ -122,8 +122,7 @@
       "Bash(PGPASSWORD=\"$SUPABASE_DB_PASSWORD\" psql -h \"aws-0-us-east-1.pooler.supabase.com\" -p 6543 -d \"postgres\" -U \"postgres.ntekfgvkbuzjwmftqchr\" -f database-scripts/032_pricing_tiers.sql)",
       "Bash(NEXT_PUBLIC_SUPABASE_URL=placeholder NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder yarn build)",
       "Bash(PGPASSWORD=\"$SUPABASE_DB_PASSWORD\" psql -h \"aws-0-us-east-1.pooler.supabase.com\" -p 6543 -d \"postgres\" -U \"postgres.ntekfgvkbuzjwmftqchr\" -c \"SELECT id, email, enterprise_mode, selected_provider FROM user_profiles WHERE email = ''rolandofender@gmail.com'';\")",
-      "Bash(PGPASSWORD:*)",
-      "Bash(psql:*)"
+      "Bash(git merge:*)"
     ],
     "deny": [],
     "ask": []
