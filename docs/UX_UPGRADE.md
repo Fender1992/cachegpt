@@ -206,9 +206,15 @@ database-scripts/
 - Typing effect (100ms per character)
 - Hover transforms (scale-105, translate-y-1)
 
+#### Integration Complete
+
+- ✅ **Feature flag integration** - Created `landing-wrapper.tsx` server component
+- ✅ **Classic landing preserved** - Renamed to `classic-landing.tsx` (no changes)
+- ✅ **Conditional rendering** - New `page.tsx` delegates based on `ui_casual_landing` flag
+- ✅ **A/B test wiring** - Passes variant to CasualLanding component
+
 #### Pending Tasks
 
-- ⏳ Feature flag integration in `app/page.tsx`
 - ⏳ SEO metadata (OpenGraph, Twitter cards)
 - ⏳ Lighthouse audit (targeting 90/90/90)
 - ⏳ Integration testing (variant switching)
@@ -221,8 +227,8 @@ database-scripts/
 - ✅ Dark mode support
 - ✅ Responsive design (mobile-first)
 - ✅ A/B test variants ready
-- ⏳ Lighthouse score ≥ 90/90/90 (pending integration)
-- ⏳ Feature flag wired to `app/page.tsx`
+- ✅ Feature flag wired to `app/page.tsx`
+- ⏳ Lighthouse score ≥ 90/90/90 (pending QA)
 - ⏳ OpenGraph + Twitter cards added
 
 ---

@@ -8,6 +8,7 @@ const navigation = {
     { name: 'Modes', href: '/modes' },
     { name: 'Pricing', href: '/pricing' },
     { name: 'CLI', href: 'https://www.npmjs.com/package/cachegpt-cli', external: true },
+    { name: 'For Developers', href: '/enterprise' }, // Classic landing for power users
   ],
   resources: [
     { name: 'Documentation', href: '/docs' },
