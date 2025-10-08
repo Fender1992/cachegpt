@@ -7,7 +7,7 @@ import Toast from '@/components/toast'
 import {
   Bug, Filter, Search, Calendar, User, Globe,
   AlertTriangle, CheckCircle, Clock, XCircle,
-  Edit, Trash2, Eye, ArrowLeft, RefreshCw
+  Edit, Trash2, Eye, ArrowLeft, RefreshCw, Flag, TrendingUp
 } from 'lucide-react'
 
 interface BugReport {
@@ -255,14 +255,30 @@ export default function AdminBugsPage() {
                 <p className="text-sm text-gray-600">Admin Dashboard</p>
               </div>
             </div>
-            <button
-              onClick={loadBugs}
-              disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => router.push('/admin/feature-flags')}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+              >
+                <Flag className="w-4 h-4" />
+                Feature Flags
+              </button>
+              <button
+                onClick={() => router.push('/admin/funnel-report')}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+              >
+                <TrendingUp className="w-4 h-4" />
+                Funnel Report
+              </button>
+              <button
+                onClick={loadBugs}
+                disabled={loading}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+            </div>
           </div>
         </div>
       </div>
