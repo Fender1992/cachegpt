@@ -20,7 +20,7 @@ export default function CacheToast({
 
   useEffect(() => {
     // Track toast shown
-    telemetry.cacheHitNoticeShown(savedCents);
+    telemetry.cacheHitShown(savedCents);
 
     // Animate in
     setTimeout(() => setIsVisible(true), 100);
