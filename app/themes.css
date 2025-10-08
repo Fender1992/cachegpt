@@ -1,0 +1,84 @@
+/* CacheGPT Theme System */
+/* Casual user-friendly themes with CSS custom properties */
+
+:root {
+  /* Light Theme (Default) */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f9fafb;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --border-color: #e5e7eb;
+  --accent-color: #7c3aed;
+}
+
+.dark {
+  /* Dark Theme */
+  --bg-primary: #111827;
+  --bg-secondary: #1f2937;
+  --text-primary: #f9fafb;
+  --text-secondary: #9ca3af;
+  --border-color: #374151;
+  --accent-color: #a78bfa;
+}
+
+.theme-solarized {
+  /* Solarized Theme - Warm and easy on the eyes */
+  --bg-primary: #fdf6e3;
+  --bg-secondary: #eee8d5;
+  --text-primary: #657b83;
+  --text-secondary: #93a1a1;
+  --border-color: #d3af86;
+  --accent-color: #cb4b16;
+}
+
+.theme-neon {
+  /* Neon Theme - Bold and vibrant */
+  --bg-primary: #0f0320;
+  --bg-secondary: #1a0b2e;
+  --text-primary: #e0e7ff;
+  --text-secondary: #a5b4fc;
+  --border-color: #7c3aed;
+  --accent-color: #c026d3;
+}
+
+/* Apply theme variables to common elements */
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* Smooth theme transitions */
+* {
+  transition-property: background-color, border-color, color;
+  transition-duration: 200ms;
+  transition-timing-function: ease-in-out;
+}
+
+/* Utility classes for themed elements */
+.themed-bg-primary {
+  background-color: var(--bg-primary);
+}
+
+.themed-bg-secondary {
+  background-color: var(--bg-secondary);
+}
+
+.themed-text-primary {
+  color: var(--text-primary);
+}
+
+.themed-text-secondary {
+  color: var(--text-secondary);
+}
+
+.themed-border {
+  border-color: var(--border-color);
+}
+
+.themed-accent {
+  color: var(--accent-color);
+}
+
+.themed-accent-bg {
+  background-color: var(--accent-color);
+}
