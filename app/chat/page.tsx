@@ -325,9 +325,9 @@ function ChatPageContent() {
       console.error('[CHAT] Session error:', sessionError)
     }
 
+    // Allow anonymous chatting - no redirect if no session
     if (!session) {
-      console.warn('[CHAT] No session found, redirecting to login')
-      router.push('/login')
+      console.log('[CHAT] No session found - anonymous mode')
       return
     }
 
