@@ -813,7 +813,7 @@ function ChatPageContent() {
                 }
               }}
               placeholder="Type your message..."
-              className="flex-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none min-h-[44px] max-h-[120px] overflow-y-auto touch-manipulation"
+              className="flex-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-base text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none min-h-[44px] max-h-[120px] overflow-y-auto touch-manipulation"
               disabled={isLoading}
               autoComplete="off"
               autoCorrect="off"
@@ -821,6 +821,7 @@ function ChatPageContent() {
               aria-label="Type your message"
               role="textbox"
               rows={1}
+              style={{ fontSize: '16px' }}
             />
             <button
               onClick={handleSendMessage}
