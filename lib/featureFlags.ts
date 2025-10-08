@@ -13,10 +13,10 @@
 import { createClient } from '@/lib/supabase-server';
 import { FlagKey, FeatureFlags, FlagValue } from '@/types/featureFlags';
 
-// Default flag values (safest defaults - most features off initially)
+// Default flag values
 const DEFAULT_FLAGS: FeatureFlags = {
-  // UI flags (default OFF for safe rollout)
-  ui_casual_landing: false,
+  // UI flags - casual landing is now the default
+  ui_casual_landing: true, // NOW DEFAULT: Friendly landing for casual users
   ui_casual_chat: false,
   ui_modes: false,
   ui_casual_dashboard: false,
