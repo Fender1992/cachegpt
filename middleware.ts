@@ -53,7 +53,7 @@ export async function middleware(request: NextRequest) {
     "img-src 'self' data: https: blob:; " +
     "font-src 'self' data:; " +
     "frame-src 'self' https://www.loom.com https://vercel.live; " +
-    "connect-src 'self' https://api.openai.com https://api.anthropic.com https://api.cachegpt.io https://*.supabase.co wss://*.supabase.co https://*.sentry.io; " +
+    "connect-src 'self' https://api.openai.com https://api.anthropic.com https://api.cachegpt.io https://*.supabase.co wss://*.supabase.co https://*.sentry.io wss://*.pusher.com; " +
     "frame-ancestors 'none';"
   )
 
