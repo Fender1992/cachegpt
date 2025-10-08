@@ -305,24 +305,63 @@ database-scripts/
 
 ---
 
-### 🔨 Phase 3: Modes/Templates (PENDING)
+### ✅ Phase 3: Modes/Templates (COMPLETE)
 
-**Branch:** `feat/casual-ui-modes`
-**Status:** Waiting for Phase 2
+**Branch:** `feat/casual-ui-modes` (committed bbabbe5, pushed)
+**Status:** API and page complete, ready for chat integration
 
-#### API
+#### What Was Built
 
-- `GET /api/modes` - Returns all active modes (cached at edge)
+**API Endpoint:**
+- ✅ `GET /api/modes` (60 lines)
+- ✅ Fetches active modes from `public_modes` table
+- ✅ Sorted by `sort_order` field
+- ✅ Edge runtime for performance
+- ✅ 5-minute cache headers (`s-maxage=300`)
+- ✅ Returns: id, slug, title, description, icon, system_prompt, example_prompts
 
-#### UI
+**Modes Page:**
+- ✅ `/app/modes/page.tsx` (160+ lines)
+- ✅ Grid layout (1/2/3 columns responsive)
+- ✅ Displays all 6 seeded modes with emoji icons
+- ✅ Shows title, description, and 2 example prompts per mode
+- ✅ Click mode → redirect to `/chat?mode={slug}`
+- ✅ "Go to Chat" fallback button for regular chat
+- ✅ Loading and error states with retry
+- ✅ Gradient background matching landing page
 
-- `/modes` page - Grid of 6 mode cards
-- Click mode → redirect to `/chat?mode=writing-assistant`
-- Chat page reads `mode` param, shows banner "Mode: Writing Assistant"
+**Telemetry:**
+- ✅ `modesView` fires on page load
+- ✅ `modeSelected` fires on mode click with slug
 
-#### Telemetry
+**Design Patterns:**
+- **Layout**: Responsive grid (1/2/3 columns)
+- **Icons**: Large emoji (text-5xl)
+- **Colors**: White cards with purple hover borders
+- **Animations**: Hover lift (-translate-y-1), arrow fade-in
+- **Spacing**: Consistent padding (p-6), gap-6
+- **Dark Mode**: Full support
 
-- `modes_view`, `mode_selected`, `mode_used_in_chat`
+#### Pending Tasks
+
+- ⏳ Integrate mode support into `/chat` page
+- ⏳ Read `mode` query param in chat page
+- ⏳ Display mode banner: "Mode: Writing Assistant"
+- ⏳ Apply mode's system_prompt to chat
+- ⏳ Track `mode_used_in_chat` telemetry event
+- ⏳ Wire `ui_modes` feature flag
+
+#### Acceptance Criteria
+
+- ✅ API endpoint created and functional
+- ✅ Modes page displays all 6 modes
+- ✅ Click redirects to chat with mode param
+- ✅ Telemetry integrated
+- ✅ Dark mode support
+- ✅ Responsive design
+- ⏳ Chat page reads mode param
+- ⏳ Mode system_prompt applied to conversation
+- ⏳ Feature flag wired (`ui_modes`)
 
 ---
 
