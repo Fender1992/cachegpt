@@ -1,14 +1,19 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { ProviderCacheProvider } from '@/lib/provider-cache-context'
 
 const inter = Inter({ subsets: ['latin'] })
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+}
+
 export const metadata: Metadata = {
   title: 'CacheGPT - Reduce LLM API Costs by 80% | Smart Caching for AI',
   description: 'Cut your AI API costs by 80% and speed up responses to <10ms with intelligent caching. Works with OpenAI, Anthropic, Google Gemini, and all major LLM providers. Free to start.',
-  viewport: 'width=device-width, initial-scale=1.0, viewport-fit=cover',
   keywords: [
     'AI caching',
     'LLM cache',
