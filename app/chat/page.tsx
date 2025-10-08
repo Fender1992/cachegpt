@@ -1,12 +1,14 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
 import { Send, Bot, Brain, Sparkles, Zap, Settings, LogOut, History, RefreshCw, Loader2, Home, Trash2 } from 'lucide-react'
 import BugReportButton from '@/components/bug-report-button'
 import ProviderSelector from '@/components/provider-selector'
 import Toast from '@/components/toast'
+import ExamplePrompts from '@/components/chat/ExamplePrompts'
+import CacheToast from '@/components/chat/CacheToast'
 import { error as logError } from '@/lib/logger'
 
 const providerIcons = {
@@ -52,7 +54,11 @@ export default function ChatPage() {
   const [loadingOlderMessages, setLoadingOlderMessages] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const [showCacheToast, setShowCacheToast] = useState(false)
+  const [lastCacheSaved, setLastCacheSaved] = useState(0)
+  const [currentMode, setCurrentMode] = useState<any>(null)
   const router = useRouter()
+  const searchParams = useSearchParams()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -77,7 +83,32 @@ export default function ChatPage() {
     loadUserProfile()
     loadUserPreferences()
     loadConversations()
+    loadModeFromQueryParam()
   }, [])
+
+  const loadModeFromQueryParam = async () => {
+    const modeSlug = searchParams.get('mode')
+    if (!modeSlug) return
+
+    try {
+      const response = await fetch('/api/modes')
+      if (response.ok) {
+        const data = await response.json()
+        const mode = data.modes?.find((m: any) => m.slug === modeSlug)
+        if (mode) {
+          setCurrentMode(mode)
+        }
+      }
+    } catch (error) {
+      console.error('[CHAT] Error loading mode:', error)
+    }
+  }
+
+  const handleExamplePromptClick = (promptText: string) => {
+    setMessage(promptText)
+    // Auto-focus input
+    inputRef.current?.focus()
+  }
 
   const loadUserPreferences = async () => {
     // No longer loading model preferences - system auto-selects best models
@@ -387,16 +418,24 @@ export default function ChatPage() {
         headers['Authorization'] = `Bearer ${session.access_token}`
       }
 
+      // Prepare request body with optional mode system_prompt
+      const requestBody: any = {
+        messages: [...messages, newUserMessage],
+        preferredProvider: selectedProvider === 'auto' ? undefined : selectedProvider,
+        conversationId: activeConversationId // Send current conversation ID if exists
+      }
+
+      // Add mode's system_prompt if a mode is active
+      if (currentMode?.system_prompt) {
+        requestBody.systemPrompt = currentMode.system_prompt
+      }
+
       // Send message to our API with selected provider and model
       const response = await fetch('/api/v2/unified-chat', {
         method: 'POST',
         headers,
         credentials: 'include',
-        body: JSON.stringify({
-          messages: [...messages, newUserMessage],
-          preferredProvider: selectedProvider === 'auto' ? undefined : selectedProvider,
-          conversationId: activeConversationId // Send current conversation ID if exists
-        })
+        body: JSON.stringify(requestBody)
       })
 
       if (!response.ok) {
@@ -410,6 +449,13 @@ export default function ChatPage() {
       // Save conversation ID for next message in this session
       if (data.conversationId) {
         setActiveConversationId(data.conversationId)
+      }
+
+      // Check for cache hit and show toast
+      if (data.cached || data.cache_hit) {
+        const savedCents = data.cost_saved || 2 // Default 2 cents if not provided
+        setLastCacheSaved(savedCents)
+        setShowCacheToast(true)
       }
 
       // Add assistant message with metadata
@@ -651,6 +697,31 @@ export default function ChatPage() {
         aria-label="Chat messages"
       >
         <div className="max-w-4xl mx-auto space-y-4 pb-4">
+          {/* Mode Banner */}
+          {currentMode && (
+            <div className="mb-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl border-2 border-purple-200 dark:border-purple-700">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">{currentMode.icon}</span>
+                <div>
+                  <div className="font-bold text-gray-900 dark:text-white">
+                    Mode: {currentMode.title}
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    {currentMode.description}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Example Prompts - Show when no messages */}
+          {messages.length === 0 && !isLoading && (
+            <ExamplePrompts
+              onPromptClick={handleExamplePromptClick}
+              layout="grid"
+            />
+          )}
+
           {/* Load Older Messages Button */}
           {hasOlderMessages && (
             <div className="flex justify-center mb-4">
@@ -789,6 +860,15 @@ export default function ChatPage() {
           type={toast.type}
           onClose={() => setToast(null)}
           duration={3000}
+        />
+      )}
+
+      {/* Cache Hit Toast */}
+      {showCacheToast && (
+        <CacheToast
+          savedCents={lastCacheSaved}
+          onClose={() => setShowCacheToast(false)}
+          duration={4000}
         />
       )}
     </div>
