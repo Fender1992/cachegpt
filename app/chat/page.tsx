@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
 import { Send, Bot, Brain, Sparkles, Zap, Settings, LogOut, History, RefreshCw, Loader2, Home, Trash2 } from 'lucide-react'
@@ -38,7 +38,7 @@ interface ChatMessage {
 // Maximum messages to keep in memory (prevents memory leaks in long sessions)
 const MAX_MESSAGES_IN_MEMORY = 50
 
-export default function ChatPage() {
+function ChatPageContent() {
   const [message, setMessage] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [hasOlderMessages, setHasOlderMessages] = useState(false)
@@ -872,5 +872,17 @@ export default function ChatPage() {
         />
       )}
     </div>
+  )
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-16 h-16 border-4 border-purple-200 rounded-full animate-spin border-t-purple-600"></div>
+      </div>
+    }>
+      <ChatPageContent />
+    </Suspense>
   )
 }
