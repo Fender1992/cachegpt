@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase-client';
 import { Check } from 'lucide-react';
 import Toast from '@/components/toast';
+import Navigation from '@/components/Navigation';
 
 interface PricingTier {
   id: string;
@@ -182,34 +183,9 @@ export default function PricingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
-      {/* Header */}
-      <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <a href="/" className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-              CacheGPT
-            </a>
-            <nav className="flex gap-6 items-center">
-              <a href="/dashboard" className="text-gray-600 hover:text-purple-600 transition-colors">
-                Dashboard
-              </a>
-              <a href="/docs" className="text-gray-600 hover:text-purple-600 transition-colors">
-                Docs
-              </a>
-              {user ? (
-                <a href="/settings" className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
-                  Settings
-                </a>
-              ) : (
-                <a href="/login" className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
-                  Sign In
-                </a>
-              )}
-            </nav>
-          </div>
-        </div>
-      </header>
+    <>
+      <Navigation />
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
 
       {/* Hero Section */}
       <div className="container mx-auto px-6 py-16 text-center">
@@ -358,13 +334,6 @@ export default function PricingPage() {
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="border-t bg-white/80 backdrop-blur-sm">
-        <div className="container mx-auto px-6 py-8 text-center text-gray-600">
-          <p>&copy; 2025 CacheGPT. All rights reserved.</p>
-        </div>
-      </footer>
-
       {/* Toast Notifications */}
       {toast && (
         <Toast
@@ -373,6 +342,7 @@ export default function PricingPage() {
           onClose={() => setToast(null)}
         />
       )}
-    </div>
+      </div>
+    </>
   );
 }

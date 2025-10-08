@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Mail, MessageCircle, Book, AlertCircle, Send, Check, Loader2 } from 'lucide-react'
+import Navigation from '@/components/Navigation'
 
 export default function SupportPage() {
   const [formData, setFormData] = useState({
@@ -77,22 +78,9 @@ export default function SupportPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center space-x-4">
-            <Link
-              href="/"
-              className="flex items-center space-x-2 text-gray-600 hover:text-purple-600 transition"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Back to Home</span>
-            </Link>
-            <span className="text-gray-300">|</span>
-            <h1 className="text-xl font-bold">Support</h1>
-          </div>
-        </div>
-      </header>
+    <>
+      <Navigation />
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
 
       <div className="max-w-7xl mx-auto px-6 py-12">
         {/* Quick Links */}
@@ -276,6 +264,7 @@ export default function SupportPage() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   )
 }

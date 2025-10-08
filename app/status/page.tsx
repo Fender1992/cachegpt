@@ -17,6 +17,7 @@ import {
   Clock
 } from 'lucide-react'
 import { error as logError } from '@/lib/logger'
+import Navigation from '@/components/Navigation'
 
 interface ServiceStatus {
   name: string
@@ -340,7 +341,9 @@ export default function StatusPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <>
+      <Navigation />
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -518,6 +521,7 @@ export default function StatusPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+      </div>
+    </>
   )
 }
