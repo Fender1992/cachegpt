@@ -14,7 +14,6 @@ const navigation = {
     { name: 'Documentation', href: '/docs' },
     { name: 'API Reference', href: '/docs/api' },
     { name: 'Changelog', href: '/changelog' },
-    { name: 'Status', href: '/status' },
   ],
   company: [
     { name: 'About', href: '/about' },
