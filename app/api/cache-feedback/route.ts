@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { resolveAuthentication, getUserId } from '@/lib/unified-auth-resolver';
+import { resolveAuthentication, getUserId, isAuthError } from '@/lib/unified-auth-resolver';
 
 /**
  * POST /api/cache-feedback
@@ -15,6 +15,15 @@ import { resolveAuthentication, getUserId } from '@/lib/unified-auth-resolver';
 export async function POST(request: NextRequest) {
   try {
     const session = await resolveAuthentication(request);
+
+    // Check if authentication failed
+    if (isAuthError(session)) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
     const userId = getUserId(session);
 
     if (!userId) {
