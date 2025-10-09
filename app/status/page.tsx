@@ -14,10 +14,13 @@ import {
   Cloud,
   RefreshCw,
   TrendingUp,
-  Clock
+  Clock,
+  ShieldAlert
 } from 'lucide-react'
 import { error as logError } from '@/lib/logger'
 import Navigation from '@/components/Navigation'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase-client'
 
 interface ServiceStatus {
   name: string
@@ -49,6 +52,7 @@ interface Metric {
 }
 
 export default function StatusPage() {
+  const router = useRouter()
   const [services, setServices] = useState<ServiceStatus[]>([])
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [metrics, setMetrics] = useState<Metric[]>([])
@@ -56,15 +60,51 @@ export default function StatusPage() {
   const [loading, setLoading] = useState(true)
   const [lastRefresh, setLastRefresh] = useState(new Date())
   const [autoRefresh, setAutoRefresh] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [authChecking, setAuthChecking] = useState(true)
+
+  // Check admin access on mount
+  useEffect(() => {
+    checkAdminAccess()
+  }, [])
 
   useEffect(() => {
-    checkStatus()
-    const interval = autoRefresh ? setInterval(checkStatus, 30000) : null // Check every 30 seconds
+    if (!authChecking && isAdmin) {
+      checkStatus()
+      const interval = autoRefresh ? setInterval(checkStatus, 30000) : null // Check every 30 seconds
 
-    return () => {
-      if (interval) clearInterval(interval)
+      return () => {
+        if (interval) clearInterval(interval)
+      }
     }
-  }, [autoRefresh])
+  }, [autoRefresh, authChecking, isAdmin])
+
+  const checkAdminAccess = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (!session) {
+        router.push('/login')
+        return
+      }
+
+      // Check if user is admin via API
+      const response = await fetch('/api/admin/check-access')
+      const data = await response.json()
+
+      if (!data.isAdmin) {
+        router.push('/')
+        return
+      }
+
+      setIsAdmin(true)
+    } catch (error) {
+      logError('Admin access check failed', error)
+      router.push('/')
+    } finally {
+      setAuthChecking(false)
+    }
+  }
 
   const checkStatus = async () => {
     try {
@@ -198,14 +238,32 @@ export default function StatusPage() {
     }
   }
 
-  if (loading) {
+  if (authChecking) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Checking system status...</p>
+          <ShieldAlert className="w-12 h-12 text-purple-600 mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-300">Verifying admin access...</p>
         </div>
       </div>
+    )
+  }
+
+  if (!isAdmin) {
+    return null // Will redirect in useEffect
+  }
+
+  if (loading) {
+    return (
+      <>
+        <Navigation />
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+          <div className="text-center">
+            <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-purple-600" />
+            <p className="text-gray-600 dark:text-gray-300">Checking system status...</p>
+          </div>
+        </div>
+      </>
     )
   }
 
