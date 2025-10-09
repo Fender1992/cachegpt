@@ -9,7 +9,9 @@ import ProviderSelector from '@/components/provider-selector'
 import Toast from '@/components/toast'
 import ExamplePrompts from '@/components/chat/ExamplePrompts'
 import CacheToast from '@/components/chat/CacheToast'
+import ShareButton from '@/components/chat/ShareButton'
 import { error as logError } from '@/lib/logger'
+import { isFeatureEnabled } from '@/lib/featureFlags'
 
 const providerIcons = {
   chatgpt: Bot,
@@ -60,6 +62,7 @@ function ChatPageContent() {
   const [showCacheToast, setShowCacheToast] = useState(false)
   const [lastCacheSaved, setLastCacheSaved] = useState(0)
   const [currentMode, setCurrentMode] = useState<any>(null)
+  const [shareEnabled, setShareEnabled] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -87,7 +90,20 @@ function ChatPageContent() {
     loadUserPreferences()
     loadConversations()
     loadModeFromQueryParam()
+    loadFeatureFlags()
   }, [])
+
+  const loadFeatureFlags = async () => {
+    try {
+      const response = await fetch('/api/feature-flags')
+      if (response.ok) {
+        const data = await response.json()
+        setShareEnabled(data.flags.share_answer_enabled === true)
+      }
+    } catch (error) {
+      console.error('[FEATURE-FLAGS] Error loading:', error)
+    }
+  }
 
   const loadModeFromQueryParam = async () => {
     const modeSlug = searchParams.get('mode')
@@ -848,6 +864,20 @@ function ChatPageContent() {
                         </button>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* Share button for assistant messages (feature flag) */}
+                {msg.role === 'assistant' && !msg.error && shareEnabled && (
+                  <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                    <ShareButton
+                      prompt={messages[idx - 1]?.content || ''}
+                      content={msg.content}
+                      isGuest={!userProfile}
+                      onShare={(url) => {
+                        setToast({ message: 'Link copied to clipboard!', type: 'success' })
+                      }}
+                    />
                   </div>
                 )}
               </div>
