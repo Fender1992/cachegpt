@@ -3,8 +3,6 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 interface SharedAnswer {
   id: string;
@@ -17,14 +15,15 @@ interface SharedAnswer {
 }
 
 interface PageProps {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 /**
  * Generate metadata for OG preview
  */
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const share = await getSharedAnswer(params.slug);
+  const { slug } = await params;
+  const share = await getSharedAnswer(slug);
 
   if (!share) {
     return {
@@ -46,12 +45,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     openGraph: {
       title,
       description,
-      url: `https://cachegpt.app/a/${params.slug}`,
+      url: `https://cachegpt.app/a/${slug}`,
       siteName: 'CacheGPT',
       type: 'article',
       images: [
         {
-          url: `https://cachegpt.app/a/${params.slug}/opengraph-image`,
+          url: `https://cachegpt.app/a/${slug}/opengraph-image`,
           width: 1200,
           height: 630,
           alt: title,
@@ -62,7 +61,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       card: 'summary_large_image',
       title,
       description,
-      images: [`https://cachegpt.app/a/${params.slug}/opengraph-image`],
+      images: [`https://cachegpt.app/a/${slug}/opengraph-image`],
     },
   };
 }
@@ -105,7 +104,8 @@ async function getSharedAnswer(slug: string): Promise<SharedAnswer | null> {
  * Public share page component
  */
 export default async function SharedAnswerPage({ params }: PageProps) {
-  const share = await getSharedAnswer(params.slug);
+  const { slug } = await params;
+  const share = await getSharedAnswer(slug);
 
   if (!share) {
     notFound();
@@ -161,29 +161,7 @@ export default async function SharedAnswerPage({ params }: PageProps) {
           </div>
 
           <div className="prose prose-gray dark:prose-invert max-w-none">
-            <ReactMarkdown
-              components={{
-                code({ node, inline, className, children, ...props }) {
-                  const match = /language-(\w+)/.exec(className || '');
-                  return !inline && match ? (
-                    <SyntaxHighlighter
-                      style={vscDarkPlus as any}
-                      language={match[1]}
-                      PreTag="div"
-                      {...props}
-                    >
-                      {String(children).replace(/\n$/, '')}
-                    </SyntaxHighlighter>
-                  ) : (
-                    <code className={className} {...props}>
-                      {children}
-                    </code>
-                  );
-                },
-              }}
-            >
-              {share.content_md}
-            </ReactMarkdown>
+            <ReactMarkdown>{share.content_md}</ReactMarkdown>
           </div>
         </div>
 

@@ -107,6 +107,14 @@ function ChatPageContent() {
 
   const loadModeFromQueryParam = async () => {
     const modeSlug = searchParams.get('mode')
+    const prefillText = searchParams.get('prefill')
+
+    // Load prefill text if present
+    if (prefillText) {
+      setMessage(decodeURIComponent(prefillText))
+    }
+
+    // Load mode if present
     if (!modeSlug) return
 
     try {
@@ -116,6 +124,17 @@ function ChatPageContent() {
         const mode = data.modes?.find((m: any) => m.slug === modeSlug)
         if (mode) {
           setCurrentMode(mode)
+
+          // Record click for trending
+          try {
+            await fetch('/api/modes/click', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ modeSlug, source: 'share' }),
+            })
+          } catch (err) {
+            console.error('[CHAT] Error recording mode click:', err)
+          }
         }
       } else {
         console.warn('[CHAT] Modes API unavailable, skipping mode loading')
@@ -778,6 +797,7 @@ function ChatPageContent() {
             <ExamplePrompts
               onPromptClick={handleExamplePromptClick}
               layout="grid"
+              mode={currentMode}
             />
           )}
 

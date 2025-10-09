@@ -37,12 +37,18 @@ interface ExamplePromptsProps {
   onPromptClick: (prompt: string) => void;
   layout?: 'grid' | 'list';
   className?: string;
+  mode?: {
+    slug: string;
+    title: string;
+    example_prompts: string[];
+  } | null;
 }
 
 export default function ExamplePrompts({
   onPromptClick,
   layout = 'grid',
   className = '',
+  mode = null,
 }: ExamplePromptsProps) {
   const [isVisible, setIsVisible] = useState(false);
 
@@ -51,9 +57,23 @@ export default function ExamplePrompts({
     setIsVisible(true);
   }, []);
 
-  const handleClick = (prompt: ExamplePrompt) => {
-    telemetry.examplePromptClicked(prompt.text);
-    onPromptClick(prompt.text);
+  const handleClick = async (promptText: string, prompt?: ExamplePrompt) => {
+    telemetry.examplePromptClicked(promptText);
+
+    // Record click for mode if applicable
+    if (mode) {
+      try {
+        await fetch('/api/modes/click', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ modeSlug: mode.slug, source: 'empty_state' }),
+        });
+      } catch (err) {
+        console.error('[EXAMPLE-PROMPTS] Error recording click:', err);
+      }
+    }
+
+    onPromptClick(promptText);
   };
 
   const categoryColors = {
@@ -63,6 +83,11 @@ export default function ExamplePrompts({
     ideas: 'from-yellow-500 to-yellow-600',
   };
 
+  // Use mode-specific examples if available, otherwise default examples
+  const displayPrompts = mode?.example_prompts
+    ? mode.example_prompts.slice(0, 4).map(text => ({ text, category: 'writing' as const, icon: Sparkles }))
+    : examplePrompts.map(p => ({ text: p.text, category: p.category, icon: p.icon }));
+
   return (
     <div
       className={`transition-opacity duration-500 ${
@@ -71,7 +96,7 @@ export default function ExamplePrompts({
     >
       <div className="text-center mb-8">
         <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
-          Try asking...
+          {mode ? `Try ${mode.title}...` : 'Try asking...'}
         </h2>
         <p className="text-gray-600 dark:text-gray-400">
           Click any example to get started
@@ -85,19 +110,20 @@ export default function ExamplePrompts({
             : 'flex flex-col gap-3'
         }
       >
-        {examplePrompts.map((prompt, index) => {
+        {displayPrompts.map((prompt, index) => {
           const Icon = prompt.icon;
+          const category = prompt.category;
           return (
             <button
               key={index}
-              onClick={() => handleClick(prompt)}
+              onClick={() => handleClick(prompt.text)}
               className={`group relative bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-left hover:shadow-lg hover:border-purple-300 dark:hover:border-purple-600 transition-all duration-300 hover:-translate-y-1 ${
                 layout === 'list' ? 'flex items-center gap-4' : ''
               }`}
             >
               <div
                 className={`inline-flex p-3 rounded-lg bg-gradient-to-br ${
-                  categoryColors[prompt.category]
+                  categoryColors[category]
                 } text-white ${layout === 'list' ? 'flex-shrink-0' : 'mb-3'}`}
               >
                 <Icon className="w-5 h-5" />

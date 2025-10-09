@@ -10,13 +10,14 @@ export const size = {
 export const contentType = 'image/png';
 
 interface Props {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 /**
  * Generate OpenGraph image for shared answer
  */
 export default async function Image({ params }: Props) {
+  const { slug } = await params;
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_KEY!
@@ -26,7 +27,7 @@ export default async function Image({ params }: Props) {
   const { data: share } = await supabase
     .from('shared_answers')
     .select('prompt, content_md')
-    .eq('slug', params.slug)
+    .eq('slug', slug)
     .eq('is_public', true)
     .single();
 
