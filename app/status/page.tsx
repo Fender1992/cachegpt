@@ -68,72 +68,36 @@ export default function StatusPage() {
 
   const checkStatus = async () => {
     try {
-      // Check API health
-      const apiHealth = await checkEndpoint('/api/health')
-
-      // Check database connection
-      const dbHealth = await checkDatabase()
-
-      // Check cache service
-      const cacheHealth = await checkCache()
-
-      // Check Hugging Face integration
-      const hfHealth = await checkHuggingFace()
-
-      // Check LLM providers
-      const openaiHealth = await checkOpenAI()
-      const anthropicHealth = await checkAnthropic()
+      // Check all services from server-side health check API
+      const healthResponse = await fetch('/api/health-check');
+      const healthData = healthResponse.ok ? await healthResponse.json() : null;
 
       const newServices: ServiceStatus[] = [
         {
           name: 'API Gateway',
-          status: apiHealth.status,
-          uptime: apiHealth.status === 'operational' ? 100 : 0,
-          latency: apiHealth.latency,
+          status: healthResponse.ok ? 'operational' : 'outage',
+          uptime: healthResponse.ok ? 100 : 0,
+          latency: healthData?.database?.latency || 0,
           lastChecked: new Date(),
           icon: <Server className="w-5 h-5" />
         },
         {
           name: 'Database',
-          status: dbHealth.status,
-          uptime: dbHealth.status === 'operational' ? 100 : 0,
-          latency: dbHealth.latency,
+          status: healthData?.database?.status || 'outage',
+          uptime: healthData?.database?.status === 'operational' ? 100 : 0,
+          latency: healthData?.database?.latency || 0,
           lastChecked: new Date(),
           icon: <Database className="w-5 h-5" />
         },
         {
           name: 'Cache Service',
-          status: cacheHealth.status,
-          uptime: cacheHealth.status === 'operational' ? 100 : 0,
-          latency: cacheHealth.latency,
+          status: healthData?.cache?.status || 'outage',
+          uptime: healthData?.cache?.status === 'operational' ? 100 : 0,
+          latency: healthData?.cache?.latency || 0,
           lastChecked: new Date(),
           icon: <Zap className="w-5 h-5" />
-        },
-        {
-          name: 'Hugging Face',
-          status: hfHealth.status,
-          uptime: hfHealth.status === 'operational' ? 100 : 0,
-          latency: hfHealth.latency,
-          lastChecked: new Date(),
-          icon: <Cloud className="w-5 h-5" />
-        },
-        {
-          name: 'OpenAI API',
-          status: openaiHealth.status,
-          uptime: openaiHealth.status === 'operational' ? 100 : 0,
-          latency: openaiHealth.latency,
-          lastChecked: new Date(),
-          icon: <Activity className="w-5 h-5" />
-        },
-        {
-          name: 'Anthropic API',
-          status: anthropicHealth.status,
-          uptime: anthropicHealth.status === 'operational' ? 100 : 0,
-          latency: anthropicHealth.latency,
-          lastChecked: new Date(),
-          icon: <Activity className="w-5 h-5" />
         }
-      ]
+      ];
 
       setServices(newServices)
 
@@ -194,101 +158,6 @@ export default function StatusPage() {
     }
   }
 
-  const checkEndpoint = async (url: string) => {
-    const startTime = Date.now()
-    try {
-      const response = await fetch(url)
-      const latency = Date.now() - startTime
-      return {
-        status: response.ok ? 'operational' as const : 'degraded' as const,
-        latency
-      }
-    } catch (error) {
-      return {
-        status: 'outage' as const,
-        latency: 0
-      }
-    }
-  }
-
-  const checkDatabase = async () => {
-    const startTime = Date.now()
-    try {
-      const response = await fetch('/api/health')
-      const latency = Date.now() - startTime
-      if (response.ok) {
-        return { status: 'operational' as const, latency }
-      }
-      return { status: 'degraded' as const, latency }
-    } catch (error) {
-      return { status: 'outage' as const, latency: Date.now() - startTime }
-    }
-  }
-
-  const checkCache = async () => {
-    const startTime = Date.now()
-    try {
-      const response = await fetch('/api/stats')
-      const latency = Date.now() - startTime
-      if (response.ok) {
-        return { status: 'operational' as const, latency }
-      }
-      return { status: 'degraded' as const, latency }
-    } catch (error) {
-      return { status: 'outage' as const, latency: Date.now() - startTime }
-    }
-  }
-
-  const checkHuggingFace = async () => {
-    const startTime = Date.now()
-    try {
-      // Check HF API status endpoint
-      const response = await fetch('https://api-inference.huggingface.co/status', {
-        method: 'HEAD'
-      })
-      const latency = Date.now() - startTime
-      if (response.ok) {
-        return { status: 'operational' as const, latency }
-      }
-      return { status: 'degraded' as const, latency }
-    } catch (error) {
-      return { status: 'outage' as const, latency: Date.now() - startTime }
-    }
-  }
-
-  const checkOpenAI = async () => {
-    const startTime = Date.now()
-    try {
-      // Check OpenAI API status
-      const response = await fetch('https://api.openai.com/v1/models', {
-        method: 'HEAD'
-      })
-      const latency = Date.now() - startTime
-      if (response.ok || response.status === 401) { // 401 means API is up but needs auth
-        return { status: 'operational' as const, latency }
-      }
-      return { status: 'degraded' as const, latency }
-    } catch (error) {
-      return { status: 'outage' as const, latency: Date.now() - startTime }
-    }
-  }
-
-  const checkAnthropic = async () => {
-    const startTime = Date.now()
-    try {
-      // Check Anthropic API status
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'HEAD'
-      })
-      const latency = Date.now() - startTime
-      if (response.ok || response.status === 401) { // 401 means API is up but needs auth
-        return { status: 'operational' as const, latency }
-      }
-      return { status: 'degraded' as const, latency }
-    } catch (error) {
-      return { status: 'outage' as const, latency: Date.now() - startTime }
-    }
-  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
