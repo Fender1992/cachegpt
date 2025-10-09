@@ -17,61 +17,51 @@ export async function GET(req: NextRequest) {
       }, { status: 503 });
     }
 
-    // Get overall cache statistics
-    const { data: stats, error: statsError } = await supabase
-      .from('cache_stats')
-      .select('*')
-      .single();
+    // Get stats from usage table (last 30 days)
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-    if (statsError && statsError.code !== 'PGRST116') { // Ignore "no rows" error
-      throw statsError;
+    const { data: usageData, error: usageError } = await supabase
+      .from('usage')
+      .select('cache_hit, cost, provider, model')
+      .gte('created_at', thirtyDaysAgo);
+
+    if (usageError) {
+      throw usageError;
     }
 
-    // Get recent cache hits
-    const { data: recentHits, error: hitsError } = await supabase
-      .from('cached_responses')
-      .select('id, query, model, created_at, access_count')
-      .order('last_accessed', { ascending: false })
-      .limit(10);
-
-    if (hitsError) {
-      console.error('Failed to fetch recent hits:', hitsError);
-    }
-
-    // Get model distribution
-    const { data: modelStats, error: modelError } = await supabase
-      .from('cached_responses')
-      .select('model')
-      .then(result => {
-        if (!result.data) return { data: null, error: result.error };
-
-        const distribution = result.data.reduce((acc: any, item: any) => {
-          acc[item.model] = (acc[item.model] || 0) + 1;
-          return acc;
-        }, {});
-
-        return { data: distribution, error: null };
-      });
+    // Calculate statistics
+    const totalRequests = usageData?.length || 0;
+    const cacheHits = usageData?.filter(u => u.cache_hit).length || 0;
+    const hitRate = totalRequests > 0 ? ((cacheHits / totalRequests) * 100).toFixed(2) : '0';
 
     // Calculate cost savings
-    const totalRequests = stats?.total_accesses || 0;
-    const cacheHits = (stats?.total_accesses || 0) - (stats?.total_responses || 0);
-    const hitRate = totalRequests > 0 ? (cacheHits / totalRequests * 100).toFixed(2) : 0;
-
-    // Estimate cost savings (rough calculation)
-    const avgCostPerRequest = 0.002; // Average $0.002 per request
+    const totalCost = usageData?.reduce((sum, u) => sum + (u.cost || 0), 0) || 0;
+    const avgCostPerRequest = totalRequests > 0 ? totalCost / totalRequests : 0.002;
     const totalSaved = (cacheHits * avgCostPerRequest).toFixed(2);
+
+    // Model distribution
+    const modelDistribution = (usageData || []).reduce((acc: any, item: any) => {
+      const model = item.model || 'unknown';
+      acc[model] = (acc[model] || 0) + 1;
+      return acc;
+    }, {});
+
+    // Provider distribution
+    const providerDistribution = (usageData || []).reduce((acc: any, item: any) => {
+      const provider = item.provider || 'unknown';
+      acc[provider] = (acc[provider] || 0) + 1;
+      return acc;
+    }, {});
 
     return NextResponse.json({
       totalRequests,
       cacheHits,
-      hitRate: parseFloat(hitRate as string),
+      hitRate: parseFloat(hitRate),
       totalSaved: parseFloat(totalSaved),
-      uniqueQueries: stats?.total_responses || 0,
-      modelDistribution: modelStats || {},
-      recentHits: recentHits || [],
-      oldestEntry: stats?.oldest_cache_entry,
-      newestEntry: stats?.latest_cache_entry,
+      totalCost: parseFloat(totalCost.toFixed(2)),
+      modelDistribution,
+      providerDistribution,
+      period: '30 days',
     });
 
   } catch (error: any) {
