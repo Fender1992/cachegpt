@@ -39,14 +39,6 @@ export const metadata: Metadata = {
       },
     ],
   },
-  twitter: {
-    card: 'summary_large_image',
-    site: '@cachegpt',
-    creator: '@cachegpt',
-    title: 'CacheGPT - Your AI, Instantly',
-    description: 'Chat with AI for free. Save 80% on costs with smart caching. No credit card required.',
-    images: ['https://cachegpt.app/twitter-image.png'],
-  },
   alternates: {
     canonical: 'https://cachegpt.app',
   },

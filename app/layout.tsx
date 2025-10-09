@@ -46,13 +46,6 @@ export const metadata: Metadata = {
       },
     ],
   },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'CacheGPT - Reduce LLM API Costs by 80%',
-    description: 'Cut your AI costs by 80% and speed up responses to <10ms. Free intelligent caching for OpenAI, Claude, Gemini & more.',
-    images: ['/og-image.png'],
-    creator: '@cachegpt',
-  },
   robots: {
     index: true,
     follow: true,

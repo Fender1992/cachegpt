@@ -13,10 +13,6 @@ export const metadata: Metadata = {
     description: 'Production-ready LLM caching infrastructure. 99.9% uptime, SOC2 compliant, enterprise security.',
     url: 'https://cachegpt.app/enterprise',
   },
-  twitter: {
-    title: 'CacheGPT for Developers & Enterprise',
-    description: 'Production-ready LLM caching infrastructure. 99.9% uptime, SOC2 compliant, enterprise security.',
-  },
   alternates: {
     canonical: 'https://cachegpt.app/enterprise',
   },

@@ -57,12 +57,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         },
       ],
     },
-    twitter: {
-      card: 'summary_large_image',
-      title,
-      description,
-      images: [`https://cachegpt.app/a/${slug}/opengraph-image`],
-    },
   };
 }
 

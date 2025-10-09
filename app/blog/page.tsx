@@ -48,13 +48,6 @@ export default function BlogPage() {
           </p>
           <div className="flex items-center justify-center gap-6">
             <a
-              href="https://twitter.com/cachegpt"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 dark:text-blue-400 hover:underline"
-            >
-              Twitter
-            </a>
             <a
               href="https://github.com/Fender1992/cachegpt"
               target="_blank"
