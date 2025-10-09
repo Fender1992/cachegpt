@@ -6,6 +6,7 @@ import TrustBar from './TrustBar';
 import FeatureCards from './FeatureCards';
 import Callouts from './Callouts';
 import Footer from './Footer';
+import Navigation from '@/components/Navigation';
 
 interface CasualLandingProps {
   variant?: 'A' | 'B';
@@ -20,6 +21,7 @@ export default function CasualLanding({ variant = 'A' }: CasualLandingProps) {
 
   return (
     <div className={`min-h-screen transition-opacity duration-500 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
+      <Navigation />
       <Hero variant={variant} />
       <TrustBar />
       <FeatureCards />
