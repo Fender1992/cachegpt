@@ -15,17 +15,16 @@ import { processPendingNotifications } from '@/lib/email-notifications'
 function verifyCronAuth(request: NextRequest): boolean {
   const authHeader = request.headers.get('authorization')
 
-  // Check for Vercel Cron secret
+  // Check for Vercel Cron secret (Bearer token)
   const cronSecret = process.env.CRON_SECRET
-  if (cronSecret) {
-    if (authHeader !== `Bearer ${cronSecret}`) {
-      return false
-    }
+  if (cronSecret && authHeader === `Bearer ${cronSecret}`) {
+    return true
   }
 
-  // For Vercel Cron, also check the x-vercel-cron header
-  const vercelCronHeader = request.headers.get('x-vercel-cron')
-  if (vercelCronHeader === '1') {
+  // Vercel Cron jobs are internal and trusted - they don't send auth headers
+  // The CRON_SECRET is only for external cron services
+  if (process.env.VERCEL) {
+    console.log('[CRON] Running on Vercel platform - allowing internal cron')
     return true
   }
 

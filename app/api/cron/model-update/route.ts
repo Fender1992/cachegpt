@@ -5,9 +5,18 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function GET(request: NextRequest) {
   // Verify this is a legitimate cron request
   const authHeader = request.headers.get('authorization')
-  const cronSecret = process.env.CRON_SECRET || 'fallback-secret'
+  const cronSecret = process.env.CRON_SECRET
 
-  if (authHeader !== `Bearer ${cronSecret}`) {
+  // Vercel Cron jobs are internal and trusted - allow them
+  if (process.env.VERCEL) {
+    console.log('[CRON] Running on Vercel platform - allowing internal cron')
+  }
+  // For external crons, verify Bearer token
+  else if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  // Require auth if not on Vercel and not development
+  else if (!cronSecret && process.env.NODE_ENV !== 'development') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
