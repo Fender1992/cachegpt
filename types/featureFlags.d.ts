@@ -16,6 +16,10 @@ export type FlagKey =
   | 'ux_cache_badges'
   | 'ux_example_prompts'
 
+  // Growth Feature Flags
+  | 'share_answer_enabled'
+  | 'templates_gallery_trending'
+
   // A/B Test Flags
   | 'ab_landing_hero_copy_v1'
   | 'ab_example_prompts_layout_v1'
@@ -33,6 +37,8 @@ export interface FeatureFlags {
   ux_file_upload: boolean;
   ux_cache_badges: boolean;
   ux_example_prompts: boolean;
+  share_answer_enabled: boolean;
+  templates_gallery_trending: boolean;
   ab_landing_hero_copy_v1: 'A' | 'B';
   ab_example_prompts_layout_v1: 'grid' | 'list';
   ab_onboarding_flow_v1: 'old' | 'new';

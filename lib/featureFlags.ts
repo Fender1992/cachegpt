@@ -28,6 +28,10 @@ const DEFAULT_FLAGS: FeatureFlags = {
   ux_cache_badges: false,
   ux_example_prompts: false,
 
+  // Growth flags (default OFF - gradual rollout)
+  share_answer_enabled: false,
+  templates_gallery_trending: false,
+
   // A/B test defaults
   ab_landing_hero_copy_v1: 'A',
   ab_example_prompts_layout_v1: 'grid',
