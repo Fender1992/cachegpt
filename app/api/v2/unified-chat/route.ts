@@ -359,9 +359,24 @@ async function callPremiumProvider(
   messages: any[],
   provider: string,
   apiKey: string,
-  model: string
+  model: string,
+  options?: {
+    temperature?: number;
+    maxTokens?: number;
+    systemPrompt?: string;
+  }
 ): Promise<{ response: string; provider: string }> {
   try {
+    // Extract mode options with defaults
+    const temperature = options?.temperature ?? 0.7;
+    const maxTokens = options?.maxTokens ?? 2000;
+    const systemPrompt = options?.systemPrompt;
+
+    // Prepend system prompt to messages if provided
+    const messagesWithSystem = systemPrompt
+      ? [{ role: 'system', content: systemPrompt }, ...messages]
+      : messages;
+
     let endpoint: string;
     let headers: any = {
       'Content-Type': 'application/json'
@@ -374,10 +389,10 @@ async function callPremiumProvider(
         endpoint = 'https://api.openai.com/v1/chat/completions';
         headers['Authorization'] = `Bearer ${apiKey}`;
         body = {
-          model: model,  // Use the auto-selected best model
-          messages,
-          temperature: 0.7,
-          max_tokens: 2000
+          model: model,
+          messages: messagesWithSystem,
+          temperature,
+          max_tokens: maxTokens
         };
         break;
 
@@ -386,14 +401,21 @@ async function callPremiumProvider(
         endpoint = 'https://api.anthropic.com/v1/messages';
         headers['x-api-key'] = apiKey;
         headers['anthropic-version'] = '2023-06-01';
+        // Claude uses system parameter, not system message
+        const anthropicMessages = messagesWithSystem.filter(m => m.role !== 'system');
         body = {
-          model: model,  // Use the auto-selected best model
-          messages: messages.map(m => ({
+          model: model,
+          messages: anthropicMessages.map(m => ({
             role: m.role === 'assistant' ? 'assistant' : 'user',
             content: m.content
           })),
-          max_tokens: 2000
+          max_tokens: maxTokens,
+          temperature
         };
+        // Add system prompt as separate parameter for Claude
+        if (systemPrompt) {
+          body.system = systemPrompt;
+        }
         break;
 
       case 'google':
@@ -401,10 +423,14 @@ async function callPremiumProvider(
         // Extract model name from full model ID (e.g., "gemini-2.0-flash-exp" -> "gemini-2.0-flash-exp")
         endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
         body = {
-          contents: messages.map(m => ({
-            role: m.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: m.content }]
-          }))
+          contents: messagesWithSystem.map(m => ({
+            role: m.role === 'assistant' ? 'model' : m.role === 'system' ? 'user' : 'user',
+            parts: [{ text: m.role === 'system' ? `[System Instructions]: ${m.content}` : m.content }]
+          })),
+          generationConfig: {
+            temperature,
+            maxOutputTokens: maxTokens
+          }
         };
         break;
 
@@ -412,9 +438,9 @@ async function callPremiumProvider(
         endpoint = 'https://api.perplexity.ai/chat/completions';
         headers['Authorization'] = `Bearer ${apiKey}`;
         body = {
-          model: model,  // Use the auto-selected best model
-          messages,
-          temperature: 0.7
+          model: model,
+          messages: messagesWithSystem,
+          temperature
         };
         break;
 
@@ -593,7 +619,16 @@ function getBestModelForProvider(provider: string): string {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { messages, preferredProvider: requestedProvider, authMethod, conversationId: clientConversationId } = body;
+    const {
+      messages,
+      preferredProvider: requestedProvider,
+      authMethod,
+      conversationId: clientConversationId,
+      systemPrompt,
+      temperature,
+      maxTokens,
+      contextWindowSize
+    } = body;
 
     // Try to authenticate user, but allow anonymous access
     let userId: string | null = null;
@@ -869,7 +904,11 @@ export async function POST(request: NextRequest) {
             ? 'claude-sonnet-4-5-20250929'
             : 'gpt-5';
 
-          result = await callPremiumProvider(enrichedMessages, fallbackProvider, fallbackKey!, fallbackModel);
+          result = await callPremiumProvider(enrichedMessages, fallbackProvider, fallbackKey!, fallbackModel, {
+            temperature,
+            maxTokens,
+            systemPrompt
+          });
           finalModel = fallbackModel;
         } else {
           // No fallback available, re-throw the error
@@ -879,7 +918,11 @@ export async function POST(request: NextRequest) {
     } else {
       // Use premium provider with user's API key
       try {
-        result = await callPremiumProvider(enrichedMessages, selectedProvider, userApiKey!, selectedModel!);
+        result = await callPremiumProvider(enrichedMessages, selectedProvider, userApiKey!, selectedModel!, {
+          temperature,
+          maxTokens,
+          systemPrompt
+        });
         finalModel = selectedModel!;
       } catch (error) {
         console.error('[CHAT] Premium provider failed, falling back to free providers');

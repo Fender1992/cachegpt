@@ -14,6 +14,10 @@ interface Mode {
   icon: string;
   system_prompt: string;
   example_prompts: string[];
+  temperature: number;
+  max_tokens: number;
+  preferred_model: string | null;
+  context_window_size: string;
 }
 
 interface TrendingMode {

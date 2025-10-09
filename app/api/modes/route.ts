@@ -18,6 +18,10 @@ export const runtime = 'edge';
  *     icon: string;
  *     system_prompt: string;
  *     example_prompts: string[];
+ *     temperature: number;
+ *     max_tokens: number;
+ *     preferred_model: string | null;
+ *     context_window_size: string;
  *   }>,
  *   trending: Array<{
  *     slug: string;
@@ -42,10 +46,10 @@ export async function GET(request: NextRequest) {
 
     const supabase = await createClient();
 
-    // Fetch active modes from database
+    // Fetch active modes from database with optimization parameters
     const { data: modes, error } = await supabase
       .from('public_modes')
-      .select('id, slug, title, description, icon, system_prompt, example_prompts')
+      .select('id, slug, title, description, icon, system_prompt, example_prompts, temperature, max_tokens, preferred_model, context_window_size')
       .eq('is_active', true)
       .order('sort_order', { ascending: true });
 

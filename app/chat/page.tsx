@@ -494,16 +494,26 @@ function ChatPageContent() {
         headers['Authorization'] = `Bearer ${session.access_token}`
       }
 
-      // Prepare request body with optional mode system_prompt
+      // Prepare request body with optional mode parameters
       const requestBody: any = {
         messages: [...messages, newUserMessage],
         preferredProvider: selectedProvider === 'auto' ? undefined : selectedProvider,
         conversationId: activeConversationId // Send current conversation ID if exists
       }
 
-      // Add mode's system_prompt if a mode is active
+      // Add mode's optimization parameters if a mode is active
       if (currentMode?.system_prompt) {
         requestBody.systemPrompt = currentMode.system_prompt
+      }
+      if (currentMode?.temperature !== undefined) {
+        requestBody.temperature = currentMode.temperature
+      }
+      if (currentMode?.max_tokens) {
+        requestBody.maxTokens = currentMode.max_tokens
+      }
+      if (currentMode?.preferred_model) {
+        // Override user's provider selection with mode's preferred model
+        requestBody.preferredProvider = currentMode.preferred_model
       }
 
       // Send message to our API with selected provider and model
