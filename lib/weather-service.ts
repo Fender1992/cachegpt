@@ -41,7 +41,13 @@ export class WeatherService {
     ];
 
     const lowerMessage = message.toLowerCase();
-    return keywords.some(keyword => lowerMessage.includes(keyword));
+    const needsWeather = keywords.some(keyword => lowerMessage.includes(keyword));
+
+    if (needsWeather) {
+      console.log('[WEATHER] Query needs weather context:', message);
+    }
+
+    return needsWeather;
   }
 
   /**
@@ -49,22 +55,31 @@ export class WeatherService {
    * Returns default location if none found
    */
   private extractLocation(message: string): string {
-    // Simple location extraction
     // Try to find patterns like "in [location]", "at [location]", "[location] weather"
     const patterns = [
-      /(?:in|at|for)\s+([A-Z][a-zA-Z\s]+?)(?:\s+weather|\s+temperature|$|\?)/,
-      /weather\s+(?:in|at|for)\s+([A-Z][a-zA-Z\s]+?)(?:\s|$|\?)/,
-      /^([A-Z][a-zA-Z\s]+?)\s+weather/
+      // "in Kansas City", "at KCMO", "for Boston"
+      /(?:in|at|for)\s+([A-Z][A-Z,\.\s]+?)(?:\s+(?:weather|temperature|forecast)|[,\.\?]|$)/i,
+      // "weather in Kansas City"
+      /weather\s+(?:in|at|for)\s+([A-Z][A-Z,\.\s]+?)(?:\s|[,\.\?]|$)/i,
+      // "Kansas City weather"
+      /^([A-Z][A-Za-z,\.\s]+?)\s+(?:weather|temperature|forecast)/i,
+      // "What's the weather in KCMO"
+      /(?:what'?s|what is)\s+the\s+(?:weather|temperature)\s+(?:in|at|for)\s+([A-Z][A-Z,\.\s]+?)(?:\s|[,\.\?]|$)/i,
+      // Catch city names with abbreviations like "KCMO", "NYC", "SF"
+      /(?:in|at|for)\s+([A-Z]{2,})/,
     ];
 
     for (const pattern of patterns) {
       const match = message.match(pattern);
       if (match && match[1]) {
-        return match[1].trim();
+        const location = match[1].trim();
+        console.log('[WEATHER] Extracted location:', location);
+        return location;
       }
     }
 
     // Default to a major city if no location found
+    console.log('[WEATHER] No location found, using default: New York');
     return 'New York';
   }
 
@@ -73,6 +88,7 @@ export class WeatherService {
    */
   private async geocodeLocation(location: string): Promise<{ lat: number; lon: number; name: string } | null> {
     try {
+      console.log('[WEATHER] Geocoding location:', location);
       const response = await axios.get('https://geocoding-api.open-meteo.com/v1/search', {
         params: {
           name: location,
@@ -85,16 +101,19 @@ export class WeatherService {
 
       if (response.data.results && response.data.results.length > 0) {
         const result = response.data.results[0];
-        return {
+        const coords = {
           lat: result.latitude,
           lon: result.longitude,
           name: result.name + (result.admin1 ? `, ${result.admin1}` : '') + (result.country ? `, ${result.country}` : '')
         };
+        console.log('[WEATHER] Geocoded to:', coords.name, `(${coords.lat}, ${coords.lon})`);
+        return coords;
       }
 
+      console.log('[WEATHER] No geocoding results for:', location);
       return null;
     } catch (error: any) {
-      console.error('Geocoding error:', error.message);
+      console.error('[WEATHER] Geocoding error:', error.message);
       return null;
     }
   }
@@ -104,6 +123,7 @@ export class WeatherService {
    */
   private async fetchOpenMeteo(lat: number, lon: number, locationName: string): Promise<WeatherResult> {
     try {
+      console.log('[WEATHER] Fetching weather from Open-Meteo for:', locationName);
       const response = await axios.get('https://api.open-meteo.com/v1/forecast', {
         params: {
           latitude: lat,
@@ -318,10 +338,19 @@ export class WeatherService {
     }
 
     try {
+      console.log('[WEATHER] Fetching weather data...');
       const weatherResult = await this.fetchWeather(userMessage);
-      return this.formatWeatherContext(weatherResult);
+      const context = this.formatWeatherContext(weatherResult);
+
+      if (context) {
+        console.log('[WEATHER] Weather context added:', context.substring(0, 200) + '...');
+      } else {
+        console.log('[WEATHER] No weather data available');
+      }
+
+      return context;
     } catch (error: any) {
-      console.error('Error fetching weather context:', error.message);
+      console.error('[WEATHER] Error fetching weather context:', error.message);
       return '';
     }
   }

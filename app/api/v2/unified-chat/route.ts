@@ -693,7 +693,9 @@ export async function POST(request: NextRequest) {
 
     // Fetch real-time weather context if needed
     const weatherService = getWeatherService();
+    console.log('[UNIFIED-CHAT] Checking weather for message:', userMessage);
     const weatherContext = await weatherService.getWeatherContextIfNeeded(userMessage);
+    console.log('[UNIFIED-CHAT] Weather context length:', weatherContext ? weatherContext.length : 0);
 
     // Build enriched messages with system context
     const enrichedMessages = [...messages]
