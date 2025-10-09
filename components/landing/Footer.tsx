@@ -11,8 +11,8 @@ const navigation = {
     { name: 'For Developers', href: '/enterprise' }, // Classic landing for power users
   ],
   resources: [
-    { name: 'Documentation', href: '/docs' },
-    { name: 'API Reference', href: '/docs/api' },
+    { name: 'GitHub', href: 'https://github.com/Fender1992/cachegpt', external: true },
+    { name: 'CLI', href: 'https://www.npmjs.com/package/cachegpt-cli', external: true },
     { name: 'Changelog', href: '/changelog' },
   ],
   company: [
