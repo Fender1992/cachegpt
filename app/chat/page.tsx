@@ -411,8 +411,7 @@ function ChatPageContent() {
           outdated: '⚠️ Noted! This answer will be refreshed.',
           incorrect: '❌ Thanks for reporting. This will be reviewed.'
         }
-        setToastMessage(feedbackMessages[feedback])
-        setShowToast(true)
+        setToast({ message: feedbackMessages[feedback], type: 'success' })
       }
     } catch (error) {
       console.error('[FEEDBACK] Error submitting feedback:', error)
