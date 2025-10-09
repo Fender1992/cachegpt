@@ -288,7 +288,9 @@ async function storeInCache(
     );
 
     if (!responseId) {
-      console.error('[TIER-CACHE] Failed to store response');
+      console.error('[TIER-CACHE] Failed to store response - storeResponse returned null/undefined');
+    } else {
+      console.log('[TIER-CACHE] Successfully stored response with ID:', responseId);
     }
 
   } catch (error) {
