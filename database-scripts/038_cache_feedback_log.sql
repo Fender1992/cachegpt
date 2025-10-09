@@ -2,6 +2,23 @@
 -- Created: October 8, 2025
 -- Purpose: Track individual user feedback on cached responses for analytics
 
+-- First, ensure cached_responses has a primary key on id
+-- This is safe to run even if it already exists
+DO $$
+BEGIN
+  -- Check if primary key exists
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'cached_responses_pkey'
+    AND conrelid = 'cached_responses'::regclass
+  ) THEN
+    ALTER TABLE cached_responses ADD PRIMARY KEY (id);
+    RAISE NOTICE 'Added primary key to cached_responses.id';
+  ELSE
+    RAISE NOTICE 'Primary key already exists on cached_responses.id';
+  END IF;
+END $$;
+
 -- Create feedback log table
 CREATE TABLE IF NOT EXISTS public.cache_feedback_log (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
