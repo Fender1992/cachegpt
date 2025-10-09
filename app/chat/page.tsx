@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
-import { Send, Bot, Brain, Sparkles, Zap, Settings, LogOut, History, RefreshCw, Loader2, Home, Trash2 } from 'lucide-react'
+import { Send, Bot, Brain, Sparkles, Zap, Settings, LogOut, History, RefreshCw, Loader2, Home, Trash2, ThumbsUp, ThumbsDown, AlertTriangle } from 'lucide-react'
 import BugReportButton from '@/components/bug-report-button'
 import ProviderSelector from '@/components/provider-selector'
 import Toast from '@/components/toast'
@@ -33,6 +33,9 @@ interface ChatMessage {
   created_at?: string
   error?: boolean
   retryMessage?: string
+  cached?: boolean
+  cacheId?: string
+  feedbackGiven?: 'helpful' | 'outdated' | 'incorrect'
 }
 
 // Maximum messages to keep in memory (prevents memory leaks in long sessions)
@@ -382,6 +385,40 @@ function ChatPageContent() {
     }])
   }
 
+  const handleFeedback = async (messageIndex: number, feedback: 'helpful' | 'outdated' | 'incorrect') => {
+    const msg = messages[messageIndex]
+    if (!msg.cacheId || msg.feedbackGiven) return
+
+    try {
+      const response = await fetch('/api/cache-feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cacheId: msg.cacheId,
+          feedback
+        })
+      })
+
+      if (response.ok) {
+        // Update message to show feedback was given
+        setMessages(prev => prev.map((m, i) =>
+          i === messageIndex ? { ...m, feedbackGiven: feedback } : m
+        ))
+
+        // Show toast notification
+        const feedbackMessages = {
+          helpful: '👍 Thanks! This helps improve cache quality.',
+          outdated: '⚠️ Noted! This answer will be refreshed.',
+          incorrect: '❌ Thanks for reporting. This will be reviewed.'
+        }
+        setToastMessage(feedbackMessages[feedback])
+        setShowToast(true)
+      }
+    } catch (error) {
+      console.error('[FEEDBACK] Error submitting feedback:', error)
+    }
+  }
+
   const handleSendMessage = async () => {
     if (!message.trim() || isLoading) return
 
@@ -469,7 +506,9 @@ function ChatPageContent() {
         content: data.response,
         provider: data.provider,
         model: data.model,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        cached: data.cached || false,
+        cacheId: data.cacheId || undefined
       }
 
       setMessages(prev => {
@@ -769,6 +808,48 @@ function ChatPageContent() {
                     <RefreshCw className="w-4 h-4" />
                     Retry
                   </button>
+                )}
+
+                {/* Feedback buttons for cached assistant messages */}
+                {msg.role === 'assistant' && msg.cached && msg.cacheId && !msg.error && (
+                  <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                    {msg.feedbackGiven ? (
+                      <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                        {msg.feedbackGiven === 'helpful' && <ThumbsUp className="w-4 h-4" />}
+                        {msg.feedbackGiven === 'outdated' && <AlertTriangle className="w-4 h-4" />}
+                        {msg.feedbackGiven === 'incorrect' && <ThumbsDown className="w-4 h-4" />}
+                        <span>Feedback submitted</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500 dark:text-gray-400">Was this helpful?</span>
+                        <button
+                          onClick={() => handleFeedback(idx, 'helpful')}
+                          className="p-1.5 hover:bg-green-100 dark:hover:bg-green-900/30 rounded text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors"
+                          title="Helpful answer"
+                          aria-label="Mark as helpful"
+                        >
+                          <ThumbsUp className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleFeedback(idx, 'outdated')}
+                          className="p-1.5 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 rounded text-gray-600 dark:text-gray-400 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors"
+                          title="Outdated information"
+                          aria-label="Mark as outdated"
+                        >
+                          <AlertTriangle className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleFeedback(idx, 'incorrect')}
+                          className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                          title="Incorrect answer"
+                          aria-label="Mark as incorrect"
+                        >
+                          <ThumbsDown className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

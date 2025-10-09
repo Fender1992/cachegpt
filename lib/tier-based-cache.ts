@@ -197,6 +197,10 @@ export class TierBasedCache {
       query = query.eq('is_archived', false);
     }
 
+    // Filter out low-quality responses (quality_score < 30)
+    // quality_score NULL is treated as neutral (50), so allow those
+    query = query.or('quality_score.gte.30,quality_score.is.null');
+
     const { data, error } = await query
       .order('popularity_score', { ascending: false })
       .limit(Math.ceil(limit));

@@ -232,15 +232,27 @@ export class RankingFeaturesManager {
     accessCount: number,
     createdAt: Date,
     lastAccessed: Date,
-    costSaved: number
+    costSaved: number,
+    qualityScore?: number
   ): Promise<number> {
     const useV2Scoring = await this.isFeatureEnabled('use_v2_scoring');
 
+    let baseScore: number;
     if (useV2Scoring) {
-      return this.calculateV2PopularityScore(accessCount, createdAt, lastAccessed, costSaved);
+      baseScore = this.calculateV2PopularityScore(accessCount, createdAt, lastAccessed, costSaved);
     } else {
-      return this.calculateV1PopularityScore(accessCount, createdAt, lastAccessed, costSaved);
+      baseScore = this.calculateV1PopularityScore(accessCount, createdAt, lastAccessed, costSaved);
     }
+
+    // Apply quality score multiplier if available
+    if (qualityScore !== undefined && qualityScore !== null) {
+      // Quality score is 0-100, convert to 0.5-1.5 multiplier
+      // quality_score 0 → 0.5x, quality_score 50 → 1.0x, quality_score 100 → 1.5x
+      const qualityMultiplier = 0.5 + (qualityScore / 100);
+      baseScore = baseScore * qualityMultiplier;
+    }
+
+    return baseScore;
   }
 
   /**

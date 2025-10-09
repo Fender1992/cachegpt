@@ -825,6 +825,10 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         response: sanitizedCachedResponse,
+        cached: true,
+        cacheId: cached.metadata?.id, // For feedback system
+        provider: cacheProvider,
+        model: versionedCacheModel,
         metadata: {
           cached: true,
           cacheHit: true, // Add both for compatibility
