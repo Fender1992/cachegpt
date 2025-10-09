@@ -127,7 +127,6 @@ export default function Navigation() {
               Modes
             </Link>
             <Link
-            <Link
               href="/pricing"
               onClick={() => setIsOpen(false)}
               className="block py-2 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition"

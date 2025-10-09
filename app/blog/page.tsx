@@ -48,7 +48,6 @@ export default function BlogPage() {
           </p>
           <div className="flex items-center justify-center gap-6">
             <a
-            <a
               href="https://github.com/Fender1992/cachegpt"
               target="_blank"
               rel="noopener noreferrer"
