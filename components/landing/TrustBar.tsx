@@ -2,7 +2,7 @@
 
 export default function TrustBar() {
   const providers = [
-    { name: 'OpenAI', icon: '🤖' },
+    { name: 'ChatGPT', icon: '🤖' },
     { name: 'Claude', icon: '🧠' },
     { name: 'Gemini', icon: '✨' },
     { name: 'Perplexity', icon: '⚡' },
