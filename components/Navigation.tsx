@@ -53,6 +53,9 @@ export default function Navigation() {
 
             {user ? (
               <div className="flex items-center gap-3">
+                <span className="hidden sm:inline text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {user.email?.split('@')[0]}
+                </span>
                 <Link
                   href="/casual-dashboard"
                   className="text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition"
@@ -136,6 +139,12 @@ export default function Navigation() {
 
             {user ? (
               <>
+                <div className="py-2 px-3 bg-gray-50 dark:bg-gray-800 rounded-lg mb-2">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                    {user.email?.split('@')[0]}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
+                </div>
                 <Link
                   href="/casual-dashboard"
                   onClick={() => setIsOpen(false)}
