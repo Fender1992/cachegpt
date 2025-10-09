@@ -29,6 +29,7 @@ import { enrichContext, generateSystemContext } from '@/lib/context-enrichment';
 import { performContextualSearch } from '@/lib/web-search';
 import { cacheLifecycleManager, QueryType, CacheLifecycle } from '@/lib/cache-lifecycle';
 import { getNewsService } from '@/lib/news-service';
+import { getWeatherService } from '@/lib/weather-service';
 
 /**
  * Cache Version Management
@@ -690,6 +691,10 @@ export async function POST(request: NextRequest) {
     const newsService = getNewsService();
     const newsContext = await newsService.getNewsContextIfNeeded(userMessage);
 
+    // Fetch real-time weather context if needed
+    const weatherService = getWeatherService();
+    const weatherContext = await weatherService.getWeatherContextIfNeeded(userMessage);
+
     // Build enriched messages with system context
     const enrichedMessages = [...messages]
 
@@ -714,6 +719,14 @@ export async function POST(request: NextRequest) {
       enrichedMessages.splice(enrichedMessages.length - 1, 0, {
         role: 'system',
         content: newsContext
+      })
+    }
+
+    // If we have weather context, add it before the user's last message
+    if (weatherContext) {
+      enrichedMessages.splice(enrichedMessages.length - 1, 0, {
+        role: 'system',
+        content: weatherContext
       })
     }
 
@@ -745,6 +758,7 @@ export async function POST(request: NextRequest) {
       systemContext: contextAnalysis.systemContext,
       searchContext,
       newsContext,
+      weatherContext,
       version: CACHE_VERSION
     });
 
