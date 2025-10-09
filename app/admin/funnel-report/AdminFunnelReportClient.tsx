@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase-client';
 import { ArrowLeft, RefreshCw, TrendingUp, Users, MessageSquare, MousePointerClick } from 'lucide-react';
 import Toast from '@/components/toast';
@@ -23,6 +24,7 @@ interface DailyMetrics {
 }
 
 export default function AdminFunnelReportClient() {
+  const router = useRouter();
   const [metrics, setMetrics] = useState<FunnelMetrics | null>(null);
   const [dailyMetrics, setDailyMetrics] = useState<DailyMetrics[]>([]);
   const [loading, setLoading] = useState(true);

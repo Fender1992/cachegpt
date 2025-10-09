@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
 import Toast from '@/components/toast'
 import {
@@ -71,6 +72,7 @@ interface ToastNotification {
 }
 
 export default function AdminBugsClient() {
+  const router = useRouter()
   const [bugs, setBugs] = useState<BugReport[]>([])
   const [statistics, setStatistics] = useState<BugStatistics | null>(null)
   const [loading, setLoading] = useState(true)

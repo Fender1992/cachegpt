@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase-client';
 import { ArrowLeft, RefreshCw, Save, ToggleLeft, ToggleRight, Flag } from 'lucide-react';
 import Toast from '@/components/toast';
@@ -32,6 +33,7 @@ const FLAG_DESCRIPTIONS: { [key: string]: string } = {
 };
 
 export default function AdminFeatureFlagsClient() {
+  const router = useRouter();
   const [flags, setFlags] = useState<FeatureFlag[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
