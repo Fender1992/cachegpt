@@ -9,7 +9,7 @@ import {
   Zap, Shield, BarChart3, Code, ArrowRight, Check,
   Cpu, Globe, Lock, Gauge, Cloud, Sparkles,
   ChevronDown, Terminal, Database, Layers,
-  User, LogOut, Settings, CreditCard, Timer, DollarSign, TrendingUp, Bug
+  User, LogOut, Settings, CreditCard, Timer, DollarSign, TrendingUp, Bug, Activity
 } from 'lucide-react'
 import BugReportButton from '@/components/bug-report-button'
 
@@ -244,20 +244,29 @@ export default function Home() {
                     </Link>
 
                     {user?.email === 'rolandofender@gmail.com' && (
-                      <Link
-                        href="/admin/bugs"
-                        className="flex items-center justify-between px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 w-full"
-                      >
-                        <div className="flex items-center space-x-2">
-                          <Bug className="w-4 h-4" />
-                          <span>Bug Tracker</span>
-                        </div>
-                        {newBugCount > 0 && (
-                          <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white bg-red-600 rounded-full">
-                            {newBugCount}
-                          </span>
-                        )}
-                      </Link>
+                      <>
+                        <Link
+                          href="/admin/bugs"
+                          className="flex items-center justify-between px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 w-full"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <Bug className="w-4 h-4" />
+                            <span>Bug Tracker</span>
+                          </div>
+                          {newBugCount > 0 && (
+                            <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white bg-red-600 rounded-full">
+                              {newBugCount}
+                            </span>
+                          )}
+                        </Link>
+                        <Link
+                          href="/status"
+                          className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 w-full"
+                        >
+                          <Activity className="w-4 h-4" />
+                          <span>System Status</span>
+                        </Link>
+                      </>
                     )}
 
                     <div className="border-t border-gray-200 dark:border-gray-700 mt-1 pt-1">
