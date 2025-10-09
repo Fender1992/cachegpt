@@ -53,9 +53,6 @@ export default function Navigation() {
 
             {user ? (
               <div className="flex items-center gap-3">
-                <span className="hidden sm:inline text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {user.email?.split('@')[0]}
-                </span>
                 <Link
                   href="/casual-dashboard"
                   className="text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition"
@@ -68,12 +65,18 @@ export default function Navigation() {
                 >
                   Settings
                 </Link>
+                <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                  <User className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {user.email?.split('@')[0]}
+                  </span>
+                </div>
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+                  className="flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 transition"
                 >
                   <LogOut className="w-4 h-4" />
-                  Logout
+                  <span className="hidden lg:inline">Logout</span>
                 </button>
               </div>
             ) : (
