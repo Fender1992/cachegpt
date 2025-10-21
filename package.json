@@ -9,6 +9,7 @@
     "lint": "npx next lint"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.67.0",
     "@huggingface/inference": "^4.8.0",
     "@radix-ui/react-progress": "^1.1.7",
     "@radix-ui/react-scroll-area": "^1.2.10",
