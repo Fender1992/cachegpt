@@ -30,6 +30,9 @@ import { performContextualSearch } from '@/lib/web-search';
 import { cacheLifecycleManager, QueryType, CacheLifecycle } from '@/lib/cache-lifecycle';
 import { getNewsService } from '@/lib/news-service';
 import { getWeatherService } from '@/lib/weather-service';
+import { resolveProvider, ProviderResolutionError, createProviderErrorResponse } from '@/services/llm/providerResolver';
+import { createAdapter } from '@/services/llm/adapters';
+import { generateRequestId } from '@/config/llmConfig';
 
 /**
  * Cache Version Management
@@ -617,6 +620,9 @@ function getBestModelForProvider(provider: string): string {
  * Main chat endpoint - Anonymous access allowed
  */
 export async function POST(request: NextRequest) {
+  const requestId = generateRequestId();
+  let providerResolution: any = undefined; // Declare outside try block for error handler access
+
   try {
     const body = await request.json();
     const {
@@ -634,8 +640,7 @@ export async function POST(request: NextRequest) {
     let userId: string | null = null;
     let session: UnifiedSession | null = null;
     let userApiKey: string | null = null;
-    let selectedProvider: string = requestedProvider || 'auto';
-    let selectedModel: string | null = null;
+    let userProvider: string | null = null;
 
     const authResult = await resolveAuthentication(request);
     if (!isAuthError(authResult)) {
@@ -662,12 +667,18 @@ export async function POST(request: NextRequest) {
             error: 'Monthly request limit exceeded',
             message: 'You have reached your monthly request limit. Please upgrade your plan or wait until next month.',
             upgradeUrl: '/pricing'
-          }, { status: 429 });
+          }, {
+            status: 429,
+            headers: {
+              'x-request-id': requestId,
+              'x-llm-provider-intent': 'none',
+              'x-llm-provider-used': 'none',
+            },
+          });
         }
 
         // Check if user has their own API keys configured
-        // If they do, use their keys for flagship models
-        // Otherwise, use free providers (default for all users)
+        // If they do, pass them to the provider resolver
         const { data: credentials } = await supabase
           .from('user_provider_credentials')
           .select('provider, api_key')
@@ -675,7 +686,7 @@ export async function POST(request: NextRequest) {
           .not('api_key', 'is', null);
 
         if (credentials && credentials.length > 0) {
-          // User has API keys - use their flagship models
+          // User has API keys - provider resolver will use them
           const providerMap: Record<string, string> = {
             'openai': 'chatgpt',
             'anthropic': 'claude',
@@ -693,22 +704,26 @@ export async function POST(request: NextRequest) {
               'claude': 'anthropic',
               'gemini': 'google'
             };
-            selectedProvider = reverseMap[selectedCred.provider] || selectedCred.provider;
-            selectedModel = getBestModelForProvider(selectedProvider);
-            console.log('[CHAT] Using user API key for flagship model:', selectedModel);
+            userProvider = reverseMap[selectedCred.provider] || selectedCred.provider;
+            console.log('[CHAT] User has API key for provider:', userProvider);
           }
         } else {
-          // No API keys - use free providers (default)
-          console.log('[CHAT] No user API keys found - using free providers');
+          // No API keys - will use internal/free providers (default)
+          console.log('[CHAT] No user API keys found - will use internal/free providers');
         }
       }
-    } else {
-      selectedProvider = 'auto';
     }
 
     const userMessage = messages[messages.length - 1]?.content;
     if (!userMessage) {
-      return NextResponse.json({ error: 'No message provided' }, { status: 400 });
+      return NextResponse.json({ error: 'No message provided' }, {
+        status: 400,
+        headers: {
+          'x-request-id': requestId,
+          'x-llm-provider-intent': 'none',
+          'x-llm-provider-used': 'none',
+        },
+      });
     }
 
     // Enrich context with current information and real-time data
@@ -777,12 +792,37 @@ export async function POST(request: NextRequest) {
 
     const startTime = Date.now();
 
-    // Determine if using free providers or user's API key
-    const usingFreeProviders = !userApiKey || selectedProvider === 'auto';
+    // Resolve which provider to use
+    try {
+      providerResolution = await resolveProvider({
+        headers: request.headers,
+        requestId,
+        endpoint: '/api/v2/unified-chat',
+        userApiKey,
+        userProvider,
+      });
+    } catch (error) {
+      if (error instanceof ProviderResolutionError) {
+        return NextResponse.json(
+          createProviderErrorResponse(error),
+          {
+            status: error.statusCode,
+            headers: {
+              'x-request-id': requestId,
+              'x-llm-provider-intent': 'auto',
+              'x-llm-provider-used': 'none',
+            },
+          }
+        );
+      }
+      throw error;
+    }
 
-    // Use consistent cache parameters
-    const cacheModel = usingFreeProviders ? 'free-model' : `${selectedProvider}-model`;
-    const cacheProvider = usingFreeProviders ? 'mixed' : selectedProvider;
+    // Use consistent cache parameters - keep actual provider name for tracking
+    const cacheModel = providerResolution.provider === 'internal' || providerResolution.provider === 'free'
+      ? 'free-model'
+      : `${providerResolution.provider}-model`;
+    const cacheProvider = providerResolution.provider; // Use actual provider name, not "mixed"
 
     // Track prediction accuracy
     const predictiveCacheInstance = await getPredictiveCache();
@@ -817,6 +857,9 @@ export async function POST(request: NextRequest) {
         // Don't use this cached entry - fall through to fetch new response
       }
       else {
+        // Extract actual provider from cache metadata or use current provider as fallback
+        const cachedProviderUsed = cached.metadata?.provider || cacheProvider;
+
         // Log usage
       const supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -829,7 +872,7 @@ export async function POST(request: NextRequest) {
         method: 'POST',
         model: cacheModel,
         metadata: {
-          provider: cacheProvider,
+          provider: cachedProviderUsed,
           cached: true,
           similarity: cached.similarity,
           response_length: cached.response.length
@@ -862,13 +905,13 @@ export async function POST(request: NextRequest) {
         response: sanitizedCachedResponse,
         cached: true,
         cacheId: cached.metadata?.id, // For feedback system
-        provider: cacheProvider,
+        provider: cachedProviderUsed,
         model: versionedCacheModel,
         metadata: {
           cached: true,
           cacheHit: true, // Add both for compatibility
           similarity: cached.similarity,
-          provider: cacheProvider,
+          provider: cachedProviderUsed,
           tier: cached.tier,
           accessCount: cached.metadata?.accessCount,
           popularityScore: cached.metadata?.popularityScore,
@@ -881,55 +924,36 @@ export async function POST(request: NextRequest) {
             wordCount: cachedMetrics.wordCount
           }
         }
+      }, {
+        headers: {
+          'x-request-id': requestId,
+          'x-llm-provider-intent': providerResolution.provider,
+          'x-llm-provider-used': cachedProviderUsed,
+        },
       });
       }
     }
 
     // No cache hit or cache too old, call appropriate provider
-    let result: { response: string; provider: string };
-    let finalModel: string;
+    // Create adapter for the selected provider
+    const adapter = createAdapter(providerResolution.provider, userApiKey || undefined);
 
-    if (usingFreeProviders) {
-      // Use free providers (auto-rotates between Groq, OpenRouter, HuggingFace)
-      try {
-        result = await callFreeProvider(enrichedMessages);
-        finalModel = 'free-model';  // Don't expose which specific free model was used
-      } catch (freeProviderError: any) {
-        // If free providers fail and we have server premium keys, use them as emergency fallback
-        if (process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY) {
-          console.log('[EMERGENCY-FALLBACK] Free providers failed, using server premium keys');
-          const fallbackProvider = process.env.ANTHROPIC_API_KEY ? 'anthropic' : 'openai';
-          const fallbackKey = process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY;
-          const fallbackModel = fallbackProvider === 'anthropic'
-            ? 'claude-sonnet-4-5-20250929'
-            : 'gpt-5';
+    // Call LLM provider
+    const adapterResponse = await adapter.chat({
+      messages: enrichedMessages.map((m: any) => ({
+        role: m.role,
+        content: m.content,
+      })),
+      maxTokens,
+      systemPrompt,
+      temperature,
+    });
 
-          result = await callPremiumProvider(enrichedMessages, fallbackProvider, fallbackKey!, fallbackModel, {
-            temperature,
-            maxTokens,
-            systemPrompt
-          });
-          finalModel = fallbackModel;
-        } else {
-          // No fallback available, re-throw the error
-          throw freeProviderError;
-        }
-      }
-    } else {
-      // Use premium provider with user's API key
-      try {
-        result = await callPremiumProvider(enrichedMessages, selectedProvider, userApiKey!, selectedModel!, {
-          temperature,
-          maxTokens,
-          systemPrompt
-        });
-        finalModel = selectedModel!;
-      } catch (error) {
-        console.error('[CHAT] Premium provider failed, falling back to free providers');
-        result = await callFreeProvider(enrichedMessages);
-        finalModel = 'free-model';
-      }
-    }
+    const result = {
+      response: adapterResponse.content,
+      provider: adapterResponse.provider,
+    };
+    const finalModel = adapterResponse.model || cacheModel;
 
     const responseTime = Date.now() - startTime;
 
@@ -1011,7 +1035,7 @@ export async function POST(request: NextRequest) {
         provider: result.provider,
         model: finalModel,
         responseTime,
-        cost: usingFreeProviders ? 0 : 0.001, // Rough estimate
+        cost: providerResolution.provider === 'internal' || providerResolution.provider === 'free' ? 0 : 0.001, // Rough estimate
         validation: {
           qualityScore,
           responseLength: sanitizedResponse.length,
@@ -1019,12 +1043,30 @@ export async function POST(request: NextRequest) {
           wordCount: metrics.wordCount
         }
       }
+    }, {
+      headers: {
+        'x-request-id': requestId,
+        'x-llm-provider-intent': providerResolution.provider,
+        'x-llm-provider-used': result.provider,
+      },
     });
 
   } catch (error: any) {
     console.error('[UNIFIED-CHAT] Error:', error);
+
+    // Determine provider intent and used values for error response
+    const providerIntent = providerResolution?.provider || 'auto';
+    const providerUsed = 'none'; // Error occurred, no provider was successfully used
+
     return NextResponse.json({
       error: error.message || 'Chat request failed'
-    }, { status: 500 });
+    }, {
+      status: 500,
+      headers: {
+        'x-request-id': requestId,
+        'x-llm-provider-intent': providerIntent,
+        'x-llm-provider-used': providerUsed,
+      },
+    });
   }
 }

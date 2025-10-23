@@ -1,13 +1,18 @@
 /**
- * Anthropic-compatible Messages API endpoint
- * This endpoint validates CacheGPT API keys and uses the server's Anthropic API key
- * Similar to how OpenAI/Anthropic handle their API keys - user key is for auth only
+ * LLM Messages API endpoint (provider-agnostic)
+ *
+ * This endpoint validates CacheGPT API keys and routes to the appropriate LLM provider.
+ * Default: Internal LLM (NOT Anthropic)
+ *
+ * Compatible with Anthropic Messages API format, but can use any provider.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { createHash } from 'crypto'
+import { resolveProvider, ProviderResolutionError, createProviderErrorResponse } from '@/services/llm/providerResolver'
+import { createAdapter } from '@/services/llm/adapters'
+import { generateRequestId } from '@/config/llmConfig'
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -36,13 +41,26 @@ function getApiKey(request: NextRequest): string | null {
 }
 
 export async function POST(request: NextRequest) {
+  const requestId = generateRequestId()
+  let providerResolution: any = undefined // Declare outside try block for error handler access
+
   try {
     // Validate API key
     const cachegptApiKey = getApiKey(request)
     if (!cachegptApiKey) {
       return NextResponse.json(
-        { error: 'Invalid or missing x-api-key header. Expected format: cgpt_sk_...' },
-        { status: 401 }
+        {
+          error: 'Invalid or missing x-api-key header. Expected format: cgpt_sk_...',
+          requestId,
+        },
+        {
+          status: 401,
+          headers: {
+            'x-request-id': requestId,
+            'x-llm-provider-intent': 'none',
+            'x-llm-provider-used': 'none',
+          },
+        }
       )
     }
 
@@ -55,8 +73,18 @@ export async function POST(request: NextRequest) {
 
     if (keyError || !keyData || keyData.length === 0 || !keyData[0].is_valid) {
       return NextResponse.json(
-        { error: 'Invalid or expired API key' },
-        { status: 401 }
+        {
+          error: 'Invalid or expired API key',
+          requestId,
+        },
+        {
+          status: 401,
+          headers: {
+            'x-request-id': requestId,
+            'x-llm-provider-intent': 'none',
+            'x-llm-provider-used': 'none',
+          },
+        }
       )
     }
 
@@ -65,16 +93,6 @@ export async function POST(request: NextRequest) {
     // Increment usage count (fire and forget - don't await)
     supabase.rpc('increment_api_key_usage', { api_key_hash: keyHash })
 
-    // Use server's Anthropic API key (not user's)
-    const anthropicApiKey = process.env.ANTHROPIC_API_KEY
-
-    if (!anthropicApiKey) {
-      return NextResponse.json(
-        { error: 'Anthropic API key not configured on server' },
-        { status: 500 }
-      )
-    }
-
     // Parse request body (Anthropic Messages API format)
     const body = await request.json()
     const { model, max_tokens, messages, system, temperature } = body
@@ -82,41 +100,128 @@ export async function POST(request: NextRequest) {
     // Validate required fields
     if (!model || !messages || !Array.isArray(messages)) {
       return NextResponse.json(
-        { error: 'Invalid request format. Required: model, messages (array)' },
-        { status: 400 }
+        {
+          error: 'Invalid request format. Required: model, messages (array)',
+          requestId,
+        },
+        {
+          status: 400,
+          headers: {
+            'x-request-id': requestId,
+            'x-llm-provider-intent': 'none',
+            'x-llm-provider-used': 'none',
+          },
+        }
       )
     }
 
-    // Initialize Anthropic client with server's API key
-    const anthropic = new Anthropic({
-      apiKey: anthropicApiKey
-    })
+    // Resolve which provider to use
+    try {
+      providerResolution = await resolveProvider({
+        headers: request.headers,
+        requestId,
+        endpoint: '/api/v1/messages',
+      })
+    } catch (error) {
+      if (error instanceof ProviderResolutionError) {
+        return NextResponse.json(
+          createProviderErrorResponse(error),
+          {
+            status: error.statusCode,
+            headers: {
+              'x-request-id': requestId,
+              'x-llm-provider-intent': 'auto',
+              'x-llm-provider-used': 'none',
+            },
+          }
+        )
+      }
+      throw error
+    }
 
-    // Call Anthropic API
-    const response = await anthropic.messages.create({
+    // Create adapter for the selected provider
+    const adapter = createAdapter(providerResolution.provider)
+
+    // Call LLM provider
+    const response = await adapter.chat({
+      messages: messages.map((m: any) => ({
+        role: m.role,
+        content: m.content,
+      })),
       model,
-      max_tokens: max_tokens || 4096,
-      messages,
-      ...(system && { system }),
-      ...(temperature !== undefined && { temperature })
+      maxTokens: max_tokens,
+      systemPrompt: system,
+      temperature,
     })
 
-    // Return response in Anthropic format
-    return NextResponse.json(response)
+    // Format response in Anthropic-compatible format
+    const anthropicResponse = {
+      id: `msg_${requestId}`,
+      type: 'message',
+      role: 'assistant',
+      content: [
+        {
+          type: 'text',
+          text: response.content,
+        },
+      ],
+      model: response.model || model,
+      stop_reason: 'end_turn',
+      stop_sequence: null,
+      usage: response.usage ? {
+        input_tokens: response.usage.promptTokens || 0,
+        output_tokens: response.usage.completionTokens || 0,
+      } : {
+        input_tokens: 0,
+        output_tokens: 0,
+      },
+    }
+
+    return NextResponse.json(anthropicResponse, {
+      headers: {
+        'x-request-id': requestId,
+        'x-llm-provider-intent': providerResolution.provider,
+        'x-llm-provider-used': response.provider,
+      },
+    })
 
   } catch (error) {
-    console.error('Anthropic API error:', error)
+    console.error('[V1-MESSAGES] Error:', error)
+
+    // Determine provider intent and used values for error response
+    const providerIntent = providerResolution?.provider || 'auto'
+    const providerUsed = 'none' // Error occurred, no provider was successfully used
 
     if (error instanceof Error) {
       return NextResponse.json(
-        { error: error.message },
-        { status: 500 }
+        {
+          error: error.message,
+          requestId,
+        },
+        {
+          status: 500,
+          headers: {
+            'x-request-id': requestId,
+            'x-llm-provider-intent': providerIntent,
+            'x-llm-provider-used': providerUsed,
+          },
+        }
       )
     }
 
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      {
+        error: 'Internal server error',
+        requestId,
+      },
+      {
+        status: 500,
+        headers: {
+          'x-request-id': requestId,
+          'x-llm-provider-intent': providerIntent,
+          'x-llm-provider-used': providerUsed,
+        },
+      }
     )
   }
 }
@@ -128,7 +233,7 @@ export async function OPTIONS(request: NextRequest) {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, x-api-key, anthropic-version'
-    }
+      'Access-Control-Allow-Headers': 'Content-Type, x-api-key, x-llm-provider, anthropic-version',
+    },
   })
 }
