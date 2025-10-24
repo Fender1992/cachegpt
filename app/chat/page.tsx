@@ -56,6 +56,8 @@ function ChatPageContent() {
   const [selectedProvider, setSelectedProvider] = useState('auto')
   const [qualityMode, setQualityMode] = useState<'fast' | 'best'>('fast') // Quality mode toggle
   const [isLoading, setIsLoading] = useState(false)
+  const [streamingMessage, setStreamingMessage] = useState<string>('')
+  const [isStreaming, setIsStreaming] = useState(false)
   const [userProfile, setUserProfile] = useState<any>(null)
   const [usingPremium, setUsingPremium] = useState(false)
   const [keyboardVisible, setKeyboardVisible] = useState(false)
@@ -565,8 +567,8 @@ function ChatPageContent() {
         requestBody.preferredProvider = currentMode.preferred_model
       }
 
-      // Send message to our API with selected provider and model
-      const response = await fetch('/api/v2/unified-chat', {
+      // Use streaming endpoint for better UX
+      const response = await fetch('/api/v2/unified-chat-stream', {
         method: 'POST',
         headers,
         credentials: 'include',
@@ -579,29 +581,79 @@ function ChatPageContent() {
         throw new Error('Failed to get response')
       }
 
-      const data = await response.json()
+      // Handle streaming response
+      setIsStreaming(true)
+      setStreamingMessage('')
+
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+
+      if (!reader) {
+        throw new Error('No response body')
+      }
+
+      let buffer = ''
+      let finalData: any = {}
+
+      while (true) {
+        const { done, value } = await reader.read()
+
+        if (done) break
+
+        // Decode the chunk
+        buffer += decoder.decode(value, { stream: true })
+
+        // Process complete messages (lines ending with \n\n)
+        const lines = buffer.split('\n\n')
+        buffer = lines.pop() || '' // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.substring(6))
+
+              if (data.error) {
+                throw new Error(data.error)
+              }
+
+              // Update streaming message
+              setStreamingMessage(data.content || '')
+
+              // If this is the final message, save the metadata
+              if (data.done) {
+                finalData = data
+              }
+            } catch (e) {
+              console.error('[STREAM] Parse error:', e)
+            }
+          }
+        }
+      }
+
+      // Stop streaming
+      setIsStreaming(false)
 
       // Save conversation ID for next message in this session
-      if (data.conversationId) {
-        setActiveConversationId(data.conversationId)
+      if (finalData.conversationId) {
+        setActiveConversationId(finalData.conversationId)
       }
 
       // Check for cache hit and show toast
-      if (data.cached || data.cache_hit) {
-        const savedCents = data.cost_saved || 2 // Default 2 cents if not provided
+      if (finalData.cached) {
+        const savedCents = finalData.cost_saved || 2
         setLastCacheSaved(savedCents)
         setShowCacheToast(true)
       }
 
-      // Add assistant message with metadata
+      // Add assistant message with final content and metadata
       const assistantMessage: ChatMessage = {
         role: 'assistant',
-        content: data.response,
-        provider: data.provider,
-        model: data.model,
+        content: finalData.content || streamingMessage,
+        provider: finalData.provider,
+        model: finalData.model,
         created_at: new Date().toISOString(),
-        cached: data.cached || false,
-        cacheId: data.cacheId || undefined
+        cached: finalData.cached || false,
+        cacheId: finalData.cacheId || undefined
       }
 
       setMessages(prev => {
@@ -613,6 +665,9 @@ function ChatPageContent() {
         }
         return updated
       })
+
+      // Clear streaming message
+      setStreamingMessage('')
 
       // Refresh conversations list to include new/updated conversation
       loadConversations()
@@ -1021,7 +1076,16 @@ function ChatPageContent() {
               </div>
             </div>
           ))}
-          {isLoading && (
+          {/* Streaming message */}
+          {isStreaming && streamingMessage && (
+            <div className="flex justify-start">
+              <div className="max-w-[85%] rounded-lg shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 px-6 py-4">
+                <MarkdownMessage content={streamingMessage} isStreaming={true} />
+              </div>
+            </div>
+          )}
+          {/* Loading indicator (before streaming starts) */}
+          {isLoading && !isStreaming && (
             <div className="flex justify-start">
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm">
                 <div className="flex items-center gap-2">
