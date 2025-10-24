@@ -630,6 +630,7 @@ export async function POST(request: NextRequest) {
       preferredProvider: requestedProvider,
       authMethod,
       conversationId: clientConversationId,
+      referencedConversations,
       systemPrompt,
       temperature,
       maxTokens,
@@ -788,6 +789,49 @@ export async function POST(request: NextRequest) {
     enrichedMessages[enrichedMessages.length - 1] = {
       ...enrichedMessages[enrichedMessages.length - 1],
       content: contextAnalysis.enrichedQuery
+    }
+
+    // Fetch and include referenced conversations if provided
+    if (referencedConversations && referencedConversations.length > 0 && userId) {
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_KEY!
+      );
+
+      for (const refConvId of referencedConversations) {
+        try {
+          // Fetch messages from referenced conversation
+          const { data: refMessages, error: refError } = await supabase
+            .from('messages')
+            .select('role, content')
+            .eq('conversation_id', refConvId)
+            .eq('user_id', userId) // Ensure user owns the conversation
+            .order('created_at', { ascending: true })
+            .limit(10); // Limit to last 10 messages per referenced conversation
+
+          if (!refError && refMessages && refMessages.length > 0) {
+            // Get conversation title for context
+            const { data: refConv } = await supabase
+              .from('conversations')
+              .select('title')
+              .eq('id', refConvId)
+              .eq('user_id', userId)
+              .single();
+
+            // Add referenced conversation context before the user's message
+            const refContextMessage = {
+              role: 'system',
+              content: `Referenced conversation "${refConv?.title || 'Previous Chat'}":\n\n${refMessages.map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n\n')}`
+            };
+
+            // Insert before the last user message
+            enrichedMessages.splice(enrichedMessages.length - 1, 0, refContextMessage);
+          }
+        } catch (error) {
+          console.error('[UNIFIED-CHAT] Error fetching referenced conversation:', refConvId, error);
+          // Continue with other references even if one fails
+        }
+      }
     }
 
     const startTime = Date.now();

@@ -10,6 +10,7 @@ import Toast from '@/components/toast'
 import ExamplePrompts from '@/components/chat/ExamplePrompts'
 import CacheToast from '@/components/chat/CacheToast'
 import ShareButton from '@/components/chat/ShareButton'
+import ConversationReferenceButton from '@/components/chat/ConversationReferenceButton'
 import { error as logError } from '@/lib/logger'
 import { isFeatureEnabled } from '@/lib/featureFlags'
 
@@ -63,6 +64,7 @@ function ChatPageContent() {
   const [lastCacheSaved, setLastCacheSaved] = useState(0)
   const [currentMode, setCurrentMode] = useState<any>(null)
   const [shareEnabled, setShareEnabled] = useState(false)
+  const [referencedConversationIds, setReferencedConversationIds] = useState<string[]>([])
   const router = useRouter()
   const searchParams = useSearchParams()
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -498,7 +500,8 @@ function ChatPageContent() {
       const requestBody: any = {
         messages: [...messages, newUserMessage],
         preferredProvider: selectedProvider === 'auto' ? undefined : selectedProvider,
-        conversationId: activeConversationId // Send current conversation ID if exists
+        conversationId: activeConversationId, // Send current conversation ID if exists
+        referencedConversations: referencedConversationIds.length > 0 ? referencedConversationIds : undefined
       }
 
       // Add mode's optimization parameters if a mode is active
@@ -613,7 +616,26 @@ function ChatPageContent() {
     setMessages([])
     setCurrentConversationId(null)
     setActiveConversationId(null) // Clear active conversation to start fresh
+    setReferencedConversationIds([]) // Clear referenced conversations
     setShowHistory(false)
+  }
+
+  const handleConversationReference = (conversationId: string, title: string) => {
+    // Don't allow referencing the current conversation
+    if (conversationId === activeConversationId) {
+      setToast({ message: 'Cannot reference the current conversation', type: 'warning' })
+      return
+    }
+
+    // Don't allow duplicate references
+    if (referencedConversationIds.includes(conversationId)) {
+      setToast({ message: 'This conversation is already referenced', type: 'warning' })
+      return
+    }
+
+    // Add to referenced conversations
+    setReferencedConversationIds(prev => [...prev, conversationId])
+    setToast({ message: `Referenced: ${title}`, type: 'success' })
   }
 
   const handleLogout = async () => {
@@ -933,7 +955,32 @@ function ChatPageContent() {
       <div className="flex-shrink-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm sticky bottom-0 z-10"
            style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
         <div className="max-w-4xl mx-auto">
+          {/* Referenced conversations indicator */}
+          {referencedConversationIds.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-2">
+              {referencedConversationIds.map((refId) => {
+                const refConv = conversations.find(c => c.id === refId)
+                return refConv ? (
+                  <div key={refId} className="inline-flex items-center gap-2 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm rounded-full">
+                    <span className="truncate max-w-[200px]">{refConv.title}</span>
+                    <button
+                      onClick={() => setReferencedConversationIds(prev => prev.filter(id => id !== refId))}
+                      className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
+                      aria-label="Remove reference"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : null
+              })}
+            </div>
+          )}
           <div className="flex gap-2">
+            <ConversationReferenceButton
+              conversations={conversations.filter(c => c.id !== activeConversationId)}
+              onReferenceSelect={handleConversationReference}
+              disabled={isLoading}
+            />
             <textarea
               ref={inputRef}
               value={message}
