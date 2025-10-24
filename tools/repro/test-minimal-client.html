@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CacheGPT API Key Test - Browser Client</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      padding: 30px;
+      max-width: 800px;
+      width: 100%;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 24px;
+    }
+
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+
+    .input-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #333;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: monospace;
+      transition: border-color 0.3s;
+    }
+
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 14px 30px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .output {
+      margin-top: 30px;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border-left: 4px solid #667eea;
+      display: none;
+    }
+
+    .output.show {
+      display: block;
+    }
+
+    .output h3 {
+      margin-bottom: 10px;
+      color: #333;
+      font-size: 16px;
+    }
+
+    .output pre {
+      background: white;
+      padding: 15px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .status {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .loading.show {
+      display: block;
+    }
+
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 10px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .hint {
+      background: #e7f3ff;
+      border-left: 4px solid #2196F3;
+      padding: 12px;
+      margin-top: 10px;
+      border-radius: 4px;
+      font-size: 13px;
+      color: #0d47a1;
+    }
+
+    .tests {
+      margin-top: 20px;
+    }
+
+    .test-item {
+      background: white;
+      padding: 12px;
+      margin-bottom: 8px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .test-icon {
+      font-size: 20px;
+    }
+
+    .test-name {
+      flex: 1;
+      font-size: 14px;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔐 CacheGPT API Key Test</h1>
+    <p class="subtitle">Browser-based test client for /v1/messages endpoint</p>
+
+    <div class="input-group">
+      <label for="baseUrl">Base URL</label>
+      <input type="text" id="baseUrl" value="http://localhost:3000" placeholder="http://localhost:3000">
+    </div>
+
+    <div class="input-group">
+      <label for="apiKey">CacheGPT API Key</label>
+      <input type="password" id="apiKey" placeholder="cgpt_sk_...">
+      <div class="hint">
+        Generate a key at: <code>/settings</code> → CacheGPT API Keys → New Key
+      </div>
+    </div>
+
+    <div class="input-group">
+      <label for="message">Test Message</label>
+      <textarea id="message" placeholder="Say 'Hello from browser test!' and nothing else.">Say 'Hello from browser test!' and nothing else.</textarea>
+    </div>
+
+    <button id="testBtn" onclick="runTests()">Run All Tests</button>
+
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <p>Running tests...</p>
+    </div>
+
+    <div class="output" id="output">
+      <h3>Test Results</h3>
+      <div class="tests" id="testResults"></div>
+    </div>
+  </div>
+
+  <script>
+    async function makeRequest(testName, headers, body, method = 'POST') {
+      const baseUrl = document.getElementById('baseUrl').value;
+      const url = `${baseUrl}/api/v1/messages`;
+
+      console.log(`[${testName}] Making ${method} request to ${url}`);
+      console.log('[Headers]', headers);
+
+      const options = {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers
+        }
+      };
+
+      if (method === 'POST' && body) {
+        options.body = JSON.stringify(body);
+      }
+
+      try {
+        const response = await fetch(url, options);
+        const text = await response.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = text;
+        }
+
+        return { response, data };
+      } catch (error) {
+        console.error(`[${testName}] Error:`, error);
+        return { error };
+      }
+    }
+
+    function addTestResult(name, passed, details) {
+      const container = document.getElementById('testResults');
+      const item = document.createElement('div');
+      item.className = 'test-item';
+      item.innerHTML = `
+        <span class="test-icon">${passed ? '✅' : '❌'}</span>
+        <span class="test-name">${name}</span>
+      `;
+
+      if (details) {
+        const pre = document.createElement('pre');
+        pre.textContent = details;
+        pre.style.marginTop = '10px';
+        pre.style.fontSize = '12px';
+        item.appendChild(pre);
+      }
+
+      container.appendChild(item);
+    }
+
+    async function runTests() {
+      const apiKey = document.getElementById('apiKey').value;
+      const message = document.getElementById('message').value;
+
+      if (!apiKey) {
+        alert('Please enter a CacheGPT API key');
+        return;
+      }
+
+      const baseUrl = document.getElementById('baseUrl').value;
+      const testBody = {
+        model: 'claude-sonnet-4-5-20250929',
+        max_tokens: 100,
+        messages: [{ role: 'user', content: message }]
+      };
+
+      // Show loading
+      document.getElementById('loading').classList.add('show');
+      document.getElementById('output').classList.remove('show');
+      document.getElementById('testResults').innerHTML = '';
+      document.getElementById('testBtn').disabled = true;
+
+      // Test 1: CORS Preflight
+      console.log('Test 1: CORS Preflight');
+      const { response: preflightRes, error: preflightErr } = await makeRequest(
+        'CORS Preflight',
+        {
+          'Access-Control-Request-Method': 'POST',
+          'Access-Control-Request-Headers': 'content-type,x-api-key'
+        },
+        null,
+        'OPTIONS'
+      );
+
+      if (preflightErr) {
+        addTestResult('CORS Preflight', false, `Error: ${preflightErr.message}`);
+      } else {
+        const allowOrigin = preflightRes.headers.get('access-control-allow-origin');
+        const allowHeaders = preflightRes.headers.get('access-control-allow-headers');
+        const hasApiKey = allowHeaders?.toLowerCase().includes('x-api-key');
+
+        addTestResult(
+          'CORS Preflight',
+          preflightRes.status === 200 && allowOrigin && hasApiKey,
+          `Status: ${preflightRes.status}\nAllow-Origin: ${allowOrigin}\nAllow-Headers: ${allowHeaders}`
+        );
+      }
+
+      // Test 2: Valid API Key
+      console.log('Test 2: Valid API Key');
+      const { response: validRes, data: validData, error: validErr } = await makeRequest(
+        'Valid API Key',
+        { 'x-api-key': apiKey },
+        testBody
+      );
+
+      if (validErr) {
+        addTestResult('Valid API Key', false, `Error: ${validErr.message}`);
+      } else {
+        const passed = validRes.status === 200;
+        const preview = validData?.content?.[0]?.text?.substring(0, 100) || JSON.stringify(validData).substring(0, 100);
+        addTestResult('Valid API Key', passed, `Status: ${validRes.status}\nResponse: ${preview}`);
+      }
+
+      // Test 3: Missing Header
+      console.log('Test 3: Missing Header');
+      const { response: missingRes, data: missingData, error: missingErr } = await makeRequest(
+        'Missing Header',
+        {},
+        testBody
+      );
+
+      if (missingErr) {
+        addTestResult('Missing Header (expect 401)', true, 'CORS blocked (expected for missing auth)');
+      } else {
+        addTestResult(
+          'Missing Header (expect 401)',
+          missingRes.status === 401,
+          `Status: ${missingRes.status}\nError: ${missingData?.error}`
+        );
+      }
+
+      // Test 4: Wrong Header Name
+      console.log('Test 4: Wrong Header Name');
+      const { response: wrongRes, data: wrongData, error: wrongErr } = await makeRequest(
+        'Wrong Header Name',
+        { 'Authorization': `Bearer ${apiKey}` },
+        testBody
+      );
+
+      if (wrongErr) {
+        addTestResult('Wrong Header Name (expect 401)', true, 'CORS blocked (expected for wrong auth)');
+      } else {
+        addTestResult(
+          'Wrong Header Name (expect 401)',
+          wrongRes.status === 401,
+          `Status: ${wrongRes.status}\nError: ${wrongData?.error}`
+        );
+      }
+
+      // Test 5: Invalid Format
+      console.log('Test 5: Invalid Format');
+      const { response: invalidRes, data: invalidData, error: invalidErr } = await makeRequest(
+        'Invalid Format',
+        { 'x-api-key': 'sk-invalid-format' },
+        testBody
+      );
+
+      if (invalidErr) {
+        addTestResult('Invalid Format (expect 401)', true, 'CORS blocked (expected for invalid key)');
+      } else {
+        addTestResult(
+          'Invalid Format (expect 401)',
+          invalidRes.status === 401,
+          `Status: ${invalidRes.status}\nError: ${invalidData?.error}`
+        );
+      }
+
+      // Hide loading, show results
+      document.getElementById('loading').classList.remove('show');
+      document.getElementById('output').classList.add('show');
+      document.getElementById('testBtn').disabled = false;
+    }
+  </script>
+</body>
+</html>

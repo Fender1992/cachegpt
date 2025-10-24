@@ -85,3 +85,5 @@ Thumbs.db
 temp/
 tmp/.next/
 .next/
+.vercel
+.env*.local

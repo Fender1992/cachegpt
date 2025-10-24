@@ -12,6 +12,7 @@ import CacheToast from '@/components/chat/CacheToast'
 import ShareButton from '@/components/chat/ShareButton'
 import ConversationReferenceButton from '@/components/chat/ConversationReferenceButton'
 import MarkdownMessage from '@/components/chat/MarkdownMessage'
+import MobileChatModal from '@/components/chat/MobileChatModal'
 import { error as logError } from '@/lib/logger'
 import { isFeatureEnabled } from '@/lib/featureFlags'
 
@@ -69,6 +70,8 @@ function ChatPageContent() {
   const [currentMode, setCurrentMode] = useState<any>(null)
   const [shareEnabled, setShareEnabled] = useState(false)
   const [referencedConversationIds, setReferencedConversationIds] = useState<string[]>([])
+  const [mobileModalOpen, setMobileModalOpen] = useState(false)
+  const [mobileModalMinimized, setMobileModalMinimized] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -784,14 +787,9 @@ function ChatPageContent() {
 
   const ProviderIcon = providerIcons[userProfile.selected_provider as keyof typeof providerIcons] || Bot
 
-  return (
-    <div
-      className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-slate-900 dark:to-gray-900 flex flex-col overflow-hidden"
-      style={{
-        height: '100dvh', // Dynamic viewport height for mobile browsers
-        minHeight: '-webkit-fill-available' // Safari fallback
-      }}
-    >
+  // Chat content component to be reused in both desktop and mobile views
+  const ChatContent = () => (
+    <>
       {/* Header */}
       <div className="flex-shrink-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm relative z-50">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
@@ -1245,7 +1243,68 @@ function ChatPageContent() {
           duration={4000}
         />
       )}
-    </div>
+    </>
+  )
+
+  return (
+    <>
+      {/* Desktop View - Always show */}
+      <div
+        className="hidden md:flex bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-slate-900 dark:to-gray-900 flex-col overflow-hidden"
+        style={{
+          height: '100dvh',
+          minHeight: '-webkit-fill-available'
+        }}
+      >
+        <ChatContent />
+      </div>
+
+      {/* Mobile View - Landing Page with Chat Button */}
+      <div className="md:hidden min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-slate-900 dark:to-gray-900 flex flex-col items-center justify-center p-6">
+        <div className="text-center space-y-6 max-w-md">
+          <ProviderIcon className="w-20 h-20 text-blue-600 dark:text-blue-400 mx-auto" />
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
+            CacheGPT
+          </h1>
+          <p className="text-lg text-gray-600 dark:text-gray-400">
+            Smart AI chat with caching technology
+          </p>
+          <button
+            onClick={() => setMobileModalOpen(true)}
+            className="w-full px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl shadow-lg transition-all text-lg"
+          >
+            Start Chatting
+          </button>
+          <div className="flex gap-3 justify-center pt-4">
+            <button
+              onClick={() => router.push('/')}
+              className="px-6 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors border border-gray-300 dark:border-gray-700 rounded-lg"
+            >
+              Home
+            </button>
+            <button
+              onClick={handleSettings}
+              className="px-6 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors border border-gray-300 dark:border-gray-700 rounded-lg"
+            >
+              Settings
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Chat Modal */}
+      <MobileChatModal
+        isOpen={mobileModalOpen}
+        isMinimized={mobileModalMinimized}
+        onClose={() => {
+          setMobileModalOpen(false)
+          setMobileModalMinimized(false)
+        }}
+        onToggleMinimize={() => setMobileModalMinimized(!mobileModalMinimized)}
+      >
+        <ChatContent />
+      </MobileChatModal>
+    </>
   )
 }
 

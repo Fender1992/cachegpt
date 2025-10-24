@@ -749,10 +749,37 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../app/api/user/provider-capabilities/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/user/provider-capabilities">> = Specific
+  const handler = {} as typeof import("../../app/api/user/provider-capabilities/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../app/api/v1/messages/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/v1/messages">> = Specific
+  const handler = {} as typeof import("../../app/api/v1/messages/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../app/api/v1/usage/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/v1/usage">> = Specific
   const handler = {} as typeof import("../../app/api/v1/usage/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../app/api/v2/unified-chat-stream/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/v2/unified-chat-stream">> = Specific
+  const handler = {} as typeof import("../../app/api/v2/unified-chat-stream/route.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check
