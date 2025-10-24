@@ -161,7 +161,15 @@ function ChatPageContent() {
 
   const loadConversations = async () => {
     try {
-      // Fetch conversations - API will handle auth check
+      // Get user ID from current session
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user?.id) {
+        console.log('[CHAT] No session found, skipping conversations load')
+        setConversations([])
+        return
+      }
+
+      // Fetch conversations - API will handle auth check via cookies
       const response = await fetch(`/api/conversations?limit=20&platform=web`, {
         credentials: 'include'
       })
