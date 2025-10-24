@@ -168,6 +168,17 @@ async function validateBearerToken(token: string): Promise<UnifiedSession | null
 async function validateCookieSession(): Promise<UnifiedSession | null> {
   try {
     const cookieStore = await cookies()
+    const allCookies = cookieStore.getAll()
+
+    // Debug logging
+    console.log('[AUTH-RESOLVER] validateCookieSession: Checking cookies...')
+    console.log('[AUTH-RESOLVER] Total cookies found:', allCookies.length)
+    console.log('[AUTH-RESOLVER] Cookie names:', allCookies.map(c => c.name).join(', '))
+
+    // Look for Supabase auth cookies
+    const supabaseCookies = allCookies.filter(c => c.name.includes('supabase') || c.name.includes('sb-'))
+    console.log('[AUTH-RESOLVER] Supabase cookies found:', supabaseCookies.length)
+
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -185,6 +196,13 @@ async function validateCookieSession(): Promise<UnifiedSession | null> {
       }
     );
     const { data: { session }, error } = await supabase.auth.getSession();
+
+    console.log('[AUTH-RESOLVER] Session result:', {
+      hasSession: !!session,
+      hasUser: !!session?.user,
+      userId: session?.user?.id,
+      error: error?.message
+    });
 
     if (error) {
       console.error('Cookie session error:', error.message);

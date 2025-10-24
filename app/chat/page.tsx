@@ -161,21 +161,41 @@ function ChatPageContent() {
 
   const loadConversations = async () => {
     try {
+      console.log('[CHAT] loadConversations: Starting...')
+
       // Get user ID from current session
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+
+      console.log('[CHAT] loadConversations: Session check', {
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        userId: session?.user?.id,
+        error: sessionError?.message
+      })
+
       if (!session?.user?.id) {
         console.log('[CHAT] No session found, skipping conversations load')
         setConversations([])
         return
       }
 
+      console.log('[CHAT] loadConversations: Making API call for user:', session.user.id)
+
       // Fetch conversations - API will handle auth check via cookies
       const response = await fetch(`/api/conversations?limit=20&platform=web`, {
         credentials: 'include'
       })
 
+      console.log('[CHAT] loadConversations: API response status:', response.status)
+
       if (response.ok) {
         const data = await response.json()
+
+        console.log('[CHAT] loadConversations: API response data:', {
+          conversationsCount: data.conversations?.length || 0,
+          requiresAuth: data.requiresAuth,
+          userIdInResponse: data.user_id
+        })
 
         // Check if user needs to authenticate for conversation history
         if (data.requiresAuth) {
@@ -183,6 +203,7 @@ function ChatPageContent() {
           setConversations([])
           // Don't show toast on page load - only when user clicks History button
         } else {
+          console.log('[CHAT] Setting conversations:', data.conversations?.length || 0, 'items')
           setConversations(data.conversations || [])
         }
       } else {
