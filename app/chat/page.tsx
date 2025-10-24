@@ -194,7 +194,8 @@ function ChatPageContent() {
         console.log('[CHAT] loadConversations: API response data:', {
           conversationsCount: data.conversations?.length || 0,
           requiresAuth: data.requiresAuth,
-          userIdInResponse: data.user_id
+          userIdInResponse: data.user_id,
+          fullResponse: data
         })
 
         // Check if user needs to authenticate for conversation history

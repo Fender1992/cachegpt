@@ -15,6 +15,17 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0')
     const platform = searchParams.get('platform') || null
 
+    // Debug: Check what cookies we're receiving
+    const cookieHeader = request.headers.get('cookie')
+    console.log('[CONVERSATIONS] Cookie header received:', cookieHeader ? 'YES' : 'NO')
+    if (cookieHeader) {
+      const cookieCount = cookieHeader.split(';').length
+      console.log('[CONVERSATIONS] Number of cookies:', cookieCount)
+      // Log cookie names (but not values for security)
+      const cookieNames = cookieHeader.split(';').map(c => c.trim().split('=')[0])
+      console.log('[CONVERSATIONS] Cookie names:', cookieNames.join(', '))
+    }
+
     // Always authenticate - never trust client-supplied user_id
     const authResult = await resolveAuthentication(request)
 
