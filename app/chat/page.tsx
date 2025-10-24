@@ -11,6 +11,7 @@ import ExamplePrompts from '@/components/chat/ExamplePrompts'
 import CacheToast from '@/components/chat/CacheToast'
 import ShareButton from '@/components/chat/ShareButton'
 import ConversationReferenceButton from '@/components/chat/ConversationReferenceButton'
+import MarkdownMessage from '@/components/chat/MarkdownMessage'
 import { error as logError } from '@/lib/logger'
 import { isFeatureEnabled } from '@/lib/featureFlags'
 
@@ -882,12 +883,12 @@ function ChatPageContent() {
 
       {/* Messages */}
       <div
-        className={`flex-1 overflow-y-auto p-4 pb-safe transition-all duration-300 ${showHistory ? 'sm:mr-80 mr-0' : ''}`}
+        className={`flex-1 overflow-y-auto p-4 pb-safe transition-all duration-300 bg-gray-50 dark:bg-gray-900/50 ${showHistory ? 'sm:mr-80 mr-0' : ''}`}
         role="log"
         aria-live="polite"
         aria-label="Chat messages"
       >
-        <div className="max-w-4xl mx-auto space-y-4 pb-4">
+        <div className="max-w-4xl mx-auto space-y-5 pb-4">
           {/* Mode Banner */}
           {currentMode && (
             <div className="mb-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl border-2 border-purple-200 dark:border-purple-700">
@@ -940,14 +941,18 @@ function ChatPageContent() {
               key={idx}
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              <div className={`max-w-[80%] rounded-lg p-4 shadow-sm ${
+              <div className={`max-w-[85%] rounded-lg shadow-sm ${
                 msg.role === 'user'
-                  ? 'bg-blue-600 text-white ml-auto'
+                  ? 'bg-blue-600 text-white ml-auto px-5 py-3.5'
                   : msg.error
-                    ? 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800'
-                    : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700'
+                    ? 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800 px-5 py-3.5'
+                    : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 px-6 py-4'
               }`}>
-                <p className="whitespace-pre-wrap">{msg.content}</p>
+                {msg.role === 'user' ? (
+                  <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{msg.content}</p>
+                ) : (
+                  <MarkdownMessage content={msg.content} />
+                )}
                 {msg.error && msg.retryMessage && (
                   <button
                     onClick={() => handleRetry(msg.retryMessage!)}
