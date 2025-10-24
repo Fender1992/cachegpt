@@ -181,9 +181,22 @@ function ChatPageContent() {
 
       console.log('[CHAT] loadConversations: Making API call for user:', session.user.id)
 
-      // Fetch conversations - API will handle auth check via cookies
+      // Fetch conversations - send Bearer token since cookies aren't working in App Router
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      }
+
+      // Add Authorization header with session token
+      if (session.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+        console.log('[CHAT] loadConversations: Sending Bearer token')
+      } else {
+        console.warn('[CHAT] loadConversations: No access token in session!')
+      }
+
       const response = await fetch(`/api/conversations?limit=20&platform=web`, {
-        credentials: 'include'
+        headers,
+        credentials: 'include' // Keep this in case cookies work in the future
       })
 
       console.log('[CHAT] loadConversations: API response status:', response.status)
