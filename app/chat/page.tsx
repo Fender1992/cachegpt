@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
-import { Send, Bot, Brain, Sparkles, Zap, Settings, LogOut, History, RefreshCw, Loader2, Home, Trash2, ThumbsUp, ThumbsDown, AlertTriangle } from 'lucide-react'
+import { Send, Bot, Brain, Sparkles, Zap, Settings, LogOut, History, RefreshCw, Loader2, Home, Trash2, ThumbsUp, ThumbsDown, AlertTriangle, Rocket, Gauge } from 'lucide-react'
 import BugReportButton from '@/components/bug-report-button'
 import ProviderSelector from '@/components/provider-selector'
 import Toast from '@/components/toast'
@@ -53,6 +53,7 @@ function ChatPageContent() {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null) // Track active conversation for current chat session
   const [showHistory, setShowHistory] = useState(false)
   const [selectedProvider, setSelectedProvider] = useState('auto')
+  const [qualityMode, setQualityMode] = useState<'fast' | 'best'>('fast') // Quality mode toggle
   const [isLoading, setIsLoading] = useState(false)
   const [userProfile, setUserProfile] = useState<any>(null)
   const [usingPremium, setUsingPremium] = useState(false)
@@ -160,22 +161,26 @@ function ChatPageContent() {
 
   const loadConversations = async () => {
     try {
-      // Get user ID from current session
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.user?.id) {
-        console.warn('[CHAT] No session found, skipping conversations load')
-        return
-      }
-
-      const userId = session.user.id
-
-      const response = await fetch(`/api/conversations?limit=20&platform=web&user_id=${userId}`, {
+      // Fetch conversations - API will handle auth check
+      const response = await fetch(`/api/conversations?limit=20&platform=web`, {
         credentials: 'include'
       })
 
       if (response.ok) {
         const data = await response.json()
-        setConversations(data.conversations || [])
+
+        // Check if user needs to authenticate for conversation history
+        if (data.requiresAuth) {
+          console.log('[CHAT] Conversation history requires authentication')
+          setConversations([])
+          // Show friendly message prompting login for history
+          setToast({
+            message: 'Login or signup to save and access conversation history',
+            type: 'info'
+          })
+        } else {
+          setConversations(data.conversations || [])
+        }
       } else {
         const errorData = await response.json().catch(() => ({}))
         console.error('[CHAT] Failed to load conversations:', response.status, errorData)
@@ -501,7 +506,8 @@ function ChatPageContent() {
         messages: [...messages, newUserMessage],
         preferredProvider: selectedProvider === 'auto' ? undefined : selectedProvider,
         conversationId: activeConversationId, // Send current conversation ID if exists
-        referencedConversations: referencedConversationIds.length > 0 ? referencedConversationIds : undefined
+        referencedConversations: referencedConversationIds.length > 0 ? referencedConversationIds : undefined,
+        qualityMode // Include quality mode in request
       }
 
       // Add mode's optimization parameters if a mode is active
@@ -685,6 +691,29 @@ function ChatPageContent() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Quality Mode Toggle */}
+            <button
+              onClick={() => setQualityMode(qualityMode === 'fast' ? 'best' : 'fast')}
+              className={`px-3 py-1.5 text-sm rounded-lg transition-all flex items-center gap-1.5 ${
+                qualityMode === 'best'
+                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+              }`}
+              title={qualityMode === 'fast' ? 'Fast Mode (Click for Best Quality)' : 'Best Mode - Using Self-MoA'}
+              aria-label={`Quality mode: ${qualityMode}`}
+            >
+              {qualityMode === 'fast' ? (
+                <>
+                  <Zap className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Fast</span>
+                </>
+              ) : (
+                <>
+                  <Rocket className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Best</span>
+                </>
+              )}
+            </button>
             <button
               onClick={startNewConversation}
               className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors hidden sm:block"
@@ -694,7 +723,20 @@ function ChatPageContent() {
               New Chat
             </button>
             <button
-              onClick={() => setShowHistory(!showHistory)}
+              onClick={async () => {
+                // Check if user is authenticated before showing history
+                const { data: { session } } = await supabase.auth.getSession()
+                if (!session?.user?.id) {
+                  setToast({
+                    message: 'Login or signup to access conversation history',
+                    type: 'info'
+                  })
+                  // Redirect to login after short delay so user sees the toast
+                  setTimeout(() => router.push('/login'), 1500)
+                } else {
+                  setShowHistory(!showHistory)
+                }
+              }}
               className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors relative"
               title="Chat History"
               aria-label={showHistory ? "Close chat history" : "Open chat history"}

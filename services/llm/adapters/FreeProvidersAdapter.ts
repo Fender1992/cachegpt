@@ -19,14 +19,125 @@ export class FreeProvidersAdapter implements LLMAdapter {
   name = 'free';
 
   async chat(params: LLMChatParams): Promise<LLMChatResponse> {
-    const { messages, temperature, maxTokens, systemPrompt } = params;
+    const { messages, temperature, maxTokens, systemPrompt, qualityMode = 'fast' } = params;
 
     // Prepare messages with system prompt
     const messagesWithSystem = systemPrompt
       ? [{ role: 'system' as const, content: systemPrompt }, ...messages]
       : messages;
 
-    // Get available providers
+    // Route to appropriate method based on quality mode
+    if (qualityMode === 'best') {
+      return this.chatWithSelfMoA(messagesWithSystem, temperature, maxTokens);
+    } else {
+      return this.chatFastMode(messagesWithSystem, temperature, maxTokens);
+    }
+  }
+
+  /**
+   * Fast Mode: First-success failover (original behavior)
+   */
+  private async chatFastMode(
+    messages: any[],
+    temperature?: number,
+    maxTokens?: number
+  ): Promise<LLMChatResponse> {
+    const providers = this.getProviders();
+
+    // Shuffle providers for load balancing
+    const shuffledProviders = [...providers].sort(() => Math.random() - 0.5);
+
+    console.log('[FREE-PROVIDER] Fast mode - Load balancing order:', shuffledProviders.map(p => p.name).join(' -> '));
+
+    // Try each provider
+    for (const provider of shuffledProviders) {
+      try {
+        const result = await this.callProvider(provider, messages, temperature, maxTokens);
+        return { ...result, qualityMode: 'fast' };
+      } catch (error: any) {
+        console.error(`[FREE-PROVIDER] ${provider.name} failed:`, error.message);
+        continue;
+      }
+    }
+
+    throw new Error('All free providers failed');
+  }
+
+  /**
+   * Best Mode: Self-MoA - Query 3 diverse models + aggregate
+   */
+  private async chatWithSelfMoA(
+    messages: any[],
+    temperature?: number,
+    maxTokens?: number
+  ): Promise<LLMChatResponse> {
+    const providers = this.getProviders();
+
+    if (providers.length < 3) {
+      console.warn('[FREE-PROVIDER] Not enough providers for Self-MoA, falling back to fast mode');
+      return this.chatFastMode(messages, temperature, maxTokens);
+    }
+
+    console.log('[FREE-PROVIDER] Best mode - Using Self-MoA with 3 diverse models');
+
+    // Select 3 diverse providers (prefer different model sizes)
+    const selectedProviders = this.selectDiverseProviders(providers, 3);
+
+    // Query all 3 in parallel with different temperatures for diversity
+    const temperatures = [0.9, 0.7, 0.5]; // creative, balanced, focused
+    const responsePromises = selectedProviders.map((provider, index) =>
+      this.callProvider(provider, messages, temperatures[index], maxTokens)
+        .then(response => ({ success: true, response, provider: provider.name }))
+        .catch(error => ({ success: false, error: error.message, provider: provider.name }))
+    );
+
+    const results = await Promise.all(responsePromises);
+    const successfulResults = results.filter(r => r.success) as Array<{ success: true; response: LLMChatResponse; provider: string }>;
+
+    if (successfulResults.length === 0) {
+      console.error('[FREE-PROVIDER] All Self-MoA providers failed, trying fast mode fallback');
+      return this.chatFastMode(messages, temperature, maxTokens);
+    }
+
+    console.log(`[FREE-PROVIDER] Self-MoA: ${successfulResults.length}/${selectedProviders.length} responses successful`);
+
+    // If only 1 response, return it directly
+    if (successfulResults.length === 1) {
+      return { ...successfulResults[0].response, qualityMode: 'best' };
+    }
+
+    // Aggregate multiple responses
+    const aggregationPrompt = this.buildAggregationPrompt(successfulResults, messages);
+
+    // Use fastest provider (Groq) for aggregation
+    const aggregator = providers.find(p => p.name === 'groq') || providers[0];
+
+    try {
+      const aggregatedResponse = await this.callProvider(aggregator, aggregationPrompt, 0.3, maxTokens);
+
+      return {
+        content: aggregatedResponse.content,
+        provider: 'self-moa',
+        model: 'aggregated',
+        qualityMode: 'best',
+        aggregatedFrom: successfulResults.map(r => `${r.provider}(${r.response.model})`),
+        usage: {
+          promptTokens: successfulResults.reduce((sum, r) => sum + (r.response.usage?.promptTokens || 0), 0),
+          completionTokens: successfulResults.reduce((sum, r) => sum + (r.response.usage?.completionTokens || 0), 0),
+          totalTokens: successfulResults.reduce((sum, r) => sum + (r.response.usage?.totalTokens || 0), 0),
+        },
+      };
+    } catch (error: any) {
+      console.error('[FREE-PROVIDER] Aggregation failed, returning best individual response');
+      // Return the first successful response if aggregation fails
+      return { ...successfulResults[0].response, qualityMode: 'best' };
+    }
+  }
+
+  /**
+   * Get all available providers
+   */
+  private getProviders(): ProviderConfig[] {
     const providers: ProviderConfig[] = [];
 
     if (LLM_CONFIG.free.groq.enabled) {
@@ -48,11 +159,15 @@ export class FreeProvidersAdapter implements LLMAdapter {
     }
 
     if (LLM_CONFIG.free.huggingface.enabled) {
-      providers.push({
-        name: 'huggingface',
-        apiKey: LLM_CONFIG.free.huggingface.apiKey,
-        endpoint: 'https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1',
-        model: 'mistralai/Mixtral-8x7B-Instruct-v0.1',
+      const hfModels = LLM_CONFIG.free.huggingface.models || ['meta-llama/Llama-3.3-70B-Instruct'];
+
+      hfModels.forEach((model, index) => {
+        providers.push({
+          name: `huggingface-${index + 1}`,
+          apiKey: LLM_CONFIG.free.huggingface.apiKey,
+          endpoint: 'https://router.huggingface.co/v1/chat/completions',
+          model: model,
+        });
       });
     }
 
@@ -60,23 +175,67 @@ export class FreeProvidersAdapter implements LLMAdapter {
       throw new Error('No free providers configured');
     }
 
-    // Shuffle providers for load balancing
-    const shuffledProviders = [...providers].sort(() => Math.random() - 0.5);
+    return providers;
+  }
 
-    console.log('[FREE-PROVIDER] Load balancing order:', shuffledProviders.map(p => p.name).join(' -> '));
+  /**
+   * Select diverse providers (prefer different model sizes)
+   */
+  private selectDiverseProviders(providers: ProviderConfig[], count: number): ProviderConfig[] {
+    // Prioritize diversity: 1 large model (70B), 1 medium (8B), 1 small (7B)
+    const large = providers.find(p => p.model.includes('70') || p.name === 'groq');
+    const medium = providers.find(p => p.model.includes('8B'));
+    const small = providers.find(p => p.model.includes('7B') || p.model.includes('Qwen'));
 
-    // Try each provider
-    for (const provider of shuffledProviders) {
-      try {
-        const result = await this.callProvider(provider, messagesWithSystem, temperature, maxTokens);
-        return result;
-      } catch (error: any) {
-        console.error(`[FREE-PROVIDER] ${provider.name} failed:`, error.message);
-        continue;
-      }
+    const selected: ProviderConfig[] = [];
+    if (large) selected.push(large);
+    if (medium) selected.push(medium);
+    if (small && !selected.includes(small)) selected.push(small);
+
+    // Fill remaining slots with random providers
+    while (selected.length < count && selected.length < providers.length) {
+      const remaining = providers.filter(p => !selected.includes(p));
+      if (remaining.length === 0) break;
+      selected.push(remaining[Math.floor(Math.random() * remaining.length)]);
     }
 
-    throw new Error('All free providers failed');
+    return selected.slice(0, count);
+  }
+
+  /**
+   * Build aggregation prompt from multiple responses
+   */
+  private buildAggregationPrompt(
+    results: Array<{ response: LLMChatResponse; provider: string }>,
+    originalMessages: any[]
+  ): any[] {
+    const lastUserMessage = originalMessages.filter(m => m.role === 'user').pop()?.content || 'the question';
+
+    const responsesText = results.map((r, i) =>
+      `Response ${i + 1} (from ${r.provider} using ${r.response.model}):\n${r.response.content}`
+    ).join('\n\n---\n\n');
+
+    const aggregationMessage = {
+      role: 'user' as const,
+      content: `You are an expert response aggregator. You have received ${results.length} different AI responses to the following question:
+
+"${lastUserMessage}"
+
+Here are the responses:
+
+${responsesText}
+
+Your task is to synthesize these responses into a single, superior answer that:
+1. Combines the best insights from all responses
+2. Resolves any contradictions by identifying the most accurate information
+3. Eliminates redundancy while preserving unique valuable points
+4. Presents information in a clear, well-structured format
+5. Maintains accuracy and doesn't introduce new unsupported claims
+
+Provide only the synthesized response, without meta-commentary about the aggregation process.`
+    };
+
+    return [aggregationMessage];
   }
 
   private async callProvider(
@@ -91,26 +250,18 @@ export class FreeProvidersAdapter implements LLMAdapter {
       'Authorization': `Bearer ${provider.apiKey}`,
     };
 
-    if (provider.name === 'huggingface') {
-      body = {
-        inputs: messages.map(m => m.content).join('\n'),
-        parameters: {
-          max_new_tokens: maxTokens || 1000,
-          temperature: temperature ?? 0.7,
-        },
-      };
-    } else {
-      body = {
-        model: provider.model,
-        messages,
-        temperature: temperature ?? 0.7,
-        max_tokens: maxTokens || 1000,
-      };
+    // All providers now use OpenAI-compatible format
+    body = {
+      model: provider.model,
+      messages,
+      temperature: temperature ?? 0.7,
+      max_tokens: maxTokens || 1000,
+    };
 
-      if (provider.name === 'openrouter') {
-        headers['HTTP-Referer'] = 'https://cachegpt.app';
-        headers['X-Title'] = 'CacheGPT';
-      }
+    // Provider-specific headers
+    if (provider.name === 'openrouter') {
+      headers['HTTP-Referer'] = 'https://cachegpt.app';
+      headers['X-Title'] = 'CacheGPT';
     }
 
     const response = await fetch(provider.endpoint, {
@@ -125,13 +276,9 @@ export class FreeProvidersAdapter implements LLMAdapter {
     }
 
     const data = await response.json();
-    let content: string;
 
-    if (provider.name === 'huggingface') {
-      content = data[0]?.generated_text || data.generated_text || 'No response';
-    } else {
-      content = data.choices?.[0]?.message?.content || 'No response';
-    }
+    // All providers now use OpenAI-compatible format
+    const content = data.choices?.[0]?.message?.content || 'No response';
 
     return {
       content,

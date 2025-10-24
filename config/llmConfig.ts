@@ -35,6 +35,7 @@ export interface FreeProvidersConfig {
   huggingface: {
     enabled: boolean;
     apiKey: string;
+    models?: string[]; // Optional: specify which models to use
   };
 }
 
@@ -120,6 +121,13 @@ export const LLM_CONFIG: LLMConfigType = {
     huggingface: {
       enabled: !!process.env.HUGGINGFACE_API_KEY,
       apiKey: process.env.HUGGINGFACE_API_KEY || '',
+      // Multiple models for diversity and load balancing
+      models: [
+        'meta-llama/Llama-3.3-70B-Instruct',      // High quality - 70B parameters
+        'meta-llama/Llama-3.1-8B-Instruct',       // Fast & efficient - 8B parameters
+        'Qwen/Qwen2.5-7B-Instruct',               // Excellent for coding - 7B parameters
+        'mistralai/Mistral-7B-Instruct-v0.3',     // Good general purpose - 7B parameters
+      ],
     },
   },
 

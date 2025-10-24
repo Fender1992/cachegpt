@@ -9,12 +9,15 @@ export interface LLMMessage {
   content: string;
 }
 
+export type ChatQualityMode = 'fast' | 'best';
+
 export interface LLMChatParams {
   messages: LLMMessage[];
   model?: string;
   temperature?: number;
   maxTokens?: number;
   systemPrompt?: string;
+  qualityMode?: ChatQualityMode; // 'fast' = first-success, 'best' = Self-MoA aggregation
 }
 
 export interface LLMChatResponse {
@@ -26,6 +29,8 @@ export interface LLMChatResponse {
     completionTokens?: number;
     totalTokens?: number;
   };
+  qualityMode?: ChatQualityMode;
+  aggregatedFrom?: string[]; // List of providers used in aggregation (for 'best' mode)
 }
 
 export interface LLMAdapter {

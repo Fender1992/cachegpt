@@ -14,26 +14,24 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50')
     const offset = parseInt(searchParams.get('offset') || '0')
     const platform = searchParams.get('platform') || null
-    const userIdParam = searchParams.get('user_id') // Allow passing user_id directly
 
-    let userId: string
+    // Always authenticate - never trust client-supplied user_id
+    const authResult = await resolveAuthentication(request)
 
-    // If user_id is provided directly, use it (trusted from frontend with valid session)
-    if (userIdParam) {
-      userId = userIdParam
-      console.log('[CONVERSATIONS API] Using provided user_id:', userId)
-    } else {
-      // Fall back to auth resolver
-      const authResult = await resolveAuthentication(request)
-
-      if (isAuthError(authResult)) {
-        console.error('[CONVERSATIONS API] Auth failed:', authResult.error)
-        return NextResponse.json({ error: authResult.error }, { status: authResult.status })
-      }
-
-      userId = getUserId(authResult)
-      console.log('[CONVERSATIONS API] User authenticated via resolver:', userId)
+    if (isAuthError(authResult)) {
+      console.log('[CONVERSATIONS API] Unauthenticated request - returning empty list')
+      // Return empty list for unauthenticated users instead of 401
+      // Frontend can detect this and show login prompt
+      return NextResponse.json({
+        conversations: [],
+        requiresAuth: true,
+        message: 'Login or signup to save and access conversation history',
+        total: 0
+      })
     }
+
+    const userId = getUserId(authResult)
+    console.log('[CONVERSATIONS API] User authenticated:', userId)
 
     // Create Supabase client with service key for database operations
     const supabase = createClient(

@@ -146,9 +146,40 @@ async function callFreeProvider(messages: any[]): Promise<{ response: string; pr
 
 /**
  * Test chat endpoint with specific user ID
+ * RESTRICTED: Admin-only endpoint for testing purposes
  */
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Require admin authentication
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized - Admin authentication required' }, { status: 401 });
+    }
+
+    const token = authHeader.substring(7);
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    );
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized - Invalid token' }, { status: 401 });
+    }
+
+    // Check if user is admin
+    const adminUserIds = (process.env.ADMIN_USER_IDS || '').split(',').map(id => id.trim()).filter(Boolean);
+    if (!adminUserIds.includes(user.id)) {
+      console.warn(`[TEST-CHAT] Unauthorized access attempt by user: ${user.id}`);
+      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+    }
+
+    // In production, require explicit enable flag
+    if (process.env.NODE_ENV === 'production' && process.env.ENABLE_TEST_ENDPOINTS !== 'true') {
+      return NextResponse.json({ error: 'Test endpoint disabled in production' }, { status: 403 });
+    }
+
     const body = await request.json();
     const { messages, userId } = body;
 
@@ -160,7 +191,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'messages array is required' }, { status: 400 });
     }
 
-    console.log(`[TEST-CHAT] Request from user: ${userId}`);
+    console.log(`[TEST-CHAT] Admin ${user.id} testing for user: ${userId}`);
 
     const userMessage = messages[messages.length - 1]?.content;
     if (!userMessage) {
@@ -183,11 +214,6 @@ export async function POST(request: NextRequest) {
     );
 
     // Log usage
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_KEY!
-    );
-
     await supabase.from('usage').insert({
       user_id: userId,
       endpoint: '/api/test-chat-with-user',

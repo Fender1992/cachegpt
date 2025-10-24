@@ -1,6 +1,6 @@
 {
   "name": "cachegpt-dashboard",
-  "version": "11.11.0",
+  "version": "12.3.0",
   "private": true,
   "scripts": {
     "dev": "npx next dev",

@@ -2,11 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY!
-);
-
 // Generate a secure API key
 function generateApiKey(): string {
   const randomBytes = crypto.randomBytes(32);
@@ -28,13 +23,21 @@ export async function GET(req: NextRequest) {
     }
 
     const token = authHeader.substring(7);
+
+    // Create per-request client with user token (enforces RLS)
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    );
+
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Fetch user's API keys
+    // Fetch user's API keys with explicit user_id filter
+    // RLS policies should also enforce this at database level
     const { data: apiKeys, error } = await supabase
       .from('cachegpt_api_keys')
       .select('id, key_name, key_prefix, is_active, created_at, last_used_at, usage_count, expires_at')
@@ -62,6 +65,13 @@ export async function POST(req: NextRequest) {
     }
 
     const token = authHeader.substring(7);
+
+    // Create per-request client with user token
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    );
+
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
@@ -128,6 +138,13 @@ export async function DELETE(req: NextRequest) {
     }
 
     const token = authHeader.substring(7);
+
+    // Create per-request client with user token
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    );
+
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
@@ -141,7 +158,9 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Key ID is required' }, { status: 400 });
     }
 
-    // Delete the API key (RLS ensures user can only delete their own keys)
+    // Delete the API key with explicit user_id check
+    // IMPORTANT: Even with service key, always filter by user.id
+    // to prevent unauthorized deletion
     const { error } = await supabase
       .from('cachegpt_api_keys')
       .delete()

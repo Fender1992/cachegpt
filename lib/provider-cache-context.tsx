@@ -74,61 +74,48 @@ export function ProviderCacheProvider({ children }: { children: React.ReactNode 
 
       const { data: { session } } = await supabase.auth.getSession()
 
-      if (!session?.user) {
-        setProviders([{ provider: 'auto', hasApiKey: false }])
-        setCurrentUserId(null)
-        setLoading(false)
-        return
-      }
-
-      setCurrentUserId(session.user.id)
+      // Set user ID for cache management
+      const userId = session?.user?.id || null
+      setCurrentUserId(userId)
 
       // Try to load from cache first
-      const cachedProviders = loadFromCache(session.user.id)
-      if (cachedProviders) {
-        setProviders(cachedProviders)
-        setLoading(false)
-        return
+      if (userId) {
+        const cachedProviders = loadFromCache(userId)
+        if (cachedProviders) {
+          setProviders(cachedProviders)
+          setLoading(false)
+          return
+        }
       }
 
-      // Fetch from database
-      const { data: credentials, error: fetchError } = await supabase
-        .from('user_provider_credentials')
-        .select('provider, status, api_key, is_active')
-        .eq('user_id', session.user.id)
-        .or('status.eq.ready,is_active.eq.true')
-        .not('api_key', 'is', null)
+      // Fetch from server API (never exposes api_key values)
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      }
 
-      if (fetchError) {
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+      }
+
+      const response = await fetch('/api/user/provider-capabilities', {
+        headers,
+        credentials: 'include'
+      })
+
+      if (!response.ok) {
         setError('Failed to fetch providers')
         setProviders([{ provider: 'auto', hasApiKey: false }])
         setLoading(false)
         return
       }
 
-      // Build provider list
-      const providerList: UserProvider[] = [
-        { provider: 'auto', hasApiKey: false }
-      ]
-
-      if (credentials && credentials.length > 0) {
-        const providerMap: Record<string, string> = {
-          'claude': 'anthropic',
-          'chatgpt': 'openai',
-          'gemini': 'google',
-          'perplexity': 'perplexity'
-        }
-
-        credentials.forEach((cred) => {
-          const providerKey = providerMap[cred.provider] || cred.provider
-          if (!providerList.find(p => p.provider === providerKey)) {
-            providerList.push({ provider: providerKey, hasApiKey: true })
-          }
-        })
-      }
+      const data = await response.json()
+      const providerList: UserProvider[] = data.providers || [{ provider: 'auto', hasApiKey: false }]
 
       setProviders(providerList)
-      saveToCache(providerList, session.user.id)
+      if (userId) {
+        saveToCache(providerList, userId)
+      }
       setLoading(false)
     } catch (err) {
       setError('Error loading providers')

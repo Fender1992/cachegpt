@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // Simple in-memory rate limiting for Edge Runtime compatibility
+// WARNING: This implementation uses local Map storage which does NOT work
+// in multi-instance production deployments. Rate limits are per-instance only.
+//
+// TODO: Replace with shared backend for production:
+// - Option 1: Supabase table (cachegpt_rate_limits with user_id/ip, count, reset_time)
+// - Option 2: Redis/Upstash (if available)
+// - Option 3: Vercel KV (for Vercel deployments)
+//
+// For now: Disabled in production unless ENABLE_LOCAL_RATE_LIMIT=true
 const requestCounts = new Map<string, { count: number; resetTime: number }>();
 
 // Rate limit configuration
@@ -39,6 +48,13 @@ function cleanupOldEntries() {
 }
 
 export async function rateLimit(request: NextRequest) {
+  // Skip rate limiting in production multi-instance deployments
+  // (in-memory Map doesn't work across instances)
+  if (process.env.NODE_ENV === 'production' && process.env.ENABLE_LOCAL_RATE_LIMIT !== 'true') {
+    console.warn('[RATE-LIMIT] Local rate limiting disabled in production - requires shared backend');
+    return NextResponse.next();
+  }
+
   const ip = getClientIp(request);
   const pathname = request.nextUrl.pathname;
   const limit = getRateLimit(pathname);

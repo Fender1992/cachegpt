@@ -500,14 +500,27 @@ async function callFreeProvider(messages: any[]): Promise<{ response: string; pr
       apiKey: process.env.OPENROUTER_API_KEY,
       endpoint: 'https://openrouter.ai/api/v1/chat/completions',
       model: 'meta-llama/llama-4-maverick:free'  // Llama 4 Maverick 17B (128 experts, 400B total) - Released April 2025, MoE architecture, 1M token context
-    },
-    {
-      name: 'huggingface',
-      apiKey: process.env.HUGGINGFACE_API_KEY,
-      endpoint: 'https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1',
-      model: 'mistralai/Mixtral-8x7B-Instruct-v0.1'  // Mixtral 8x7B (stable fallback)
     }
   ];
+
+  // Add multiple HuggingFace models for diversity and load balancing
+  if (process.env.HUGGINGFACE_API_KEY) {
+    const hfModels = [
+      { name: 'huggingface-1', model: 'meta-llama/Llama-3.3-70B-Instruct', desc: 'High quality - 70B parameters' },
+      { name: 'huggingface-2', model: 'meta-llama/Llama-3.1-8B-Instruct', desc: 'Fast & efficient - 8B parameters' },
+      { name: 'huggingface-3', model: 'Qwen/Qwen2.5-7B-Instruct', desc: 'Excellent for coding - 7B parameters' },
+      { name: 'huggingface-4', model: 'mistralai/Mistral-7B-Instruct-v0.3', desc: 'Good general purpose - 7B parameters' },
+    ];
+
+    hfModels.forEach(hf => {
+      providers.push({
+        name: hf.name,
+        apiKey: process.env.HUGGINGFACE_API_KEY,
+        endpoint: 'https://router.huggingface.co/v1/chat/completions',
+        model: hf.model  // Multiple HuggingFace models
+      });
+    });
+  }
 
   // Shuffle providers for load balancing (prevents always hitting Groq first)
   const shuffledProviders = [...providers].sort(() => Math.random() - 0.5);
@@ -522,27 +535,23 @@ async function callFreeProvider(messages: any[]): Promise<{ response: string; pr
     try {
 
       let body: any;
-      let headers: any = { 'Content-Type': 'application/json' };
+      let headers: any = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${provider.apiKey}`
+      };
 
-      if (provider.name === 'huggingface') {
-        body = {
-          inputs: messages.map(m => m.content).join('\n'),
-          parameters: { max_new_tokens: 1000, temperature: 0.7 }
-        };
-        headers['Authorization'] = `Bearer ${provider.apiKey}`;
-      } else {
-        body = {
-          model: provider.model,
-          messages,
-          temperature: 0.7,
-          max_tokens: 1000
-        };
-        headers['Authorization'] = `Bearer ${provider.apiKey}`;
+      // All providers now use OpenAI-compatible format
+      body = {
+        model: provider.model,
+        messages,
+        temperature: 0.7,
+        max_tokens: 1000
+      };
 
-        if (provider.name === 'openrouter') {
-          headers['HTTP-Referer'] = 'https://cachegpt.app';
-          headers['X-Title'] = 'CacheGPT';
-        }
+      // Provider-specific headers
+      if (provider.name === 'openrouter') {
+        headers['HTTP-Referer'] = 'https://cachegpt.app';
+        headers['X-Title'] = 'CacheGPT';
       }
 
       const response = await fetch(provider.endpoint, {
@@ -559,13 +568,9 @@ async function callFreeProvider(messages: any[]): Promise<{ response: string; pr
       }
 
       const data = await response.json();
-      let responseText: string;
 
-      if (provider.name === 'huggingface') {
-        responseText = data[0]?.generated_text || data.generated_text || 'No response';
-      } else {
-        responseText = data.choices[0]?.message?.content || 'No response';
-      }
+      // All providers now use OpenAI-compatible format
+      const responseText = data.choices[0]?.message?.content || 'No response';
 
       return { response: responseText, provider: provider.name };
 
@@ -634,7 +639,8 @@ export async function POST(request: NextRequest) {
       systemPrompt,
       temperature,
       maxTokens,
-      contextWindowSize
+      contextWindowSize,
+      qualityMode = 'fast' // 'fast' (default) or 'best' (Self-MoA)
     } = body;
 
     // Try to authenticate user, but allow anonymous access
@@ -991,11 +997,14 @@ export async function POST(request: NextRequest) {
       maxTokens,
       systemPrompt,
       temperature,
+      qualityMode, // Pass quality mode to adapter
     });
 
     const result = {
       response: adapterResponse.content,
       provider: adapterResponse.provider,
+      qualityMode: adapterResponse.qualityMode,
+      aggregatedFrom: adapterResponse.aggregatedFrom, // Include Self-MoA metadata
     };
     const finalModel = adapterResponse.model || cacheModel;
 
