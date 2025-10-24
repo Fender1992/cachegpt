@@ -92,12 +92,13 @@ function parseBoolean(value: string | undefined, defaultValue: boolean): boolean
  * 5. 503 Service Unavailable
  */
 export const LLM_CONFIG: LLMConfigType = {
-  // Default provider: internal → free → (premium only if explicitly allowed)
-  defaultProvider: (process.env.LLM_PROVIDER || 'internal') as ProviderName,
+  // Default provider: free providers (Groq/OpenRouter/HuggingFace)
+  // Note: 'internal' refers to server-managed free providers, not a separate service
+  defaultProvider: (process.env.LLM_PROVIDER || 'free') as ProviderName,
 
-  // Internal/native LLM configuration
+  // Internal/native LLM configuration (disabled by default - optional future feature)
   internal: {
-    enabled: parseBoolean(process.env.INTERNAL_LLM_ENABLED, true),
+    enabled: parseBoolean(process.env.INTERNAL_LLM_ENABLED, false),
     baseUrl: process.env.INTERNAL_LLM_URL || 'http://localhost:8080',
     apiKey: process.env.INTERNAL_LLM_API_KEY || '',
     model: process.env.INTERNAL_LLM_MODEL || 'default',
@@ -145,7 +146,7 @@ export const LLM_CONFIG: LLMConfigType = {
   // Fallback behavior
   allowFallbackToFree: parseBoolean(process.env.LLM_ALLOW_FALLBACK_TO_FREE, true),
   allowFallbackToPremium: parseBoolean(process.env.LLM_ALLOW_FALLBACK_TO_PREMIUM, false),
-  hardFailOnInternalDown: parseBoolean(process.env.LLM_HARD_FAIL_ON_INTERNAL_DOWN, true),
+  hardFailOnInternalDown: parseBoolean(process.env.LLM_HARD_FAIL_ON_INTERNAL_DOWN, false), // Changed to false - internal is optional
 
   // Per-request override
   allowPerRequestOverride: parseBoolean(process.env.LLM_ALLOW_OVERRIDE, true),
