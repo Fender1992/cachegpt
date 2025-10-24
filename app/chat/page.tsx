@@ -71,7 +71,6 @@ function ChatPageContent() {
   const [shareEnabled, setShareEnabled] = useState(false)
   const [referencedConversationIds, setReferencedConversationIds] = useState<string[]>([])
   const [mobileModalOpen, setMobileModalOpen] = useState(false)
-  const [mobileModalMinimized, setMobileModalMinimized] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -351,72 +350,6 @@ function ChatPageContent() {
     }
   }
 
-  // Handle mobile keyboard and viewport changes
-  useEffect(() => {
-    let initialViewportHeight = window.visualViewport?.height || window.innerHeight
-
-    const handleViewportChange = () => {
-      if (window.visualViewport) {
-        const currentHeight = window.visualViewport.height
-        const heightDifference = initialViewportHeight - currentHeight
-        const keyboardOpen = heightDifference > 100
-
-        setKeyboardVisible(keyboardOpen)
-
-        // Prevent scrolling when keyboard opens/closes
-        if (keyboardOpen) {
-          // Keyboard opened - ensure input stays in view without bouncing
-          requestAnimationFrame(() => {
-            if (inputRef.current) {
-              const inputRect = inputRef.current.getBoundingClientRect()
-              const viewportHeight = window.visualViewport?.height || window.innerHeight
-
-              // Only scroll if input is actually hidden
-              if (inputRect.bottom > viewportHeight) {
-                inputRef.current.scrollIntoView({
-                  behavior: 'smooth',
-                  block: 'end'
-                })
-              }
-            }
-          })
-        }
-      }
-    }
-
-    const handleScroll = () => {
-      // Prevent unwanted scrolling during keyboard events
-      if (keyboardVisible) {
-        window.scrollTo(0, 0)
-      }
-    }
-
-    const handleResize = () => {
-      // Update initial height on orientation change
-      setTimeout(() => {
-        initialViewportHeight = window.visualViewport?.height || window.innerHeight
-      }, 500)
-    }
-
-    // Modern approach using Visual Viewport API
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', handleViewportChange)
-      window.visualViewport.addEventListener('scroll', handleViewportChange)
-    }
-
-    // Prevent document scrolling when keyboard is visible
-    window.addEventListener('scroll', handleScroll, { passive: false })
-    window.addEventListener('resize', handleResize)
-
-    return () => {
-      if (window.visualViewport) {
-        window.visualViewport.removeEventListener('resize', handleViewportChange)
-        window.visualViewport.removeEventListener('scroll', handleViewportChange)
-      }
-      window.removeEventListener('scroll', handleScroll)
-      window.removeEventListener('resize', handleResize)
-    }
-  }, [keyboardVisible])
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -787,9 +720,14 @@ function ChatPageContent() {
 
   const ProviderIcon = providerIcons[userProfile.selected_provider as keyof typeof providerIcons] || Bot
 
-  // Chat content component to be reused in both desktop and mobile views
-  const ChatContent = () => (
-    <>
+  return (
+    <div
+      className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-slate-900 dark:to-gray-900 flex flex-col overflow-hidden"
+      style={{
+        height: '100dvh',
+        minHeight: '-webkit-fill-available'
+      }}
+    >
       {/* Header */}
       <div className="flex-shrink-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm relative z-50">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
@@ -1162,14 +1100,6 @@ function ChatPageContent() {
                   handleSendMessage()
                 }
               }}
-              onFocus={(e) => {
-                // On mobile, prevent scrolling when focusing
-                if (window.innerWidth < 640) {
-                  setTimeout(() => {
-                    e.target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                  }, 300);
-                }
-              }}
               placeholder="Type your message..."
               className="flex-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-base text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none min-h-[44px] max-h-[120px] overflow-y-auto touch-manipulation"
               disabled={isLoading}
@@ -1243,68 +1173,120 @@ function ChatPageContent() {
           duration={4000}
         />
       )}
-    </>
-  )
 
-  return (
-    <>
-      {/* Desktop View - Always show */}
-      <div
-        className="hidden md:flex bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-slate-900 dark:to-gray-900 flex-col overflow-hidden"
-        style={{
-          height: '100dvh',
-          minHeight: '-webkit-fill-available'
-        }}
+      {/* Floating Chat Button - Mobile only */}
+      <button
+        onClick={() => setMobileModalOpen(true)}
+        className="md:hidden fixed bottom-6 right-6 z-50 w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-full shadow-2xl flex items-center justify-center transition-all"
+        aria-label="Open chat"
       >
-        <ChatContent />
-      </div>
+        <Send className="w-6 h-6" />
+      </button>
 
-      {/* Mobile View - Landing Page with Chat Button */}
-      <div className="md:hidden min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-slate-900 dark:to-gray-900 flex flex-col items-center justify-center p-6">
-        <div className="text-center space-y-6 max-w-md">
-          <ProviderIcon className="w-20 h-20 text-blue-600 dark:text-blue-400 mx-auto" />
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
-            CacheGPT
-          </h1>
-          <p className="text-lg text-gray-600 dark:text-gray-400">
-            Smart AI chat with caching technology
-          </p>
-          <button
-            onClick={() => setMobileModalOpen(true)}
-            className="w-full px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl shadow-lg transition-all text-lg"
-          >
-            Start Chatting
-          </button>
-          <div className="flex gap-3 justify-center pt-4">
+      {/* Mobile Chat Modal - Only messages and input */}
+      <MobileChatModal
+        isOpen={mobileModalOpen}
+        onClose={() => setMobileModalOpen(false)}
+      >
+        {/* Messages */}
+        <div
+          className="flex-1 overflow-y-auto p-4"
+          role="log"
+          aria-live="polite"
+          aria-label="Chat messages"
+        >
+          <div className="space-y-5">
+            {/* Example Prompts - Show when no messages */}
+            {messages.length === 0 && !isLoading && (
+              <ExamplePrompts
+                onPromptClick={handleExamplePromptClick}
+                layout="grid"
+                mode={currentMode}
+              />
+            )}
+
+            {messages.map((msg, idx) => (
+              <div
+                key={idx}
+                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div className={`max-w-[85%] rounded-lg shadow-sm ${
+                  msg.role === 'user'
+                    ? 'bg-blue-600 text-white ml-auto px-5 py-3.5'
+                    : msg.error
+                      ? 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800 px-5 py-3.5'
+                      : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 px-6 py-4'
+                }`}>
+                  {msg.role === 'user' ? (
+                    <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{msg.content}</p>
+                  ) : (
+                    <MarkdownMessage content={msg.content} />
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {/* Streaming message */}
+            {isStreaming && streamingMessage && (
+              <div className="flex justify-start">
+                <div className="max-w-[85%] rounded-lg shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 px-6 py-4">
+                  <MarkdownMessage content={streamingMessage} isStreaming={true} />
+                </div>
+              </div>
+            )}
+
+            {/* Loading indicator */}
+            {isLoading && !isStreaming && (
+              <div className="flex justify-start">
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse delay-100"></div>
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse delay-200"></div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input */}
+        <div className="flex-shrink-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-3">
+          <div className="flex gap-2">
+            <textarea
+              ref={inputRef}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleSendMessage()
+                }
+              }}
+              placeholder="Type your message..."
+              className="flex-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-3 text-base text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none min-h-[44px] max-h-[120px] overflow-y-auto"
+              disabled={isLoading}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="sentences"
+              aria-label="Type your message"
+              role="textbox"
+              rows={1}
+              style={{ fontSize: '16px' }}
+            />
             <button
-              onClick={() => router.push('/')}
-              className="px-6 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors border border-gray-300 dark:border-gray-700 rounded-lg"
+              onClick={handleSendMessage}
+              disabled={!message.trim() || isLoading}
+              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              aria-label="Send message"
             >
-              Home
-            </button>
-            <button
-              onClick={handleSettings}
-              className="px-6 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors border border-gray-300 dark:border-gray-700 rounded-lg"
-            >
-              Settings
+              <Send className="w-5 h-5" />
             </button>
           </div>
         </div>
-      </div>
-
-      {/* Mobile Chat Modal */}
-      <MobileChatModal
-        isOpen={mobileModalOpen}
-        isMinimized={mobileModalMinimized}
-        onClose={() => {
-          setMobileModalOpen(false)
-          setMobileModalMinimized(false)
-        }}
-        onToggleMinimize={() => setMobileModalMinimized(!mobileModalMinimized)}
-      >
-        <ChatContent />
       </MobileChatModal>
-    </>
+    </div>
   )
 }
 
