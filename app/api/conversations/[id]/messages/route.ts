@@ -38,24 +38,50 @@ export async function GET(
       }, { status: 404 })
     }
 
-    // Get messages directly from the table - ONLY for this user's conversation
-    const { data: messages, error } = await supabase
+    // Get query parameters for pagination
+    const url = new URL(request.url)
+    const limit = parseInt(url.searchParams.get('limit') || '50')
+    const before = url.searchParams.get('before') // Timestamp for pagination
+
+    // Build query
+    let query = supabase
       .from('messages')
-      .select('id, role, content, provider, model, tokens_used, created_at')
+      .select('id, role, content, provider, model, tokens_used, created_at, response_time_ms')
       .eq('conversation_id', conversationId)
       .eq('user_id', userId)
       .order('created_at', { ascending: true })
+
+    // If 'before' parameter is provided, get messages before that timestamp
+    if (before) {
+      query = query.lt('created_at', before)
+    }
+
+    // Limit results
+    query = query.limit(limit)
+
+    const { data: messages, error } = await query
 
     if (error) {
       console.error('Error fetching messages for user:', userId, 'conversation:', conversationId, error)
       return NextResponse.json({ error: 'Failed to fetch messages' }, { status: 500 })
     }
 
+    // Check if there are more messages (for pagination)
+    const { count: totalCount } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('conversation_id', conversationId)
+      .eq('user_id', userId)
+
+    const hasMore = (messages?.length || 0) < (totalCount || 0)
+
     return NextResponse.json({
       messages,
       conversation_id: conversationId,
       user_id: userId, // Include for verification
-      total: messages?.length || 0
+      total: messages?.length || 0,
+      hasMore,
+      totalCount: totalCount || 0
     })
   } catch (error) {
     console.error('Error in messages API:', error)
