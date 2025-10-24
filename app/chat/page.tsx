@@ -173,11 +173,7 @@ function ChatPageContent() {
         if (data.requiresAuth) {
           console.log('[CHAT] Conversation history requires authentication')
           setConversations([])
-          // Show friendly message prompting login for history
-          setToast({
-            message: 'Login or signup to save and access conversation history',
-            type: 'info'
-          })
+          // Don't show toast on page load - only when user clicks History button
         } else {
           setConversations(data.conversations || [])
         }
