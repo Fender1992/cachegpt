@@ -235,19 +235,42 @@ function ChatPageContent() {
 
   const loadConversationMessages = async (conversationId: string, limit = MAX_MESSAGES_IN_MEMORY) => {
     try {
+      console.log('[CHAT] Loading conversation messages:', conversationId)
+
+      // Get session for authentication
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      }
+
+      // Add Bearer token if we have a session
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+        console.log('[CHAT] Sending Bearer token for conversation messages')
+      }
+
       const response = await fetch(`/api/conversations/${conversationId}/messages?limit=${limit}`, {
+        headers,
         credentials: 'include'
       })
+
+      console.log('[CHAT] Conversation messages response status:', response.status)
+
       if (response.ok) {
         const data = await response.json()
         const loadedMessages = data.messages || []
+        console.log('[CHAT] Loaded messages:', loadedMessages.length)
         setMessages(loadedMessages)
         setHasOlderMessages(data.hasMore || false)
         setCurrentConversationId(conversationId)
         setActiveConversationId(conversationId) // Set as active so new messages append to this conversation
         setShowHistory(false)
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('[CHAT] Failed to load conversation messages:', response.status, errorData)
       }
     } catch (error) {
+      console.error('[CHAT] Exception loading conversation messages:', error)
       logError('Error loading conversation messages', error)
     }
   }
