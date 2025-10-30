@@ -43,6 +43,10 @@ export async function GET(
     const limit = parseInt(url.searchParams.get('limit') || '50')
     const before = url.searchParams.get('before') // Timestamp for pagination
 
+    // Get user timezone from headers for timezone-aware operations
+    const userTimezone = request.headers.get('x-user-timezone') || 'UTC'
+    console.log('[MESSAGES-API] User timezone:', userTimezone, 'for conversation:', conversationId)
+
     // Build query
     let query = supabase
       .from('messages')

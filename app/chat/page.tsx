@@ -79,6 +79,11 @@ function ChatPageContent() {
   const getRelativeTime = (dateString: string) => {
     const date = new Date(dateString)
     const now = new Date()
+
+    // Get user's timezone for accurate date comparison
+    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+
+    // Calculate time difference
     const diffMs = now.getTime() - date.getTime()
     const diffMins = Math.floor(diffMs / 60000)
     const diffHours = Math.floor(diffMs / 3600000)
@@ -90,7 +95,14 @@ function ChatPageContent() {
     if (diffDays === 1) return 'Yesterday'
     if (diffDays < 7) return `${diffDays}d ago`
     if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`
-    return date.toLocaleDateString()
+
+    // Use user's timezone for date formatting
+    return date.toLocaleDateString('en-US', {
+      timeZone: userTimezone,
+      month: 'short',
+      day: 'numeric',
+      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+    })
   }
 
   useEffect(() => {
@@ -241,8 +253,15 @@ function ChatPageContent() {
 
       // Get session for authentication
       const { data: { session } } = await supabase.auth.getSession()
+
+      // Detect user's timezone
+      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+      const timezoneOffset = new Date().getTimezoneOffset()
+
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
+        'x-user-timezone': userTimezone,
+        'x-timezone-offset': timezoneOffset.toString()
       }
 
       // Add Bearer token if we have a session
@@ -332,10 +351,29 @@ function ChatPageContent() {
 
     setLoadingOlderMessages(true)
     try {
+      // Detect user's timezone
+      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+      const timezoneOffset = new Date().getTimezoneOffset()
+
+      // Get session for Bearer token
+      const { data: { session } } = await supabase.auth.getSession()
+
+      const headers: HeadersInit = {
+        'x-user-timezone': userTimezone,
+        'x-timezone-offset': timezoneOffset.toString()
+      }
+
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+      }
+
       const oldestMessage = messages[0]
       const response = await fetch(
         `/api/conversations/${currentConversationId}/messages?before=${oldestMessage?.created_at}&limit=20`,
-        { credentials: 'include' }
+        {
+          headers,
+          credentials: 'include'
+        }
       )
       if (response.ok) {
         const data = await response.json()
