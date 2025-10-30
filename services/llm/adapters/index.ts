@@ -12,6 +12,7 @@ import { FreeProvidersAdapter } from './FreeProvidersAdapter';
 import { OpenAIAdapter } from './OpenAIAdapter';
 import { GoogleAdapter } from './GoogleAdapter';
 import { PerplexityAdapter } from './PerplexityAdapter';
+import { GrokAdapter } from './GrokAdapter';
 
 export * from './types';
 
@@ -37,6 +38,9 @@ export function createAdapter(provider: ProviderName, userApiKey?: string): LLMA
 
     case 'perplexity':
       return new PerplexityAdapter(userApiKey);
+
+    case 'grok':
+      return new GrokAdapter(userApiKey);
 
     default:
       throw new Error(`Unknown provider: ${provider}`);

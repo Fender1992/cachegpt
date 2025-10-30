@@ -11,7 +11,7 @@
  * 3. Fallback is explicitly allowed via LLM_ALLOW_FALLBACK_TO_PREMIUM=true
  */
 
-export type ProviderName = 'internal' | 'free' | 'anthropic' | 'openai' | 'google' | 'perplexity';
+export type ProviderName = 'internal' | 'free' | 'anthropic' | 'openai' | 'google' | 'perplexity' | 'grok';
 
 export interface InternalLLMConfig {
   enabled: boolean;
@@ -60,6 +60,7 @@ export interface LLMConfigType {
     openai: PremiumProviderConfig;
     google: PremiumProviderConfig;
     perplexity: PremiumProviderConfig;
+    grok: PremiumProviderConfig;
   };
 
   // Fallback behavior
@@ -149,6 +150,10 @@ export const LLM_CONFIG: LLMConfigType = {
       enabled: !!process.env.PERPLEXITY_API_KEY,
       apiKey: process.env.PERPLEXITY_API_KEY || '',
     },
+    grok: {
+      enabled: !!process.env.OPENROUTER_API_KEY, // Grok via OpenRouter
+      apiKey: process.env.OPENROUTER_API_KEY || '',
+    },
   },
 
   // Fallback behavior
@@ -176,7 +181,7 @@ export function getProviderIntent(headers: Headers): ProviderName | null {
     return null;
   }
 
-  const validProviders: ProviderName[] = ['internal', 'free', 'anthropic', 'openai', 'google', 'perplexity'];
+  const validProviders: ProviderName[] = ['internal', 'free', 'anthropic', 'openai', 'google', 'perplexity', 'grok'];
   if (validProviders.includes(intent as ProviderName)) {
     return intent as ProviderName;
   }
@@ -241,7 +246,7 @@ export function validateLLMConfig(): { valid: boolean; errors: string[] } {
   }
 
   // If default is premium, ensure that specific provider is configured
-  if (['anthropic', 'openai', 'google', 'perplexity'].includes(LLM_CONFIG.defaultProvider)) {
+  if (['anthropic', 'openai', 'google', 'perplexity', 'grok'].includes(LLM_CONFIG.defaultProvider)) {
     const providerName = LLM_CONFIG.defaultProvider as keyof typeof LLM_CONFIG.premium;
     if (!LLM_CONFIG.premium[providerName].enabled) {
       errors.push(`${providerName.toUpperCase()}_API_KEY is required when it's the default provider`);

@@ -25,7 +25,7 @@ import {
   analyzeResponse
 } from '@/lib/response-validator';
 import { sanitizeResponse, hasExecutionArtifacts } from '@/lib/response-sanitizer';
-import { enrichContext, generateSystemContext } from '@/lib/context-enrichment';
+import { enrichContext, generateSystemContext, getGrokipediaContext } from '@/lib/context-enrichment';
 import { performContextualSearch } from '@/lib/web-search';
 import { cacheLifecycleManager, QueryType, CacheLifecycle } from '@/lib/cache-lifecycle';
 import { getNewsService } from '@/lib/news-service';
@@ -500,6 +500,12 @@ async function callFreeProvider(messages: any[]): Promise<{ response: string; pr
       apiKey: process.env.OPENROUTER_API_KEY,
       endpoint: 'https://openrouter.ai/api/v1/chat/completions',
       model: 'meta-llama/llama-4-maverick:free'  // Llama 4 Maverick 17B (128 experts, 400B total) - Released April 2025, MoE architecture, 1M token context
+    },
+    {
+      name: 'grok-openrouter',
+      apiKey: process.env.OPENROUTER_API_KEY,
+      endpoint: 'https://openrouter.ai/api/v1/chat/completions',
+      model: 'x-ai/grok-2-1212'  // Grok 2 - xAI's latest (Dec 2024), excellent for factual queries and reasoning
     }
   ];
 
@@ -549,7 +555,7 @@ async function callFreeProvider(messages: any[]): Promise<{ response: string; pr
       };
 
       // Provider-specific headers
-      if (provider.name === 'openrouter') {
+      if (provider.name === 'openrouter' || provider.name === 'grok-openrouter') {
         headers['HTTP-Referer'] = 'https://cachegpt.app';
         headers['X-Title'] = 'CacheGPT';
       }
@@ -736,6 +742,16 @@ export async function POST(request: NextRequest) {
     // Enrich context with current information and real-time data
     const contextAnalysis = enrichContext(userMessage)
 
+    // If query is encyclopedic, use Grokipedia (replaces Wikipedia)
+    let grokipediaContext: string | null = null
+    if (contextAnalysis.shouldUseGrokipedia) {
+      console.log('[UNIFIED-CHAT] 📚 Encyclopedic query detected, fetching Grokipedia context')
+      grokipediaContext = await getGrokipediaContext(userMessage)
+      if (grokipediaContext) {
+        console.log('[UNIFIED-CHAT] ✅ Grokipedia context fetched successfully')
+      }
+    }
+
     // If query needs real-time information, attempt web search
     let searchContext: string | null = null
     if (contextAnalysis.needsRealTime && contextAnalysis.realTimeCategory) {
@@ -764,6 +780,14 @@ export async function POST(request: NextRequest) {
       enrichedMessages.unshift({
         role: 'system',
         content: contextAnalysis.systemContext
+      })
+    }
+
+    // If we have Grokipedia context, add it before the user's last message (PRIORITY)
+    if (grokipediaContext) {
+      enrichedMessages.splice(enrichedMessages.length - 1, 0, {
+        role: 'system',
+        content: grokipediaContext
       })
     }
 

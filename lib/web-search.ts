@@ -1,7 +1,10 @@
 /**
  * Web Search Integration
  * Fetches current information from the web for queries needing real-time data
+ * Now powered by Grokipedia for encyclopedic content (replaces Wikipedia)
  */
+
+import { grokipediaService, formatGrokipediaForContext, isEncyclopedicQuery } from './grokipedia-service';
 
 interface SearchResult {
   title: string
@@ -111,64 +114,83 @@ function generateSearchSummary(results: SearchResult[], query: string): string {
 }
 
 /**
- * Fallback: Use Wikipedia API for factual queries
+ * Grokipedia: AI-enhanced encyclopedic search (replaces Wikipedia)
+ * Uses Grok's advanced reasoning and web search capabilities
  */
-export async function searchWikipedia(query: string): Promise<SearchResponse> {
+export async function searchGrokipedia(query: string): Promise<SearchResponse> {
   try {
-    const encodedQuery = encodeURIComponent(query)
-    const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodedQuery}`
+    console.log('[GROKIPEDIA-SEARCH] Searching for:', query);
 
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'CacheGPT/1.0'
-      }
-    })
+    // Use Grokipedia service for encyclopedic content
+    const result = await grokipediaService.fetchEncyclopedicContent(query, {
+      maxTokens: 1500,
+      detailedMode: false,
+      includeWebSearch: true
+    });
 
-    if (!response.ok) {
-      throw new Error(`Wikipedia API returned ${response.status}`)
+    if (!result) {
+      throw new Error('Grokipedia returned no results');
     }
 
-    const data = await response.json()
-
+    // Format as SearchResult
     const results: SearchResult[] = [{
-      title: data.title || query,
-      snippet: data.extract || '',
-      url: data.content_urls?.desktop?.page || '',
-      relevance: 1.0
-    }]
+      title: `Grokipedia: ${query}`,
+      snippet: result.content.substring(0, 500) + (result.content.length > 500 ? '...' : ''),
+      url: result.sources[0] || 'https://cachegpt.app',
+      relevance: result.confidence
+    }];
+
+    // Add source results
+    result.sources.slice(0, 3).forEach((source, index) => {
+      results.push({
+        title: `Source ${index + 1}`,
+        snippet: source,
+        url: source,
+        relevance: 0.9 - (index * 0.1)
+      });
+    });
+
+    console.log('[GROKIPEDIA-SEARCH] ✅ Success:', results.length, 'results');
 
     return {
       success: true,
       results,
-      summary: data.extract || ''
-    }
+      summary: result.content
+    };
 
   } catch (error) {
-    console.error('[WIKI-SEARCH] Error:', error)
+    console.error('[GROKIPEDIA-SEARCH] Error:', error);
     return {
       success: false,
       results: [],
       summary: '',
-      error: error instanceof Error ? error.message : 'Wikipedia search failed'
-    }
+      error: error instanceof Error ? error.message : 'Grokipedia search failed'
+    };
   }
 }
 
 /**
  * Intelligent search that tries multiple sources
+ * Now prioritizes Grokipedia for encyclopedic content
  */
 export async function intelligentSearch(query: string, category: string | null): Promise<SearchResponse> {
-  // For factual/encyclopedia queries, try Wikipedia first
-  if (category === 'general' || category === 'science' || category === 'geography') {
-    const wikiResult = await searchWikipedia(query)
-    if (wikiResult.success && wikiResult.summary) {
-      return wikiResult
+  // Check if query is encyclopedic in nature
+  const isEncyclopedic = isEncyclopedicQuery(query);
+
+  // For factual/encyclopedia queries, try Grokipedia first (replaces Wikipedia)
+  if (isEncyclopedic || category === 'general' || category === 'science' || category === 'geography') {
+    console.log('[INTELLIGENT-SEARCH] Using Grokipedia for encyclopedic query');
+    const grokResult = await searchGrokipedia(query);
+    if (grokResult.success && grokResult.summary) {
+      return grokResult;
     }
+    console.log('[INTELLIGENT-SEARCH] Grokipedia failed, falling back to DuckDuckGo');
   }
 
-  // For everything else, use DuckDuckGo
-  const webResult = await searchWeb(query)
-  return webResult
+  // For time-sensitive or non-encyclopedic queries, use DuckDuckGo
+  console.log('[INTELLIGENT-SEARCH] Using DuckDuckGo for real-time query');
+  const webResult = await searchWeb(query);
+  return webResult;
 }
 
 /**

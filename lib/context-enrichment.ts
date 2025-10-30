@@ -1,7 +1,10 @@
 /**
  * Context Enrichment System
  * Provides AI models with current information and real-time data access
+ * Now enhanced with Grokipedia for superior encyclopedic content
  */
+
+import { grokipediaService, isEncyclopedicQuery, GrokipediaResult } from './grokipedia-service';
 
 /**
  * Generate dynamic system context with current information
@@ -277,6 +280,7 @@ export function getCommonKnowledge(query: string): string | null {
 
 /**
  * Main context enrichment function
+ * Now includes Grokipedia detection for encyclopedic queries
  */
 export function enrichContext(userQuery: string): {
   enrichedQuery: string
@@ -284,17 +288,68 @@ export function enrichContext(userQuery: string): {
   needsRealTime: boolean
   realTimeCategory: string | null
   commonAnswer: string | null
+  isEncyclopedic: boolean
+  shouldUseGrokipedia: boolean
 } {
   const systemContext = generateSystemContext()
   const realTimeAnalysis = needsRealTimeInfo(userQuery)
   const commonAnswer = getCommonKnowledge(userQuery)
   const enrichedQuery = enrichQueryWithContext(userQuery)
+  const isEncyclopedic = isEncyclopedicQuery(userQuery)
+
+  // Use Grokipedia for encyclopedic queries if service is available
+  const shouldUseGrokipedia = isEncyclopedic && grokipediaService.isEnabled()
+
+  console.log(`[CONTEXT-ENRICHMENT] Query analysis:`, {
+    needsRealTime: realTimeAnalysis.needsInfo,
+    category: realTimeAnalysis.category,
+    isEncyclopedic,
+    shouldUseGrokipedia
+  })
 
   return {
     enrichedQuery,
     systemContext,
     needsRealTime: realTimeAnalysis.needsInfo,
     realTimeCategory: realTimeAnalysis.category,
-    commonAnswer
+    commonAnswer,
+    isEncyclopedic,
+    shouldUseGrokipedia
+  }
+}
+
+/**
+ * Fetch Grokipedia content for encyclopedic queries
+ */
+export async function getGrokipediaContext(query: string): Promise<string | null> {
+  try {
+    const result = await grokipediaService.fetchEncyclopedicContent(query, {
+      maxTokens: 2000,
+      detailedMode: true,
+      includeWebSearch: true
+    })
+
+    if (!result) {
+      return null
+    }
+
+    // Format for context injection
+    let context = `[Grokipedia Encyclopedic Knowledge]\n\n`
+    context += result.content
+
+    if (result.sources.length > 0) {
+      context += `\n\n**Verified Sources:**\n`
+      result.sources.slice(0, 5).forEach((source, index) => {
+        context += `${index + 1}. ${source}\n`
+      })
+    }
+
+    context += `\n[Confidence: ${(result.confidence * 100).toFixed(0)}%]`
+    context += `\n[This is verified encyclopedic knowledge. Use it to provide accurate, comprehensive answers.]`
+
+    return context
+  } catch (error) {
+    console.error('[GROKIPEDIA-CONTEXT] Error fetching context:', error)
+    return null
   }
 }
