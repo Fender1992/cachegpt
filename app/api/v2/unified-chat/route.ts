@@ -171,7 +171,8 @@ async function saveChatHistory(
   model: string,
   responseTime: number,
   platform: string = 'web',
-  conversationId?: string
+  conversationId?: string,
+  uploadedFiles?: any[]
 ): Promise<string | null> {
   if (!userId) {
     return null;
@@ -222,6 +223,23 @@ async function saveChatHistory(
         return null;
       }
       conversation = data;
+      conversationId = data.id;
+
+      // Link uploaded files to the new conversation
+      if (uploadedFiles && uploadedFiles.length > 0) {
+        const fileIds = uploadedFiles.map((f: any) => f.id)
+        const { error: linkError } = await supabase
+          .from('conversation_files')
+          .update({ conversation_id: conversationId })
+          .in('id', fileIds)
+          .eq('user_id', userId)
+
+        if (linkError) {
+          console.error('[CHAT-HISTORY] Error linking files to conversation:', linkError)
+        } else {
+          console.log('[CHAT-HISTORY] ✅ Linked', fileIds.length, 'files to conversation', conversationId)
+        }
+      }
     }
 
     // Save user message
@@ -658,7 +676,8 @@ export async function POST(request: NextRequest) {
       temperature,
       maxTokens,
       contextWindowSize,
-      qualityMode = 'fast' // 'fast' (default) or 'best' (Self-MoA)
+      qualityMode = 'fast', // 'fast' (default) or 'best' (Self-MoA)
+      uploadedFiles
     } = body;
 
     // Try to authenticate user, but allow anonymous access
@@ -857,6 +876,53 @@ export async function POST(request: NextRequest) {
         role: 'system',
         content: weatherContext
       })
+    }
+
+    // If we have uploaded files, retrieve their content and add to context
+    if (uploadedFiles && uploadedFiles.length > 0 && userId) {
+      console.log('[UNIFIED-CHAT] 📎 Processing uploaded files:', uploadedFiles.length)
+
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_KEY!
+      );
+
+      // Retrieve file contents from database
+      const fileIds = uploadedFiles.map((f: any) => f.id)
+      const { data: files, error: filesError } = await supabase
+        .from('conversation_files')
+        .select('file_name, file_type, content_text, content_preview')
+        .in('id', fileIds)
+        .eq('user_id', userId)
+
+      if (!filesError && files && files.length > 0) {
+        // Build file context message
+        let fileContext = '📎 **Attached Files:**\n\n'
+
+        files.forEach((file: any, index: number) => {
+          fileContext += `**File ${index + 1}: ${file.file_name}** (${file.file_type})\n`
+
+          // For images, include base64 preview
+          if (file.file_type.startsWith('image/')) {
+            fileContext += `${file.content_text}\n\n`
+          } else {
+            // For text-based files, include full content
+            fileContext += `\`\`\`\n${file.content_text}\n\`\`\`\n\n`
+          }
+        })
+
+        fileContext += '---\n\nPlease analyze the attached files and respond to the user\'s query considering the file content.'
+
+        // Add file context before the user's last message
+        enrichedMessages.splice(enrichedMessages.length - 1, 0, {
+          role: 'system',
+          content: fileContext
+        })
+
+        console.log('[UNIFIED-CHAT] ✅ Added file context for', files.length, 'files')
+      } else if (filesError) {
+        console.error('[UNIFIED-CHAT] Error fetching file contents:', filesError)
+      }
     }
 
     // Update the last user message with enriched query
@@ -1153,7 +1219,8 @@ export async function POST(request: NextRequest) {
           finalModel,
           responseTime,
           'web', // Can be enhanced to detect platform
-          clientConversationId // Pass existing conversation ID if provided
+          clientConversationId, // Pass existing conversation ID if provided
+          uploadedFiles // Pass uploaded files to link them to conversation
         )
       : null;
 

@@ -182,6 +182,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../app/chat/[id]/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/chat/[id]">> = Specific
+  const handler = {} as typeof import("../../app/chat/[id]/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../app/chat/page.tsx
 {
   type __IsExpected<Specific extends AppPageConfig<"/chat">> = Specific
@@ -366,6 +375,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/admin/migrate-database">> = Specific
   const handler = {} as typeof import("../../app/api/admin/migrate-database/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../app/api/admin/run-migration/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/admin/run-migration">> = Specific
+  const handler = {} as typeof import("../../app/api/admin/run-migration/route.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check
@@ -735,6 +753,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/test-chat-with-user">> = Specific
   const handler = {} as typeof import("../../app/api/test-chat-with-user/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../app/api/upload/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/upload">> = Specific
+  const handler = {} as typeof import("../../app/api/upload/route.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check

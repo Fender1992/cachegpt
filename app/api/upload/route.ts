@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
+import { PDFParse } from 'pdf-parse'
 
 const MAX_FILE_SIZE = 30 * 1024 * 1024 // 30MB
 const MAX_FILES_PER_CONVERSATION = 5
@@ -64,31 +65,55 @@ export async function POST(request: NextRequest) {
 
     // Check file count limit for conversation
     if (conversationId) {
-      // TODO: Query database for existing files in this conversation
-      // For now, we'll rely on client-side enforcement
+      const { count, error: countError } = await supabase
+        .from('conversation_files')
+        .select('*', { count: 'exact', head: true })
+        .eq('conversation_id', conversationId)
+        .eq('user_id', userId)
+
+      if (countError) {
+        console.error('[UPLOAD] Error checking file count:', countError)
+      } else if (count !== null && count >= MAX_FILES_PER_CONVERSATION) {
+        return NextResponse.json({
+          error: `Maximum ${MAX_FILES_PER_CONVERSATION} files per conversation. Please delete some files first.`
+        }, { status: 400 })
+      }
     }
 
     // Read file content
     const buffer = await file.arrayBuffer()
     const content = await parseFileContent(file, buffer)
 
-    // Generate unique file ID
-    const fileId = `file_${Date.now()}_${Math.random().toString(36).substring(7)}`
+    // Get file extension
+    const fileExtension = ALLOWED_TYPES[file.type as keyof typeof ALLOWED_TYPES]
 
-    // Store file metadata (in-memory for now, can be moved to database)
-    const fileMetadata = {
-      id: fileId,
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      content: content.text,
-      preview: content.preview,
-      uploadedAt: new Date().toISOString(),
-      userId,
-      conversationId
+    // Store file in database
+    const { data: fileRecord, error: insertError } = await supabase
+      .from('conversation_files')
+      .insert({
+        conversation_id: conversationId || null,
+        user_id: userId,
+        file_name: file.name,
+        file_type: file.type,
+        file_size: file.size,
+        file_extension: fileExtension,
+        content_text: content.text,
+        content_preview: content.preview,
+        upload_source: 'web'
+      })
+      .select()
+      .single()
+
+    if (insertError) {
+      console.error('[UPLOAD] Database error:', insertError)
+      return NextResponse.json({
+        error: 'Failed to store file',
+        details: insertError.message
+      }, { status: 500 })
     }
 
-    console.log('[UPLOAD] File uploaded:', {
+    console.log('[UPLOAD] File uploaded and stored:', {
+      id: fileRecord.id,
       name: file.name,
       type: file.type,
       size: `${(file.size / 1024).toFixed(2)}KB`,
@@ -98,12 +123,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       file: {
-        id: fileId,
+        id: fileRecord.id,
         name: file.name,
         type: file.type,
         size: file.size,
         preview: content.preview,
-        uploadedAt: fileMetadata.uploadedAt
+        uploadedAt: fileRecord.created_at
       },
       // Return full content for immediate use in chat
       content: content.text
@@ -143,11 +168,26 @@ async function parseFileContent(
     }
 
     case 'application/pdf': {
-      // For PDF, we'll need a library like pdf-parse
-      // For now, return placeholder
-      return {
-        text: `[PDF Document: ${file.name}]\nPDF parsing will be implemented with pdf-parse library.`,
-        preview: `PDF: ${file.name} (${(file.size / 1024).toFixed(2)}KB)`
+      try {
+        // Create PDF parser with buffer data
+        const parser = new PDFParse({ data: Buffer.from(buffer) })
+        const result = await parser.getText()
+        const text = result.text
+        const preview = text.substring(0, 200) + (text.length > 200 ? '...' : '')
+
+        console.log('[PDF-PARSE] Success:', {
+          file: file.name,
+          pages: result.total,
+          textLength: text.length
+        })
+
+        return { text, preview }
+      } catch (error) {
+        console.error('[PDF-PARSE] Error:', error)
+        return {
+          text: `[PDF Document: ${file.name}]\nError parsing PDF: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          preview: `PDF: ${file.name} (parse error)`
+        }
       }
     }
 
