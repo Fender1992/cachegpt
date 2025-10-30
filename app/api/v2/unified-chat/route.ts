@@ -28,6 +28,8 @@ import { sanitizeResponse, hasExecutionArtifacts } from '@/lib/response-sanitize
 import { enrichContext, generateSystemContext, getGrokipediaContext } from '@/lib/context-enrichment';
 import { performContextualSearch } from '@/lib/web-search';
 import { detectUserTimezone } from '@/lib/timezone-detector';
+import { extractTimezoneFromRequest, trackTimezoneUsage, getCurrentDateInTimezone } from '@/lib/timezone-middleware';
+import { analyzeFreshness, generateCacheKey, isCacheStale, getFreshnessContextHints, trackQueryStats } from '@/lib/queryFreshness';
 import { cacheLifecycleManager, QueryType, CacheLifecycle } from '@/lib/cache-lifecycle';
 import { getNewsService } from '@/lib/news-service';
 import { getWeatherService } from '@/lib/weather-service';
@@ -268,6 +270,7 @@ async function saveChatHistory(
 
 /**
  * Store response in cache database using tier-based system
+ * Now includes freshness metadata and timezone info
  */
 async function storeInCache(
   query: string,
@@ -276,7 +279,9 @@ async function storeInCache(
   provider: string,
   userId: string | null,
   responseTimeMs: number,
-  contextHash?: string
+  contextHash?: string,
+  freshnessAnalysis?: any,
+  timezone?: string
 ): Promise<void> {
   try {
     const tierCacheInstance = await getTierCache();
@@ -328,7 +333,13 @@ async function storeInCache(
         is_archived: false,
         ranking_metadata: {
           initial_response_time: responseTimeMs,
-          created_by_user: userId
+          created_by_user: userId,
+          // Freshness metadata
+          is_time_sensitive: freshnessAnalysis?.isTimeSensitive || false,
+          freshness_category: freshnessAnalysis?.category || 'static',
+          freshness_ttl: freshnessAnalysis?.ttl || 86400,
+          cached_at: new Date().toISOString(),
+          timezone: timezone || 'UTC'
         },
         // Lifecycle metadata
         lifecycle: 'hot',
@@ -740,12 +751,25 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Detect user's timezone from request headers
-    const userTimezone = detectUserTimezone(request.headers);
-    console.log('[UNIFIED-CHAT] User timezone detected:', userTimezone.timezone, `(${userTimezone.detectionMethod})`);
+    // CRITICAL: Extract timezone from client headers (NEVER hard-code)
+    const userTimezone = extractTimezoneFromRequest(request);
+    trackTimezoneUsage(userTimezone.timezone);
+    console.log('[UNIFIED-CHAT] 🌍 User timezone:', userTimezone.timezone, `(${userTimezone.detectionMethod})`);
+
+    // Analyze query freshness to determine caching strategy
+    const freshnessAnalysis = analyzeFreshness(userMessage);
+    console.log('[UNIFIED-CHAT] 🔄 Freshness analysis:', {
+      isTimeSensitive: freshnessAnalysis.isTimeSensitive,
+      category: freshnessAnalysis.category,
+      ttl: freshnessAnalysis.ttl,
+      bypassCache: freshnessAnalysis.bypassCache
+    });
 
     // Enrich context with current information, real-time data, and user's timezone
     const contextAnalysis = enrichContext(userMessage, userTimezone)
+
+    // Add freshness hints for time-sensitive queries
+    const freshnessHints = getFreshnessContextHints(userMessage, userTimezone.timezone)
 
     // If query is encyclopedic, use Grokipedia (replaces Wikipedia)
     let grokipediaContext: string | null = null
@@ -785,6 +809,14 @@ export async function POST(request: NextRequest) {
       enrichedMessages.unshift({
         role: 'system',
         content: contextAnalysis.systemContext
+      })
+    }
+
+    // Add freshness hints for time-sensitive queries
+    if (freshnessHints) {
+      enrichedMessages.splice(1, 0, {
+        role: 'system',
+        content: freshnessHints
       })
     }
 
@@ -907,8 +939,18 @@ export async function POST(request: NextRequest) {
     const predictiveCacheInstance = await getPredictiveCache();
     await predictiveCacheInstance.trackPredictionAccuracy(userMessage);
 
-    // Check cache using lifecycle-aware system (replaces version + TTL)
-    const versionedCacheModel = `${cacheModel}:${CACHE_VERSION}`;
+    // Generate timezone-aware and freshness-aware cache key
+    const timezoneDateKey = getCurrentDateInTimezone(userTimezone.timezone);
+    const freshnessKey = freshnessAnalysis.isTimeSensitive ? `fresh:${timezoneDateKey}` : 'static';
+    const versionedCacheModel = `${cacheModel}:${CACHE_VERSION}:${freshnessKey}:${userTimezone.timezone}`;
+
+    console.log('[UNIFIED-CHAT] 🔑 Cache key:', {
+      model: cacheModel,
+      version: CACHE_VERSION,
+      freshness: freshnessKey,
+      timezone: userTimezone.timezone,
+      date: timezoneDateKey
+    });
 
     // Generate context hash for invalidation detection
     const contextHash = cacheLifecycleManager.generateContextHash({
@@ -917,29 +959,54 @@ export async function POST(request: NextRequest) {
       searchContext,
       newsContext,
       weatherContext,
-      version: CACHE_VERSION
+      version: CACHE_VERSION,
+      timezone: userTimezone.timezone,
+      date: timezoneDateKey
     });
 
-    const cached = await findCachedResponse(userMessage, versionedCacheModel, cacheProvider);
+    // Skip cache for time-sensitive queries if bypass is recommended
+    let cached: any = null;
+    if (!freshnessAnalysis.bypassCache) {
+      cached = await findCachedResponse(userMessage, versionedCacheModel, cacheProvider);
+    } else {
+      console.log('[UNIFIED-CHAT] ⚡ Bypassing cache for time-sensitive query');
+    }
 
     if (cached) {
-      // Check lifecycle and context hash
-      const lifecycle = cached.metadata?.lifecycle || 'hot';
-      const storedContextHash = cached.metadata?.context_hash;
+      // Check if cache is stale based on freshness requirements
+      const cachedAt = cached.metadata?.cached_at ? new Date(cached.metadata.cached_at) : new Date(0);
+      const isStale = isCacheStale(cachedAt, userMessage, userTimezone.timezone);
 
-      // Reject stale or cold entries
-      if (lifecycle === CacheLifecycle.STALE || lifecycle === CacheLifecycle.COLD) {
-        // Don't use this cached entry - fall through to fetch new response
-      }
-      // Reject if context has changed
-      else if (storedContextHash && storedContextHash !== contextHash) {
-        // Don't use this cached entry - fall through to fetch new response
-      }
-      else {
-        // Extract actual provider from cache metadata or use current provider as fallback
-        const cachedProviderUsed = cached.metadata?.provider || cacheProvider;
+      if (isStale) {
+        console.log('[UNIFIED-CHAT] 🕐 Cache is stale based on freshness analysis, refetching');
+        cached = null; // Force fresh fetch
+        trackQueryStats(freshnessAnalysis.isTimeSensitive, false);
+      } else {
+        // Check lifecycle and context hash
+        const lifecycle = cached.metadata?.lifecycle || 'hot';
+        const storedContextHash = cached.metadata?.context_hash;
 
-        // Log usage
+        // Reject stale or cold entries
+        if (lifecycle === CacheLifecycle.STALE || lifecycle === CacheLifecycle.COLD) {
+          console.log('[UNIFIED-CHAT] ❄️ Cache lifecycle is stale/cold, refetching');
+          cached = null; // Don't use this cached entry - fall through to fetch new response
+        }
+        // Reject if context has changed
+        else if (storedContextHash && storedContextHash !== contextHash) {
+          console.log('[UNIFIED-CHAT] 🔄 Context hash mismatch, refetching');
+          cached = null; // Don't use this cached entry - fall through to fetch new response
+        }
+      }
+    }
+
+    if (cached) {
+      // Cache is valid, use it
+      trackQueryStats(freshnessAnalysis.isTimeSensitive, true);
+
+      // Extract actual provider from cache metadata or use current provider as fallback
+      const cachedProviderUsed = cached.metadata?.provider || cacheProvider;
+
+      // Log usage
       const supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_KEY!
@@ -1010,10 +1077,12 @@ export async function POST(request: NextRequest) {
           'x-llm-provider-used': cachedProviderUsed,
         },
       });
-      }
     }
 
     // No cache hit or cache too old, call appropriate provider
+    trackQueryStats(freshnessAnalysis.isTimeSensitive, false);
+    console.log('[UNIFIED-CHAT] 🆕 Fetching fresh response from LLM');
+
     // Create adapter for the selected provider
     const adapter = createAdapter(providerResolution.provider, userApiKey || undefined);
 
@@ -1042,7 +1111,7 @@ export async function POST(request: NextRequest) {
     // Sanitize response to remove execution tags and artifacts (do this early)
     const sanitizedResponse = sanitizeResponse(result.response)
 
-    // Store in cache with version and context hash for lifecycle management
+    // Store in cache with version, context hash, freshness, and timezone
     await storeInCache(
       userMessage,
       result.response,
@@ -1050,8 +1119,16 @@ export async function POST(request: NextRequest) {
       cacheProvider,
       userId,
       responseTime,
-      contextHash // Add context hash for invalidation tracking
+      contextHash, // Add context hash for invalidation tracking
+      freshnessAnalysis, // Add freshness metadata
+      userTimezone.timezone // Add user's timezone
     );
+
+    console.log('[UNIFIED-CHAT] 💾 Cached with freshness TTL:', {
+      ttl: freshnessAnalysis.ttl,
+      isTimeSensitive: freshnessAnalysis.isTimeSensitive,
+      timezone: userTimezone.timezone
+    });
 
     // Save to unified chat history system (use original messages + sanitized response)
     // Skip saving for:
