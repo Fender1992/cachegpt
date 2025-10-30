@@ -132,7 +132,8 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(sudo apt-get update:*)",
-      "Bash(sudo apt-get install:*)"
+      "Bash(sudo apt-get install:*)",
+      "Bash(PGPASSWORD=\"Redr0v3r!992\" psql:*)"
     ],
     "deny": [],
     "ask": []

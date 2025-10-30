@@ -87,18 +87,43 @@ export async function POST(request: NextRequest) {
     // Get file extension
     const fileExtension = ALLOWED_TYPES[file.type as keyof typeof ALLOWED_TYPES]
 
-    // Store file in database
+    // Generate unique file ID and storage path
+    const fileId = crypto.randomUUID()
+    const storagePath = `${userId}/${conversationId || 'unlinked'}/${fileId}${fileExtension}`
+
+    // Upload file to Supabase Storage
+    const { error: storageError } = await supabase.storage
+      .from('conversation-files')
+      .upload(storagePath, buffer, {
+        contentType: file.type,
+        cacheControl: '3600',
+        upsert: false
+      })
+
+    if (storageError) {
+      console.error('[UPLOAD] Storage error:', storageError)
+      return NextResponse.json({
+        error: 'Failed to upload file to storage',
+        details: storageError.message
+      }, { status: 500 })
+    }
+
+    console.log('[UPLOAD] File uploaded to storage:', storagePath)
+
+    // Store file metadata in database
     const { data: fileRecord, error: insertError } = await supabase
       .from('conversation_files')
       .insert({
+        id: fileId,
         conversation_id: conversationId || null,
         user_id: userId,
         file_name: file.name,
         file_type: file.type,
         file_size: file.size,
         file_extension: fileExtension,
-        content_text: content.text,
+        content_text: content.text, // Keep text content for search/context
         content_preview: content.preview,
+        storage_path: storagePath,
         upload_source: 'web'
       })
       .select()
@@ -106,8 +131,10 @@ export async function POST(request: NextRequest) {
 
     if (insertError) {
       console.error('[UPLOAD] Database error:', insertError)
+      // Try to clean up storage if database insert fails
+      await supabase.storage.from('conversation-files').remove([storagePath])
       return NextResponse.json({
-        error: 'Failed to store file',
+        error: 'Failed to store file metadata',
         details: insertError.message
       }, { status: 500 })
     }
@@ -117,6 +144,7 @@ export async function POST(request: NextRequest) {
       name: file.name,
       type: file.type,
       size: `${(file.size / 1024).toFixed(2)}KB`,
+      storagePath: storagePath,
       contentLength: content.text.length
     })
 
