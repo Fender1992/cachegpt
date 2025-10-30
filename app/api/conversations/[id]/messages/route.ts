@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase-server'
-import { cookies } from 'next/headers'
+import { createClient } from '@supabase/supabase-js'
+import {
+  resolveAuthentication,
+  isAuthError,
+  getUserId
+} from '@/lib/unified-auth-resolver'
 
 // GET /api/conversations/[id]/messages - Get messages for a specific conversation (ONLY if user owns it)
 export async function GET(
@@ -11,18 +15,20 @@ export async function GET(
     const { id } = await params
     const conversationId = id
 
-    // Create Supabase client with user session
-    const cookieStore = cookies()
-    const supabase = await createClient()
+    // Use unified authentication resolver (supports both cookies and Bearer tokens)
+    const authResult = await resolveAuthentication(request)
 
-    // Get current authenticated user
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-
-    if (sessionError || !session?.user) {
-      return NextResponse.json({ error: 'Unauthorized - Please log in' }, { status: 401 })
+    if (isAuthError(authResult)) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status })
     }
 
-    const userId = session.user.id
+    const userId = getUserId(authResult)
+
+    // Create Supabase client with service key for database operations
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    )
 
     // First verify the conversation belongs to this user
     const { data: conversation, error: convError } = await supabase
@@ -103,18 +109,20 @@ export async function POST(
     const conversationId = id
     const { role, content, provider, model, tokens_used, response_time_ms, cost, platform = 'web' } = await request.json()
 
-    // Create Supabase client with user session
-    const cookieStore = cookies()
-    const supabase = await createClient()
+    // Use unified authentication resolver (supports both cookies and Bearer tokens)
+    const authResult = await resolveAuthentication(request)
 
-    // Get current authenticated user
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-
-    if (sessionError || !session?.user) {
-      return NextResponse.json({ error: 'Unauthorized - Please log in' }, { status: 401 })
+    if (isAuthError(authResult)) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status })
     }
 
-    const userId = session.user.id
+    const userId = getUserId(authResult)
+
+    // Create Supabase client with service key for database operations
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    )
 
     // First verify the conversation belongs to this user
     const { data: conversation, error: convError } = await supabase
