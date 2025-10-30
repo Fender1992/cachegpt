@@ -493,8 +493,15 @@ function ChatPageContent() {
     try {
       // Get session for authentication
       const { data: { session } } = await supabase.auth.getSession()
+
+      // Detect user's timezone
+      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+      const timezoneOffset = new Date().getTimezoneOffset()
+
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
+        'x-user-timezone': userTimezone,
+        'x-timezone-offset': timezoneOffset.toString()
       }
 
       // Add Bearer token if we have a session
