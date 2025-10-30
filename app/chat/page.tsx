@@ -455,15 +455,22 @@ function ChatPageContent() {
     }
     setUsingPremium(hasPremium)
 
-    // Add welcome message
+    // Add welcome message only if no messages exist (new chat)
+    // Don't overwrite messages when loading conversation history
     const providerText = hasPremium
       ? `premium ${providerNames[profile.selected_provider as keyof typeof providerNames] || 'AI'} with your API key`
       : 'free AI models with smart caching'
 
-    setMessages([{
-      role: 'assistant',
-      content: `Welcome! I'm powered by ${providerText}. How can I help you today?`
-    }])
+    // Only set welcome message if messages array is empty (fresh page load with no conversation)
+    setMessages(prev => {
+      if (prev.length === 0) {
+        return [{
+          role: 'assistant',
+          content: `Welcome! I'm powered by ${providerText}. How can I help you today?`
+        }]
+      }
+      return prev
+    })
   }
 
   const handleFeedback = async (messageIndex: number, feedback: 'helpful' | 'outdated' | 'incorrect') => {

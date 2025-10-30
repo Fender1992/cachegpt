@@ -766,10 +766,17 @@ export async function POST(request: NextRequest) {
     });
 
     // Enrich context with current information, real-time data, and user's timezone
+    console.log('[UNIFIED-CHAT] 🕐 Enriching context with timezone:', {
+      timezone: userTimezone.timezone,
+      currentTime: userTimezone.currentTime,
+      currentDate: userTimezone.currentDate,
+      detectionMethod: userTimezone.detectionMethod
+    });
     const contextAnalysis = enrichContext(userMessage, userTimezone)
 
     // Add freshness hints for time-sensitive queries
     const freshnessHints = getFreshnessContextHints(userMessage, userTimezone.timezone)
+    console.log('[UNIFIED-CHAT] 📝 Generated system context preview:', contextAnalysis.systemContext.substring(0, 500))
 
     // If query is encyclopedic, use Grokipedia (replaces Wikipedia)
     let grokipediaContext: string | null = null
