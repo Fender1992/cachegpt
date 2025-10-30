@@ -10,7 +10,7 @@ import Navigation from '@/components/Navigation';
 interface PricingTier {
   id: string;
   name: string;
-  price: number;
+  price: number | null; // null for custom pricing (Enterprise)
   interval: string;
   requests: number;
   features: string[];
@@ -76,7 +76,7 @@ const pricingTiers: PricingTier[] = [
   {
     id: 'enterprise',
     name: 'Enterprise',
-    price: 0,
+    price: null, // Custom pricing
     interval: 'custom',
     requests: 999999999,
     features: [
@@ -225,18 +225,26 @@ export default function PricingPage() {
                   {tier.name}
                 </h3>
                 <div className="flex items-baseline gap-1">
-                  <span className={`text-5xl font-bold ${tier.popular ? 'text-white' : 'text-gray-900'}`}>
-                    ${tier.price}
-                  </span>
-                  {tier.interval !== 'custom' && (
-                    <span className={`text-lg ${tier.popular ? 'text-purple-100' : 'text-gray-500'}`}>
-                      /{tier.interval}
+                  {tier.price === null ? (
+                    <span className={`text-2xl font-bold ${tier.popular ? 'text-white' : 'text-gray-900'}`}>
+                      Contact Support for Pricing
                     </span>
-                  )}
-                  {tier.interval === 'custom' && (
-                    <span className={`text-lg ${tier.popular ? 'text-purple-100' : 'text-gray-500'}`}>
-                      custom pricing
-                    </span>
+                  ) : (
+                    <>
+                      <span className={`text-5xl font-bold ${tier.popular ? 'text-white' : 'text-gray-900'}`}>
+                        ${tier.price}
+                      </span>
+                      {tier.interval !== 'custom' && (
+                        <span className={`text-lg ${tier.popular ? 'text-purple-100' : 'text-gray-500'}`}>
+                          /{tier.interval}
+                        </span>
+                      )}
+                      {tier.interval === 'custom' && (
+                        <span className={`text-lg ${tier.popular ? 'text-purple-100' : 'text-gray-500'}`}>
+                          custom pricing
+                        </span>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
