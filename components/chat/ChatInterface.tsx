@@ -13,6 +13,7 @@ import ShareButton from '@/components/chat/ShareButton'
 import ConversationReferenceButton from '@/components/chat/ConversationReferenceButton'
 import MarkdownMessage from '@/components/chat/MarkdownMessage'
 import MobileChatModal from '@/components/chat/MobileChatModal'
+import FileUpload, { UploadedFile } from '@/components/chat/FileUpload'
 import { error as logError } from '@/lib/logger'
 import { isFeatureEnabled } from '@/lib/featureFlags'
 
@@ -72,6 +73,7 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
   const [shareEnabled, setShareEnabled] = useState(false)
   const [referencedConversationIds, setReferencedConversationIds] = useState<string[]>([])
   const [mobileModalOpen, setMobileModalOpen] = useState(false)
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const router = useRouter()
   const searchParams = useSearchParams()
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -587,7 +589,8 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
         preferredProvider: selectedProvider === 'auto' ? undefined : selectedProvider,
         conversationId: activeConversationId, // Send current conversation ID if exists
         referencedConversations: referencedConversationIds.length > 0 ? referencedConversationIds : undefined,
-        qualityMode // Include quality mode in request
+        qualityMode, // Include quality mode in request
+        uploadedFiles: uploadedFiles.length > 0 ? uploadedFiles : undefined // Include uploaded files
       }
 
       // Add mode's optimization parameters if a mode is active
@@ -710,8 +713,9 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
         return updated
       })
 
-      // Clear streaming message
+      // Clear streaming message and uploaded files
       setStreamingMessage('')
+      setUploadedFiles([]) // Clear files after sending
 
       // Refresh conversations list to include new/updated conversation
       loadConversations()
@@ -1172,6 +1176,11 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
             </div>
           )}
           <div className="flex gap-2">
+            <FileUpload
+              onFilesChange={setUploadedFiles}
+              maxFiles={5}
+              disabled={isLoading}
+            />
             <ConversationReferenceButton
               conversations={conversations.filter(c => c.id !== activeConversationId)}
               onReferenceSelect={handleConversationReference}
