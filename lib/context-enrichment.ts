@@ -5,32 +5,45 @@
  */
 
 import { grokipediaService, isEncyclopedicQuery, GrokipediaResult } from './grokipedia-service';
+import { detectUserTimezone, formatTimezoneContext, getSeasonForTimezone, UserTimezoneInfo } from './timezone-detector';
 
 /**
  * Generate dynamic system context with current information
+ * Now supports user's actual timezone
  */
-export function generateSystemContext(): string {
+export function generateSystemContext(userTimezone?: UserTimezoneInfo): string {
   const now = new Date()
 
-  // Current date and time information
+  // Use user's timezone if provided, otherwise use server time
+  const timezone = userTimezone?.timezone || 'UTC';
+
+  // Current date and time information in user's timezone
   const dateContext = {
     date: now.toLocaleDateString('en-US', {
+      timeZone: timezone,
       weekday: 'long',
       year: 'numeric',
       month: 'long',
       day: 'numeric'
     }),
     time: now.toLocaleTimeString('en-US', {
+      timeZone: timezone,
       hour: '2-digit',
       minute: '2-digit',
       timeZoneName: 'short'
     }),
     timestamp: now.toISOString(),
     year: now.getFullYear(),
-    month: now.toLocaleString('en-US', { month: 'long' }),
-    dayOfWeek: now.toLocaleString('en-US', { weekday: 'long' }),
+    month: now.toLocaleString('en-US', {
+      timeZone: timezone,
+      month: 'long'
+    }),
+    dayOfWeek: now.toLocaleString('en-US', {
+      timeZone: timezone,
+      weekday: 'long'
+    }),
     quarter: `Q${Math.floor((now.getMonth() / 3)) + 1}`,
-    season: getSeason(now)
+    season: userTimezone ? getSeasonForTimezone(timezone) : getSeason(now)
   }
 
   // Technology and version context
@@ -51,9 +64,13 @@ export function generateSystemContext(): string {
     ]
   }
 
-  return `# Current Context (Auto-Updated)
+  let contextStr = `# Current Context (Auto-Updated)\n\n`;
 
-## Date & Time
+  // Add timezone-specific information if available
+  if (userTimezone) {
+    contextStr += `${formatTimezoneContext(userTimezone)}\n\n`;
+  } else {
+    contextStr += `## Date & Time (Server Time - UTC)
 - **Current Date**: ${dateContext.date}
 - **Current Time**: ${dateContext.time}
 - **ISO Timestamp**: ${dateContext.timestamp}
@@ -63,7 +80,10 @@ export function generateSystemContext(): string {
 - **Quarter**: ${dateContext.quarter}
 - **Season**: ${dateContext.season}
 
-## Technology Versions (Latest Stable)
+`;
+  }
+
+  contextStr += `## Technology Versions (Latest Stable)
 - ${techContext.latestNodeLTS}
 - ${techContext.latestPython}
 - ${techContext.latestReact}
@@ -73,7 +93,9 @@ export function generateSystemContext(): string {
 ## Current Technology Landscape
 ${worldContext.majorEvents.map(event => `- ${event}`).join('\n')}
 
-**Important**: When asked about current events, news, stock prices, weather, or other real-time information you don't have, clearly state that you need up-to-date information and suggest the user verify through current sources.`
+**Important**: When asked about current events, news, stock prices, weather, or other real-time information you don't have, clearly state that you need up-to-date information and suggest the user verify through current sources.`;
+
+  return contextStr;
 }
 
 /**
@@ -280,9 +302,9 @@ export function getCommonKnowledge(query: string): string | null {
 
 /**
  * Main context enrichment function
- * Now includes Grokipedia detection for encyclopedic queries
+ * Now includes Grokipedia detection and user timezone support
  */
-export function enrichContext(userQuery: string): {
+export function enrichContext(userQuery: string, userTimezone?: UserTimezoneInfo): {
   enrichedQuery: string
   systemContext: string
   needsRealTime: boolean
@@ -291,7 +313,7 @@ export function enrichContext(userQuery: string): {
   isEncyclopedic: boolean
   shouldUseGrokipedia: boolean
 } {
-  const systemContext = generateSystemContext()
+  const systemContext = generateSystemContext(userTimezone)
   const realTimeAnalysis = needsRealTimeInfo(userQuery)
   const commonAnswer = getCommonKnowledge(userQuery)
   const enrichedQuery = enrichQueryWithContext(userQuery)
@@ -304,7 +326,8 @@ export function enrichContext(userQuery: string): {
     needsRealTime: realTimeAnalysis.needsInfo,
     category: realTimeAnalysis.category,
     isEncyclopedic,
-    shouldUseGrokipedia
+    shouldUseGrokipedia,
+    userTimezone: userTimezone?.timezone || 'not provided'
   })
 
   return {

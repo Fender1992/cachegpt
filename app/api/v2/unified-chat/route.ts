@@ -27,6 +27,7 @@ import {
 import { sanitizeResponse, hasExecutionArtifacts } from '@/lib/response-sanitizer';
 import { enrichContext, generateSystemContext, getGrokipediaContext } from '@/lib/context-enrichment';
 import { performContextualSearch } from '@/lib/web-search';
+import { detectUserTimezone } from '@/lib/timezone-detector';
 import { cacheLifecycleManager, QueryType, CacheLifecycle } from '@/lib/cache-lifecycle';
 import { getNewsService } from '@/lib/news-service';
 import { getWeatherService } from '@/lib/weather-service';
@@ -739,8 +740,12 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Enrich context with current information and real-time data
-    const contextAnalysis = enrichContext(userMessage)
+    // Detect user's timezone from request headers
+    const userTimezone = detectUserTimezone(request.headers);
+    console.log('[UNIFIED-CHAT] User timezone detected:', userTimezone.timezone, `(${userTimezone.detectionMethod})`);
+
+    // Enrich context with current information, real-time data, and user's timezone
+    const contextAnalysis = enrichContext(userMessage, userTimezone)
 
     // If query is encyclopedic, use Grokipedia (replaces Wikipedia)
     let grokipediaContext: string | null = null
