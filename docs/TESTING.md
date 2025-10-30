@@ -202,24 +202,33 @@ The test pipeline runs on:
 
 ### ✅ Working Tests
 
-- `__tests__/api/upload.test.ts` - File upload validation (9 tests)
+- `__tests__/api/upload.test.ts` - File upload validation (7 tests passing)
+  - File type validation
+  - File size limits
+  - Storage path generation
+  - Content extraction
 
 ### ⚠️ Needs Conversion
 
-- `__tests__/api/chat.test.ts` - Old Jest format
-- `__tests__/sdk/javascript.test.ts` - Old Jest format
+- `__tests__/api/chat.test.ts` - Old Jest format (excluded from runs)
+- `__tests__/sdk/javascript.test.ts` - Old Jest format (excluded from runs)
 
-### 🔍 Needs Mocking
+### 📝 E2E Tests Created (run separately via Playwright)
 
-- `__tests__/lib/cache-lifecycle.test.ts` - Requires Supabase mocks
-- `__tests__/lib/response-validator.test.ts` - Requires implementation
+- `__tests__/e2e/chat.spec.ts` - Basic structure tests
+  - Homepage loading ✅
+  - Chat navigation ✅
+  - Component rendering ✅
+  - File upload workflow (skipped - needs auth setup)
+  - Conversation history (skipped - needs auth setup)
 
-### 📝 Pending E2E Tests
+### 🔮 Future Test Coverage Needed
 
-- Authentication flow
-- File upload workflow
-- Conversation history
-- Chat message sending
+- API endpoint integration tests
+- Component unit tests
+- Authentication flows
+- Database operations
+- Cache management
 
 ## Troubleshooting
 
@@ -272,5 +281,5 @@ The test pipeline runs on:
 ---
 
 **Last Updated**: October 30, 2025
-**Coverage**: 9 passing unit tests
-**Status**: ✅ Infrastructure Complete
+**Coverage**: 7 passing unit tests
+**Status**: ✅ Infrastructure Operational

@@ -27,9 +27,8 @@ export default defineConfig({
       'dist',
       '__tests__/api/chat.test.ts', // Old Jest test - needs conversion
       '__tests__/sdk/javascript.test.ts', // Old Jest test - needs conversion
-      '__tests__/integration/e2e.test.ts', // Requires Playwright
-      '__tests__/lib/cache-lifecycle.test.ts', // Module needs mocking
-      '__tests__/lib/response-validator.test.ts', // Module needs mocking
+      '__tests__/integration/e2e.test.ts', // Old - use __tests__/e2e/ instead
+      '__tests__/e2e/**', // Playwright E2E tests - run via playwright test command
     ],
   },
   resolve: {
