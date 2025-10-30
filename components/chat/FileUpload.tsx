@@ -58,14 +58,15 @@ export default function FileUpload({
         })
 
         if (!response.ok) {
-          // Try to get error message, but handle non-JSON responses (like Vercel error pages)
+          // Read response as text first (stream can only be consumed once)
+          const text = await response.text()
           let errorMessage = `Upload failed (${response.status})`
           try {
-            const errorData = await response.json()
+            // Try to parse as JSON
+            const errorData = JSON.parse(text)
             errorMessage = errorData.error || errorMessage
           } catch {
-            // Response wasn't JSON (e.g., HTML error page), use text instead
-            const text = await response.text()
+            // Not JSON (e.g., HTML error page), use text directly
             errorMessage = text.substring(0, 100) || errorMessage
           }
           throw new Error(errorMessage)
