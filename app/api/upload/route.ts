@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
-import * as pdfjsLib from 'pdfjs-dist'
+import PDFParser from 'pdf2json'
 
 const MAX_FILE_SIZE = 30 * 1024 * 1024 // 30MB
 const MAX_FILES_PER_CONVERSATION = 5
@@ -197,36 +197,35 @@ async function parseFileContent(
 
     case 'application/pdf': {
       try {
-        // Parse PDF with pdfjs-dist
-        const loadingTask = pdfjsLib.getDocument({
-          data: new Uint8Array(buffer),
-          useSystemFonts: true,
-          standardFontDataUrl: undefined,
+        // Parse PDF with pdf2json
+        const pdfParser = new PDFParser()
+
+        // Create a promise to handle the async parsing
+        const parsedData = await new Promise<string>((resolve, reject) => {
+          pdfParser.on('pdfParser_dataError', (errData: any) => reject(errData.parserError))
+          pdfParser.on('pdfParser_dataReady', (pdfData: any) => {
+            // Extract text from all pages
+            const text = pdfData.Pages
+              .map((page: any) =>
+                page.Texts
+                  .map((text: any) => decodeURIComponent(text.R[0].T))
+                  .join(' ')
+              )
+              .join('\n')
+            resolve(text)
+          })
+
+          pdfParser.parseBuffer(Buffer.from(buffer))
         })
-        const pdfDocument = await loadingTask.promise
 
-        let fullText = ''
-        const numPages = pdfDocument.numPages
-
-        // Extract text from all pages
-        for (let i = 1; i <= numPages; i++) {
-          const page = await pdfDocument.getPage(i)
-          const textContent = await page.getTextContent()
-          const pageText = textContent.items
-            .map((item: any) => item.str)
-            .join(' ')
-          fullText += pageText + '\n'
-        }
-
-        const preview = fullText.substring(0, 200) + (fullText.length > 200 ? '...' : '')
+        const preview = parsedData.substring(0, 200) + (parsedData.length > 200 ? '...' : '')
 
         console.log('[PDF-PARSE] Success:', {
           file: file.name,
-          pages: numPages,
-          textLength: fullText.length
+          textLength: parsedData.length
         })
 
-        return { text: fullText, preview }
+        return { text: parsedData, preview }
       } catch (error) {
         console.error('[PDF-PARSE] Error:', error)
         return {
