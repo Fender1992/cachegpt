@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
-import pdf from 'pdf-parse'
+import * as pdfjsLib from 'pdfjs-dist'
 
 const MAX_FILE_SIZE = 30 * 1024 * 1024 // 30MB
 const MAX_FILES_PER_CONVERSATION = 5
@@ -197,18 +197,36 @@ async function parseFileContent(
 
     case 'application/pdf': {
       try {
-        // Parse PDF with pdf-parse
-        const data = await pdf(Buffer.from(buffer))
-        const text = data.text
-        const preview = text.substring(0, 200) + (text.length > 200 ? '...' : '')
+        // Parse PDF with pdfjs-dist
+        const loadingTask = pdfjsLib.getDocument({
+          data: new Uint8Array(buffer),
+          useSystemFonts: true,
+          standardFontDataUrl: undefined,
+        })
+        const pdfDocument = await loadingTask.promise
+
+        let fullText = ''
+        const numPages = pdfDocument.numPages
+
+        // Extract text from all pages
+        for (let i = 1; i <= numPages; i++) {
+          const page = await pdfDocument.getPage(i)
+          const textContent = await page.getTextContent()
+          const pageText = textContent.items
+            .map((item: any) => item.str)
+            .join(' ')
+          fullText += pageText + '\n'
+        }
+
+        const preview = fullText.substring(0, 200) + (fullText.length > 200 ? '...' : '')
 
         console.log('[PDF-PARSE] Success:', {
           file: file.name,
-          pages: data.numpages,
-          textLength: text.length
+          pages: numPages,
+          textLength: fullText.length
         })
 
-        return { text, preview }
+        return { text: fullText, preview }
       } catch (error) {
         console.error('[PDF-PARSE] Error:', error)
         return {
