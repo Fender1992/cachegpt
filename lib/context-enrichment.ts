@@ -68,9 +68,11 @@ export function generateSystemContext(userTimezone?: UserTimezoneInfo): string {
 
   // Add timezone-specific information if available
   if (userTimezone) {
+    // Put timezone context at the very top for maximum visibility
     contextStr += `${formatTimezoneContext(userTimezone)}\n\n`;
   } else {
-    contextStr += `## Date & Time (Server Time - UTC)
+    // Fallback to UTC with clear warning
+    contextStr += `## ⚠️ Date & Time (Server Time - UTC - User timezone not detected)
 - **Current Date**: ${dateContext.date}
 - **Current Time**: ${dateContext.time}
 - **ISO Timestamp**: ${dateContext.timestamp}
@@ -79,6 +81,8 @@ export function generateSystemContext(userTimezone?: UserTimezoneInfo): string {
 - **Day**: ${dateContext.dayOfWeek}
 - **Quarter**: ${dateContext.quarter}
 - **Season**: ${dateContext.season}
+
+NOTE: This is server time in UTC. The user's local time may be different.
 
 `;
   }

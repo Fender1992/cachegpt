@@ -157,14 +157,20 @@ function getUTCOffset(timezone: string): string {
  * Format timezone info for context injection
  */
 export function formatTimezoneContext(timezoneInfo: UserTimezoneInfo): string {
-  return `## User's Local Time
-- **Timezone**: ${timezoneInfo.timezone} (${timezoneInfo.offset})
-- **Current Date**: ${timezoneInfo.currentDate}
-- **Current Time**: ${timezoneInfo.currentTime}
-- **Day of Week**: ${timezoneInfo.dayOfWeek}
-- **Detection Method**: ${timezoneInfo.detectionMethod}
+  return `## CRITICAL: Current Date and Time Information
+**The user's current local time is: ${timezoneInfo.currentTime}**
+**The user's current local date is: ${timezoneInfo.currentDate}**
+**Day of the week: ${timezoneInfo.dayOfWeek}**
 
-**Important**: All date/time references should be in the user's timezone (${timezoneInfo.timezone}) unless otherwise specified.`;
+User timezone details:
+- Timezone: ${timezoneInfo.timezone} (${timezoneInfo.offset})
+- Detection method: ${timezoneInfo.detectionMethod}
+
+IMPORTANT INSTRUCTIONS:
+- When the user asks "what time is it" or similar questions, respond with their LOCAL time shown above
+- DO NOT respond with UTC time unless specifically asked
+- All date/time references should use the user's timezone (${timezoneInfo.timezone})
+- The current time in the user's timezone is ${timezoneInfo.currentTime}`;
 }
 
 /**
