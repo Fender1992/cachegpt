@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { Paperclip, X, File, Image as ImageIcon, Code, FileText } from 'lucide-react'
+import { supabase } from '@/lib/supabase-client'
 
 export interface UploadedFile {
   id: string
@@ -45,6 +46,10 @@ export default function FileUpload({
     try {
       const newFiles: UploadedFile[] = []
 
+      // Get session token for authentication
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
 
@@ -52,9 +57,14 @@ export default function FileUpload({
         const formData = new FormData()
         formData.append('file', file)
 
+        const headers: HeadersInit = token
+          ? { 'Authorization': `Bearer ${token}` }
+          : {}
+
         const response = await fetch('/api/upload', {
           method: 'POST',
           body: formData,
+          headers,
           credentials: 'include' // Ensure cookies are sent
         })
 
