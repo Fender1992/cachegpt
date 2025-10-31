@@ -54,7 +54,8 @@ export default function FileUpload({
 
         const response = await fetch('/api/upload', {
           method: 'POST',
-          body: formData
+          body: formData,
+          credentials: 'include' // Ensure cookies are sent
         })
 
         if (!response.ok) {
