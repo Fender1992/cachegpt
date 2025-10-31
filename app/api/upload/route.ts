@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase-server'
+import { createClient } from '@supabase/supabase-js'
+import {
+  resolveAuthentication,
+  isAuthError,
+  getUserId
+} from '@/lib/unified-auth-resolver'
 import PDFParser from 'pdf2json'
 
 const MAX_FILE_SIZE = 30 * 1024 * 1024 // 30MB
@@ -31,16 +36,20 @@ const ALLOWED_TYPES = {
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    // Use unified authentication resolver (supports both cookies and Bearer tokens)
+    const authResult = await resolveAuthentication(request)
 
-    // Get current authenticated user
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-
-    if (sessionError || !session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (isAuthError(authResult)) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status })
     }
 
-    const userId = session.user.id
+    const userId = getUserId(authResult)
+
+    // Create Supabase client with service key for database operations
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    )
     const formData = await request.formData()
     const file = formData.get('file') as File
     const conversationId = formData.get('conversationId') as string | null
