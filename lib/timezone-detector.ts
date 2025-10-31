@@ -157,20 +157,25 @@ function getUTCOffset(timezone: string): string {
  * Format timezone info for context injection
  */
 export function formatTimezoneContext(timezoneInfo: UserTimezoneInfo): string {
-  return `## CRITICAL: Current Date and Time Information
-**The user's current local time is: ${timezoneInfo.currentTime}**
-**The user's current local date is: ${timezoneInfo.currentDate}**
-**Day of the week: ${timezoneInfo.dayOfWeek}**
+  // Extract just the time portion for maximum clarity
+  const timeOnly = timezoneInfo.currentTime.split(',').pop()?.trim() || timezoneInfo.currentTime;
 
-User timezone details:
-- Timezone: ${timezoneInfo.timezone} (${timezoneInfo.offset})
-- Detection method: ${timezoneInfo.detectionMethod}
+  return `## ⏰ CRITICAL TIME INFORMATION - READ THIS FIRST ⏰
 
-IMPORTANT INSTRUCTIONS:
-- When the user asks "what time is it" or similar questions, respond with their LOCAL time shown above
-- DO NOT respond with UTC time unless specifically asked
-- All date/time references should use the user's timezone (${timezoneInfo.timezone})
-- The current time in the user's timezone is ${timezoneInfo.currentTime}`;
+🕐 CURRENT TIME: ${timeOnly}
+📅 CURRENT DATE: ${timezoneInfo.currentDate}
+📍 TIMEZONE: ${timezoneInfo.timezone} (${timezoneInfo.offset})
+📆 DAY: ${timezoneInfo.dayOfWeek}
+
+⚠️ MANDATORY INSTRUCTIONS FOR ALL RESPONSES:
+1. If user asks "what time is it?", "what's the time?", or similar → Answer: "${timeOnly}"
+2. NEVER respond with UTC time unless user specifically asks for UTC
+3. This is the user's LOCAL time in ${timezoneInfo.timezone}
+4. Do not add any conversions or alternate timezones unless requested
+5. The answer to "what time is it?" is EXACTLY: "${timeOnly}"
+
+Detection method: ${timezoneInfo.detectionMethod}
+`;
 }
 
 /**
