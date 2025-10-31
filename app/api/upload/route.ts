@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
-import { PDFParse } from 'pdf-parse'
+import pdf from 'pdf-parse'
 
 const MAX_FILE_SIZE = 30 * 1024 * 1024 // 30MB
 const MAX_FILES_PER_CONVERSATION = 5
@@ -197,15 +197,14 @@ async function parseFileContent(
 
     case 'application/pdf': {
       try {
-        // Create PDF parser with buffer data
-        const parser = new PDFParse({ data: Buffer.from(buffer) })
-        const result = await parser.getText()
-        const text = result.text
+        // Parse PDF with pdf-parse
+        const data = await pdf(Buffer.from(buffer))
+        const text = data.text
         const preview = text.substring(0, 200) + (text.length > 200 ? '...' : '')
 
         console.log('[PDF-PARSE] Success:', {
           file: file.name,
-          pages: result.total,
+          pages: data.numpages,
           textLength: text.length
         })
 
