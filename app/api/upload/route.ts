@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient as createServiceClient } from '@supabase/supabase-js'
-import { createClient } from '@/lib/supabase-server'
+import { createClient } from '@supabase/supabase-js'
+import {
+  resolveAuthentication,
+  isAuthError,
+  getUserId
+} from '@/lib/unified-auth-resolver'
 import PDFParser from 'pdf2json'
 
 const MAX_FILE_SIZE = 30 * 1024 * 1024 // 30MB
@@ -32,20 +36,21 @@ const ALLOWED_TYPES = {
  */
 export async function POST(request: NextRequest) {
   try {
-    // Create Supabase client for authentication (handles cookies properly)
-    const supabase = await createClient()
+    console.log('[UPLOAD] Request received, resolving authentication...')
 
-    // Get current authenticated user
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    // Use unified authentication resolver (same as other endpoints like cache-feedback)
+    const authResult = await resolveAuthentication(request)
 
-    if (sessionError || !session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (isAuthError(authResult)) {
+      console.error('[UPLOAD] Authentication failed:', authResult.error)
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status })
     }
 
-    const userId = session.user.id
+    const userId = getUserId(authResult)
+    console.log('[UPLOAD] User authenticated:', userId, 'via', authResult.authMethod)
 
-    // Create service client for database operations
-    const serviceClient = createServiceClient(
+    // Create Supabase client for database operations
+    const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_KEY!
     )
@@ -73,7 +78,7 @@ export async function POST(request: NextRequest) {
 
     // Check file count limit for conversation
     if (conversationId) {
-      const { count, error: countError } = await serviceClient
+      const { count, error: countError } = await supabase
         .from('conversation_files')
         .select('*', { count: 'exact', head: true })
         .eq('conversation_id', conversationId)
@@ -100,7 +105,7 @@ export async function POST(request: NextRequest) {
     const storagePath = `${userId}/${conversationId || 'unlinked'}/${fileId}${fileExtension}`
 
     // Upload file to Supabase Storage
-    const { error: storageError } = await serviceClient.storage
+    const { error: storageError } = await supabase.storage
       .from('conversation-files')
       .upload(storagePath, buffer, {
         contentType: file.type,
@@ -119,7 +124,7 @@ export async function POST(request: NextRequest) {
     console.log('[UPLOAD] File uploaded to storage:', storagePath)
 
     // Store file metadata in database
-    const { data: fileRecord, error: insertError } = await serviceClient
+    const { data: fileRecord, error: insertError } = await supabase
       .from('conversation_files')
       .insert({
         id: fileId,
@@ -140,7 +145,7 @@ export async function POST(request: NextRequest) {
     if (insertError) {
       console.error('[UPLOAD] Database error:', insertError)
       // Try to clean up storage if database insert fails
-      await serviceClient.storage.from('conversation-files').remove([storagePath])
+      await supabase.storage.from('conversation-files').remove([storagePath])
       return NextResponse.json({
         error: 'Failed to store file metadata',
         details: insertError.message
