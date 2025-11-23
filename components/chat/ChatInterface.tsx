@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
-import { Send, Bot, Brain, Sparkles, Zap, Settings, LogOut, History, RefreshCw, Loader2, Home, Trash2, ThumbsUp, ThumbsDown, AlertTriangle, Rocket, Gauge } from 'lucide-react'
+import { Send, Bot, Brain, Sparkles, Zap, Settings, LogOut, LogIn, History, RefreshCw, Loader2, Home, Trash2, ThumbsUp, ThumbsDown, AlertTriangle, Rocket, Gauge } from 'lucide-react'
 import BugReportButton from '@/components/bug-report-button'
 import ProviderSelector from '@/components/provider-selector'
 import Toast from '@/components/toast'
@@ -62,6 +62,7 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
   const [streamingMessage, setStreamingMessage] = useState<string>('')
   const [isStreaming, setIsStreaming] = useState(false)
   const [userProfile, setUserProfile] = useState<any>(null)
+  const [isAnonymous, setIsAnonymous] = useState(false)
   const [usingPremium, setUsingPremium] = useState(false)
   const [keyboardVisible, setKeyboardVisible] = useState(false)
   const [loadingOlderMessages, setLoadingOlderMessages] = useState(false)
@@ -446,6 +447,13 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
       console.log('[CHAT] No session found - anonymous mode')
       // Set a minimal profile for anonymous users so the page loads
       setUserProfile({ selected_provider: 'auto', enterprise_mode: false })
+      setIsAnonymous(true)
+      // Add a welcome message for anonymous users
+      setMessages([{
+        role: 'assistant',
+        content: '👋 Welcome! You can start chatting right away - no sign-up required.\n\n**Note:** Your conversations won\'t be saved. Sign in to keep your chat history and unlock more features!',
+        provider: 'system'
+      }])
       return
     }
 
@@ -908,22 +916,36 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
             >
               <Home className="w-5 h-5" />
             </button>
-            <button
-              onClick={handleSettings}
-              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
-              title="Settings"
-              aria-label="Open settings"
-            >
-              <Settings className="w-5 h-5" />
-            </button>
-            <button
-              onClick={handleLogout}
-              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
-              title="Logout"
-              aria-label="Logout"
-            >
-              <LogOut className="w-5 h-5" />
-            </button>
+            {!isAnonymous && (
+              <button
+                onClick={handleSettings}
+                className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                title="Settings"
+                aria-label="Open settings"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
+            )}
+            {isAnonymous ? (
+              <button
+                onClick={() => router.push('/login')}
+                className="flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                title="Sign In"
+                aria-label="Sign in to save your chats"
+              >
+                <LogIn className="w-4 h-4" />
+                Sign In
+              </button>
+            ) : (
+              <button
+                onClick={handleLogout}
+                className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                title="Logout"
+                aria-label="Logout"
+              >
+                <LogOut className="w-5 h-5" />
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -943,7 +965,20 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
             </div>
           </div>
           <div className="p-4 space-y-2">
-            {conversations.length === 0 ? (
+            {isAnonymous ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500 dark:text-gray-400 text-sm mb-3">
+                  Sign in to save your chat history
+                </p>
+                <button
+                  onClick={() => router.push('/login')}
+                  className="flex items-center gap-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors mx-auto"
+                >
+                  <LogIn className="w-4 h-4" />
+                  Sign In
+                </button>
+              </div>
+            ) : conversations.length === 0 ? (
               <p className="text-gray-500 dark:text-gray-400 text-sm text-center py-8">
                 No conversations yet. Start chatting to see your history here.
               </p>
