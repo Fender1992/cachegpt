@@ -22,6 +22,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { messages } = body;
 
+    // Debug: Log the user's message
+    const userMessage = messages[messages.length - 1]?.content;
+    console.log('[STREAM-DEBUG] User message:', userMessage?.substring(0, 100));
+
     // Create a TransformStream for streaming
     const encoder = new TextEncoder();
     const stream = new TransformStream();
@@ -30,24 +34,44 @@ export async function POST(request: NextRequest) {
     // Start the streaming response in the background
     (async () => {
       try {
+        // Forward all relevant headers to unified-chat
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+
+        // Forward auth header if present
+        if (request.headers.get('Authorization')) {
+          headers['Authorization'] = request.headers.get('Authorization')!;
+        }
+
+        // Forward timezone headers for context enrichment (CRITICAL for weather)
+        if (request.headers.get('x-user-timezone')) {
+          headers['x-user-timezone'] = request.headers.get('x-user-timezone')!;
+        }
+        if (request.headers.get('x-timezone-offset')) {
+          headers['x-timezone-offset'] = request.headers.get('x-timezone-offset')!;
+        }
+
         // Call the regular unified-chat API
+        console.log('[STREAM-DEBUG] Calling unified-chat with headers:', Object.keys(headers));
         const response = await fetch(new URL('/api/v2/unified-chat', request.url), {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': request.headers.get('Authorization') || '',
-          },
+          headers,
           body: JSON.stringify(body),
         });
 
+        console.log('[STREAM-DEBUG] Unified-chat response status:', response.status);
+
         if (!response.ok) {
           const error = await response.json();
+          console.log('[STREAM-DEBUG] Unified-chat error:', error);
           await writer.write(encoder.encode(`data: ${JSON.stringify({ error: error.error || 'Failed to get response' })}\n\n`));
           await writer.close();
           return;
         }
 
         const data = await response.json();
+        console.log('[STREAM-DEBUG] Got response, cached:', data.cached);
         const fullContent = data.response || '';
 
         // Stream the response word by word for typewriter effect
