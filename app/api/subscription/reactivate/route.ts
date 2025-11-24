@@ -33,7 +33,6 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (profileError) {
-      console.error('Error fetching profile:', profileError);
       return NextResponse.json(
         { error: 'Failed to fetch subscription details' },
         { status: 500 }
@@ -92,16 +91,13 @@ export async function POST(req: NextRequest) {
       })
       .eq('stripe_subscription_id', profile.stripe_subscription_id);
 
-    console.log(`Subscription reactivated for user ${userId}`);
-
     return NextResponse.json({
       success: true,
       message: 'Subscription has been reactivated successfully',
     });
   } catch (error: any) {
-    console.error('Reactivate subscription error:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to reactivate subscription' },
+      { error: 'Failed to reactivate subscription' },
       { status: 500 }
     );
   }

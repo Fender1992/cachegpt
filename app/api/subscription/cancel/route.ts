@@ -33,7 +33,6 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (profileError) {
-      console.error('Error fetching profile:', profileError);
       return NextResponse.json(
         { error: 'Failed to fetch subscription details' },
         { status: 500 }
@@ -71,17 +70,14 @@ export async function POST(req: NextRequest) {
       })
       .eq('stripe_subscription_id', profile.stripe_subscription_id);
 
-    console.log(`Subscription canceled at period end for user ${userId}`);
-
     return NextResponse.json({
       success: true,
       message: 'Subscription will be canceled at the end of the current billing period',
       cancelAt: subscription.cancel_at ? new Date(subscription.cancel_at * 1000).toISOString() : null,
     });
   } catch (error: any) {
-    console.error('Cancel subscription error:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to cancel subscription' },
+      { error: 'Failed to cancel subscription' },
       { status: 500 }
     );
   }

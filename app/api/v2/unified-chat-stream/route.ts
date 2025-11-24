@@ -15,19 +15,10 @@ import {
 // Note: Not using edge runtime due to crypto dependency in auth
 export async function POST(request: NextRequest) {
   try {
-    // Authenticate user
+    // Try to authenticate user, but allow anonymous access
     const authResult = await resolveAuthentication(request);
-    if (isAuthError(authResult)) {
-      return new Response(
-        JSON.stringify({ error: authResult.error }),
-        {
-          status: authResult.status,
-          headers: { 'Content-Type': 'application/json' }
-        }
-      );
-    }
+    const userId = isAuthError(authResult) ? null : getUserId(authResult);
 
-    const userId = getUserId(authResult);
     const body = await request.json();
     const { messages } = body;
 
@@ -98,10 +89,9 @@ export async function POST(request: NextRequest) {
 
         await writer.close();
       } catch (error: any) {
-        console.error('[STREAM] Error:', error);
         await writer.write(
           encoder.encode(`data: ${JSON.stringify({
-            error: error.message || 'Streaming error',
+            error: 'Streaming error',
             done: true
           })}\n\n`)
         );
@@ -119,9 +109,8 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('[STREAM-API] Error:', error);
     return new Response(
-      JSON.stringify({ error: error.message || 'Streaming request failed' }),
+      JSON.stringify({ error: 'Streaming request failed' }),
       {
         status: 500,
         headers: { 'Content-Type': 'application/json' }

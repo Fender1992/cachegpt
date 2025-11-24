@@ -52,7 +52,7 @@ export default function SubscriptionInfo({ userId }: { userId: string }) {
         cancel_at_period_end: cancelAtPeriodEnd,
       });
     } catch (error) {
-      console.error('Error loading subscription:', error);
+      // Silent fail - subscription info will not display
     } finally {
       setLoading(false);
     }
@@ -84,7 +84,6 @@ export default function SubscriptionInfo({ userId }: { userId: string }) {
       await loadSubscription(); // Reload to show updated status
       setShowCancelConfirm(false);
     } catch (error: any) {
-      console.error('Cancel subscription error:', error);
       alert(error.message || 'Failed to cancel subscription');
     } finally {
       setActionLoading(false);
@@ -116,7 +115,6 @@ export default function SubscriptionInfo({ userId }: { userId: string }) {
       alert('Your subscription has been reactivated successfully!');
       await loadSubscription(); // Reload to show updated status
     } catch (error: any) {
-      console.error('Reactivate subscription error:', error);
       alert(error.message || 'Failed to reactivate subscription');
     } finally {
       setActionLoading(false);

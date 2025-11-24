@@ -444,7 +444,6 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
 
     // Allow anonymous chatting - no redirect if no session
     if (!session) {
-      console.log('[CHAT] No session found - anonymous mode')
       // Set a minimal profile for anonymous users so the page loads
       setUserProfile({ selected_provider: 'auto', enterprise_mode: false })
       setIsAnonymous(true)
