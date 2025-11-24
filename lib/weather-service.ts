@@ -113,8 +113,10 @@ export class WeatherService {
         };
       }
 
+      console.log('[WEATHER-DEBUG] Geocoding found no results for:', location);
       return null;
     } catch (error: any) {
+      console.log('[WEATHER-DEBUG] Geocoding error:', error.message);
       return null;
     }
   }
@@ -178,6 +180,7 @@ export class WeatherService {
         sources: ['Open-Meteo']
       };
     } catch (error: any) {
+      console.log('[WEATHER-DEBUG] Open-Meteo API error:', error.message);
       return { sources: [] };
     }
   }
@@ -250,6 +253,7 @@ export class WeatherService {
         sources: ['OpenWeatherMap']
       };
     } catch (error: any) {
+      console.log('[WEATHER-DEBUG] OpenWeatherMap API error:', error.message);
       return { sources: [] };
     }
   }
