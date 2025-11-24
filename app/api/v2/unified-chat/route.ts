@@ -55,8 +55,9 @@ import { generateRequestId } from '@/config/llmConfig';
  * - v1 (implicit): Pre-context enrichment (before v11.4.0)
  * - v2-enriched: Context enrichment with date/time + web search (v11.4.0+)
  * - v3-weather: Added 7-day weather forecast context (v12.17.0+)
+ * - v4-weather: Fixed weather pipeline (location extraction, timezone headers, API errors) (v12.18.0+)
  */
-const CACHE_VERSION = 'v3-weather';
+const CACHE_VERSION = 'v4-weather';
 
 // Lazy load ranking modules to avoid build-time initialization
 const getTierCache = async () => {
