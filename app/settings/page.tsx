@@ -10,7 +10,6 @@ import {
 } from 'lucide-react'
 import { validateApiKeyFormat, testApiKeyConnection } from '@/lib/api-key-validator'
 import CacheGPTApiKeys from '@/components/settings/cachegpt-api-keys'
-import SubscriptionInfo from '@/components/settings/subscription-info'
 
 interface ApiKey {
   provider: string
@@ -246,13 +245,6 @@ export default function SettingsPage() {
               <AlertCircle className="w-5 h-5" />
             )}
             {message.text}
-          </div>
-        )}
-
-        {/* Subscription Info Section */}
-        {user && (
-          <div className="mb-8">
-            <SubscriptionInfo userId={user.id} />
           </div>
         )}
 

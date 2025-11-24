@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase-client';
 import { Check } from 'lucide-react';
 import Toast from '@/components/toast';
 import Navigation from '@/components/Navigation';
+import SubscriptionInfo from '@/components/settings/subscription-info';
 
 interface PricingTier {
   id: string;
@@ -201,6 +202,15 @@ export default function PricingPage() {
           </div>
         )}
       </div>
+
+      {/* Current Subscription Management */}
+      {user && currentTier !== 'free' && (
+        <div className="container mx-auto px-6 pb-12">
+          <div className="max-w-3xl mx-auto">
+            <SubscriptionInfo userId={user.id} />
+          </div>
+        </div>
+      )}
 
       {/* Pricing Cards */}
       <div className="container mx-auto px-6 pb-24">
