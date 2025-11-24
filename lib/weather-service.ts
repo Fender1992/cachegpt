@@ -92,6 +92,7 @@ export class WeatherService {
    */
   private async geocodeLocation(location: string): Promise<{ lat: number; lon: number; name: string } | null> {
     try {
+      console.log('[WEATHER-DEBUG] Geocoding location:', location);
       const response = await axios.get('https://geocoding-api.open-meteo.com/v1/search', {
         params: {
           name: location,
@@ -99,8 +100,9 @@ export class WeatherService {
           language: 'en',
           format: 'json'
         },
-        timeout: 5000
+        timeout: 10000 // Increased to 10 seconds
       });
+      console.log('[WEATHER-DEBUG] Geocoding response received:', response.data.results?.length || 0, 'results');
 
       if (response.data.results && response.data.results.length > 0) {
         const result = response.data.results[0];

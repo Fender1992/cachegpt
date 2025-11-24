@@ -826,6 +826,12 @@ export async function POST(request: NextRequest) {
     const weatherService = getWeatherService();
     const weatherContext = await weatherService.getWeatherContextIfNeeded(userMessage);
 
+    // Debug: Log weather context status
+    console.log('[UNIFIED-CHAT-DEBUG] Weather context length:', weatherContext ? weatherContext.length : 0);
+    if (weatherContext) {
+      console.log('[UNIFIED-CHAT-DEBUG] Weather context preview:', weatherContext.substring(0, 300));
+    }
+
     // Build enriched messages with system context
     const enrichedMessages = [...messages]
 
