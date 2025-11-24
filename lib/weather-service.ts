@@ -37,11 +37,21 @@ export class WeatherService {
       'weather', 'temperature', 'forecast', 'rain', 'snow', 'sunny',
       'cloudy', 'cold', 'hot', 'warm', 'climate', 'humidity',
       'wind', 'storm', 'precipitation', 'conditions', 'degrees',
-      'fahrenheit', 'celsius', 'umbrella', 'jacket', 'what to wear'
+      'fahrenheit', 'celsius', 'umbrella', 'jacket', 'what to wear',
+      'going to be', 'will it', 'should i', 'do i need'
     ];
 
     const lowerMessage = message.toLowerCase();
-    return keywords.some(keyword => lowerMessage.includes(keyword));
+    const needsWeather = keywords.some(keyword => lowerMessage.includes(keyword));
+
+    // Temporary debug logging to diagnose issue
+    if (needsWeather) {
+      console.log('[WEATHER-DEBUG] Query detected as needing weather:', message.substring(0, 100));
+    } else {
+      console.log('[WEATHER-DEBUG] Query does NOT need weather:', message.substring(0, 100));
+    }
+
+    return needsWeather;
   }
 
   /**
@@ -57,8 +67,8 @@ export class WeatherService {
       /weather\s+(?:in|at|for)\s+([a-z][a-z,\.\s]+?)(?:\s|[,\.\?]|$)/i,
       // "Kansas City weather", "fredericksburg weather"
       /^([a-z][a-z,\.\s]+?)\s+(?:weather|temperature|forecast)/i,
-      // "What's the weather in KCMO"
-      /(?:what'?s|what is)\s+(?:the\s+)?(?:weather|temperature|forecast)(?:\s+like)?(?:\s+in|at|for)\s+([a-z][a-z,\.\s]+?)(?:\s+this\s+week|\s|[,\.\?]|$)/i,
+      // "What's the weather in KCMO" or "going to be in fredericksburg"
+      /(?:what'?s|what is|going to be)\s+(?:the\s+)?(?:weather|temperature|forecast)?(?:\s+like)?(?:\s+in|at|for)\s+([a-z][a-z,\.\s]+?)(?:\s+this\s+week|\s|[,\.\?]|$)/i,
       // Catch city names with abbreviations like "KCMO", "NYC", "SF"
       /(?:in|at|for)\s+([A-Z]{2,})/,
     ];
@@ -67,11 +77,13 @@ export class WeatherService {
       const match = message.match(pattern);
       if (match && match[1]) {
         const location = match[1].trim();
+        console.log('[WEATHER-DEBUG] Extracted location:', location);
         return location;
       }
     }
 
     // Default to a major city if no location found
+    console.log('[WEATHER-DEBUG] No location found, using default: New York');
     return 'New York';
   }
 
@@ -115,10 +127,11 @@ export class WeatherService {
           latitude: lat,
           longitude: lon,
           current: 'temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m',
-          hourly: 'temperature_2m,weather_code',
+          daily: 'temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max',
           temperature_unit: 'fahrenheit',
           wind_speed_unit: 'mph',
-          forecast_days: 3,
+          precipitation_unit: 'inch',
+          forecast_days: 7,
           timezone: 'auto'
         },
         timeout: 5000
@@ -141,15 +154,17 @@ export class WeatherService {
         source: 'Open-Meteo'
       };
 
-      // Get next 24 hours forecast (simplified)
+      // Get 7-day forecast
       const forecast: WeatherData[] = [];
-      if (data.hourly && data.hourly.time) {
-        for (let i = 0; i < Math.min(24, data.hourly.time.length); i += 3) {
+      if (data.daily && data.daily.time) {
+        for (let i = 0; i < data.daily.time.length; i++) {
           forecast.push({
             location: locationName,
-            temperature: Math.round(data.hourly.temperature_2m[i]),
-            conditions: this.mapWeatherCode(data.hourly.weather_code[i]),
-            timestamp: data.hourly.time[i],
+            temperature: Math.round(data.daily.temperature_2m_max[i]),
+            feelsLike: Math.round(data.daily.temperature_2m_min[i]), // Using min temp in feelsLike field
+            conditions: this.mapWeatherCode(data.daily.weather_code[i]),
+            humidity: data.daily.precipitation_probability_max?.[i], // Using humidity field for precipitation chance
+            timestamp: data.daily.time[i],
             source: 'Open-Meteo'
           });
         }
@@ -157,7 +172,7 @@ export class WeatherService {
 
       return {
         current,
-        forecast: forecast.slice(0, 8), // Next 24 hours in 3-hour intervals
+        forecast, // 7-day forecast
         sources: ['Open-Meteo']
       };
     } catch (error: any) {
@@ -293,14 +308,20 @@ export class WeatherService {
     context += `\n`;
 
     if (weatherResult.forecast && weatherResult.forecast.length > 0) {
-      context += `Forecast (next 24 hours):\n`;
+      context += `7-Day Forecast:\n`;
       weatherResult.forecast.forEach((forecast, index) => {
-        const time = new Date(forecast.timestamp).toLocaleString('en-US', {
-          hour: 'numeric',
-          minute: '2-digit',
-          hour12: true
-        });
-        context += `  ${time}: ${forecast.temperature}°F, ${forecast.conditions}\n`;
+        const date = new Date(forecast.timestamp);
+        const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+        const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const highTemp = forecast.temperature;
+        const lowTemp = forecast.feelsLike; // We stored min temp here
+        const precipChance = forecast.humidity; // We stored precip chance here
+
+        context += `  ${dayName}, ${dateStr}: High ${highTemp}°F, Low ${lowTemp}°F, ${forecast.conditions}`;
+        if (precipChance && precipChance > 0) {
+          context += `, ${precipChance}% chance of precipitation`;
+        }
+        context += `\n`;
       });
       context += `\n`;
     }
@@ -322,9 +343,20 @@ export class WeatherService {
     }
 
     try {
+      console.log('[WEATHER-DEBUG] Fetching weather for query...');
       const weatherResult = await this.fetchWeather(userMessage);
-      return this.formatWeatherContext(weatherResult);
+      const context = this.formatWeatherContext(weatherResult);
+
+      if (context) {
+        console.log('[WEATHER-DEBUG] Weather context generated:', context.length, 'chars');
+        console.log('[WEATHER-DEBUG] First 200 chars:', context.substring(0, 200));
+      } else {
+        console.log('[WEATHER-DEBUG] No weather context generated (empty result)');
+      }
+
+      return context;
     } catch (error: any) {
+      console.log('[WEATHER-DEBUG] Error fetching weather:', error.message);
       return '';
     }
   }
