@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { telemetry } from '@/lib/telemetry';
 import Navigation from '@/components/Navigation';
+import SubscriptionInfo from '@/components/settings/subscription-info';
 
 type Tab = 'profile' | 'themes' | 'privacy' | 'providers';
 type Theme = 'light' | 'dark' | 'solarized' | 'neon';
@@ -212,7 +213,7 @@ export default function CasualSettingsPage() {
                   Account Type
                 </label>
                 <div className="px-4 py-3 bg-gray-50 dark:bg-gray-900 rounded-lg text-gray-900 dark:text-white">
-                  Free Plan
+                  {userProfile?.subscription_tier?.charAt(0).toUpperCase() + userProfile?.subscription_tier?.slice(1) || 'Free'} Plan
                 </div>
               </div>
 
@@ -226,6 +227,13 @@ export default function CasualSettingsPage() {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Subscription Management */}
+        {activeTab === 'profile' && user && (
+          <div className="mt-6">
+            <SubscriptionInfo userId={user.id} />
           </div>
         )}
 
