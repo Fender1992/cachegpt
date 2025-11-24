@@ -6,7 +6,6 @@ import { supabase } from '@/lib/supabase-client';
 import { Check } from 'lucide-react';
 import Toast from '@/components/toast';
 import Navigation from '@/components/Navigation';
-import SubscriptionInfo from '@/components/settings/subscription-info';
 
 interface PricingTier {
   id: string;
@@ -203,11 +202,26 @@ export default function PricingPage() {
         )}
       </div>
 
-      {/* Current Subscription Management */}
+      {/* Link to Manage Subscription */}
       {user && currentTier !== 'free' && (
-        <div className="container mx-auto px-6 pb-12">
-          <div className="max-w-3xl mx-auto">
-            <SubscriptionInfo userId={user.id} />
+        <div className="container mx-auto px-6 pb-8">
+          <div className="max-w-3xl mx-auto bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                  Manage Your Subscription
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  View usage, change plans, or cancel your subscription
+                </p>
+              </div>
+              <a
+                href="/settings"
+                className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+              >
+                Go to Settings
+              </a>
+            </div>
           </div>
         </div>
       )}

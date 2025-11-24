@@ -214,12 +214,6 @@ export default function CasualSettingsPage() {
                 <div className="px-4 py-3 bg-gray-50 dark:bg-gray-900 rounded-lg text-gray-900 dark:text-white">
                   {userProfile?.subscription_tier?.charAt(0).toUpperCase() + userProfile?.subscription_tier?.slice(1) || 'Free'} Plan
                 </div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                  Manage your subscription on the{' '}
-                  <a href="/pricing" className="text-purple-600 hover:underline">
-                    Pricing page
-                  </a>
-                </p>
               </div>
 
               <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
