@@ -1059,9 +1059,31 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
         </div>
       )}
 
-      {/* Messages */}
+      {/* Mobile Landing - Shows on mobile when modal is closed */}
+      <div className="md:hidden flex-1 flex flex-col items-center justify-center p-6 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-slate-900 dark:to-gray-900">
+        <div className="text-center max-w-sm">
+          <div className="w-20 h-20 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+            <Bot className="w-10 h-10 text-white" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+            Ready to Chat
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            Tap the button below to start a conversation with AI
+          </p>
+          <button
+            onClick={() => setMobileModalOpen(true)}
+            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg transition-all flex items-center gap-2 mx-auto"
+          >
+            <Send className="w-5 h-5" />
+            Start Chatting
+          </button>
+        </div>
+      </div>
+
+      {/* Messages - Hidden on mobile, modal is used instead */}
       <div
-        className={`flex-1 overflow-y-auto p-4 pb-safe transition-all duration-300 bg-gray-50 dark:bg-gray-900/50 ${showHistory ? 'sm:mr-80 mr-0' : ''}`}
+        className={`hidden md:flex flex-1 flex-col overflow-y-auto p-4 pb-safe transition-all duration-300 bg-gray-50 dark:bg-gray-900/50 ${showHistory ? 'sm:mr-80 mr-0' : ''}`}
         role="log"
         aria-live="polite"
         aria-label="Chat messages"
@@ -1224,8 +1246,8 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input - Fixed at bottom with safe area and mobile protection */}
-      <div className="flex-shrink-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm sticky bottom-0 z-10"
+      {/* Input - Hidden on mobile, modal is used instead */}
+      <div className="hidden md:block flex-shrink-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm sticky bottom-0 z-10"
            style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
         <div className="max-w-4xl mx-auto">
           {/* Referenced conversations indicator */}
@@ -1343,16 +1365,7 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
         />
       )}
 
-      {/* Floating Chat Button - Mobile only */}
-      <button
-        onClick={() => setMobileModalOpen(true)}
-        className="md:hidden fixed bottom-6 right-6 z-50 w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-full shadow-2xl flex items-center justify-center transition-all"
-        aria-label="Open chat"
-      >
-        <Send className="w-6 h-6" />
-      </button>
-
-      {/* Mobile Chat Modal - Only messages and input */}
+      {/* Mobile Chat Modal - The primary chat interface on mobile */}
       <MobileChatModal
         isOpen={mobileModalOpen}
         onClose={() => setMobileModalOpen(false)}
