@@ -11,7 +11,7 @@ interface MarkdownMessageProps {
 
 export default function MarkdownMessage({ content, isStreaming = false }: MarkdownMessageProps) {
   return (
-    <div className="prose prose-sm dark:prose-invert max-w-none">
+    <div className="prose prose-sm dark:prose-invert max-w-full overflow-hidden">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -44,7 +44,7 @@ export default function MarkdownMessage({ content, isStreaming = false }: Markdo
             if (inline) {
               return (
                 <code
-                  className="bg-gray-100 dark:bg-gray-700 text-pink-600 dark:text-pink-400 px-1.5 py-0.5 rounded text-sm font-mono"
+                  className="bg-gray-100 dark:bg-gray-700 text-pink-600 dark:text-pink-400 px-1.5 py-0.5 rounded text-sm font-mono break-words"
                   {...props}
                 >
                   {children}
@@ -53,7 +53,7 @@ export default function MarkdownMessage({ content, isStreaming = false }: Markdo
             }
             return (
               <code
-                className="block bg-gray-100 dark:bg-gray-900 p-3 rounded-lg text-sm font-mono overflow-x-auto mb-4 border border-gray-200 dark:border-gray-700"
+                className="block text-sm font-mono whitespace-pre-wrap break-words"
                 {...props}
               >
                 {children}
@@ -61,7 +61,9 @@ export default function MarkdownMessage({ content, isStreaming = false }: Markdo
             )
           },
           pre: ({ children }) => (
-            <pre className="mb-4">{children}</pre>
+            <pre className="mb-4 bg-gray-100 dark:bg-gray-900 p-3 rounded-lg border border-gray-200 dark:border-gray-700 overflow-x-auto max-w-full">
+              {children}
+            </pre>
           ),
           // Blockquotes
           blockquote: ({ children }) => (

@@ -1119,7 +1119,7 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
               key={idx}
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              <div className={`max-w-[85%] rounded-lg shadow-sm ${
+              <div className={`max-w-[85%] rounded-lg shadow-sm overflow-hidden ${
                 msg.role === 'user'
                   ? 'bg-blue-600 text-white ml-auto px-5 py-3.5'
                   : msg.error
@@ -1202,7 +1202,7 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
           {/* Streaming message */}
           {isStreaming && streamingMessage && (
             <div className="flex justify-start">
-              <div className="max-w-[85%] rounded-lg shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 px-6 py-4">
+              <div className="max-w-[85%] rounded-lg shadow-sm overflow-hidden bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 px-6 py-4">
                 <MarkdownMessage content={streamingMessage} isStreaming={true} />
               </div>
             </div>
@@ -1379,7 +1379,7 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
                 key={idx}
                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <div className={`max-w-[85%] rounded-lg shadow-sm ${
+                <div className={`max-w-[85%] rounded-lg shadow-sm overflow-hidden ${
                   msg.role === 'user'
                     ? 'bg-blue-600 text-white ml-auto px-5 py-3.5'
                     : msg.error
@@ -1398,7 +1398,7 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
             {/* Streaming message */}
             {isStreaming && streamingMessage && (
               <div className="flex justify-start">
-                <div className="max-w-[85%] rounded-lg shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 px-6 py-4">
+                <div className="max-w-[85%] rounded-lg shadow-sm overflow-hidden bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 px-6 py-4">
                   <MarkdownMessage content={streamingMessage} isStreaming={true} />
                 </div>
               </div>
