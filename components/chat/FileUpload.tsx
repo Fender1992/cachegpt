@@ -33,6 +33,11 @@ export default function FileUpload({
   const handleFileSelect = async (files: FileList | null) => {
     if (!files || files.length === 0) return
 
+    // Reset file input to allow re-selecting the same files
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+
     // Check file limit
     if (uploadedFiles.length + files.length > maxFiles) {
       setError(`Maximum ${maxFiles} files allowed per conversation`)
@@ -43,16 +48,17 @@ export default function FileUpload({
     setIsUploading(true)
     setError(null)
 
-    try {
-      const newFiles: UploadedFile[] = []
+    const newFiles: UploadedFile[] = []
+    const errors: string[] = []
 
-      // Get session token for authentication
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token
+    // Get session token for authentication
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
 
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i]
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
 
+      try {
         // Upload file
         const formData = new FormData()
         formData.append('file', file)
@@ -71,16 +77,17 @@ export default function FileUpload({
         if (!response.ok) {
           // Read response as text first (stream can only be consumed once)
           const text = await response.text()
-          let errorMessage = `Upload failed (${response.status})`
+          let errorMessage = `${file.name}: Upload failed (${response.status})`
           try {
             // Try to parse as JSON
             const errorData = JSON.parse(text)
-            errorMessage = errorData.error || errorMessage
+            errorMessage = `${file.name}: ${errorData.error || 'Upload failed'}`
           } catch {
             // Not JSON (e.g., HTML error page), use text directly
-            errorMessage = text.substring(0, 100) || errorMessage
+            errorMessage = `${file.name}: ${text.substring(0, 50) || 'Upload failed'}`
           }
-          throw new Error(errorMessage)
+          errors.push(errorMessage)
+          continue // Continue with next file instead of stopping
         }
 
         const data = await response.json()
@@ -93,19 +100,33 @@ export default function FileUpload({
           content: data.content,
           uploadedAt: data.file.uploadedAt
         })
+      } catch (error) {
+        console.error('[FILE-UPLOAD] Error uploading file:', file.name, error)
+        errors.push(`${file.name}: ${error instanceof Error ? error.message : 'Upload failed'}`)
+        continue // Continue with next file
       }
+    }
 
+    // Update state with successfully uploaded files
+    if (newFiles.length > 0) {
       const updatedFiles = [...uploadedFiles, ...newFiles]
       setUploadedFiles(updatedFiles)
       onFilesChange(updatedFiles)
-
-    } catch (error) {
-      console.error('[FILE-UPLOAD] Error:', error)
-      setError(error instanceof Error ? error.message : 'Failed to upload file')
-      setTimeout(() => setError(null), 5000)
-    } finally {
-      setIsUploading(false)
     }
+
+    // Show error if any files failed
+    if (errors.length > 0) {
+      const successCount = newFiles.length
+      const totalCount = files.length
+      if (successCount > 0) {
+        setError(`Uploaded ${successCount}/${totalCount} files. Failed: ${errors.join('; ')}`)
+      } else {
+        setError(errors.join('; '))
+      }
+      setTimeout(() => setError(null), 5000)
+    }
+
+    setIsUploading(false)
   }
 
   const removeFile = (fileId: string) => {

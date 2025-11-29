@@ -132,13 +132,48 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
     loadFeatureFlags()
   }, [])
 
-  // Auto-load conversation messages when conversation ID from URL is available
+  // Auto-load conversation messages and files when conversation ID from URL is available
   useEffect(() => {
     if (conversationId && userProfile) {
       console.log('[CHAT] Auto-loading conversation from URL:', conversationId)
       loadConversationMessages(conversationId)
+      loadConversationFiles(conversationId)
     }
   }, [conversationId, userProfile])
+
+  // Load files associated with a conversation
+  const loadConversationFiles = async (convId: string) => {
+    try {
+      console.log('[CHAT] Loading files for conversation:', convId)
+
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      }
+
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+      }
+
+      const response = await fetch(`/api/conversations/${convId}/files`, {
+        headers,
+        credentials: 'include'
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const files = data.files || []
+        console.log('[CHAT] Loaded conversation files:', files.length)
+        setUploadedFiles(files)
+      } else {
+        console.warn('[CHAT] Failed to load conversation files:', response.status)
+        // Don't show error - files are optional
+      }
+    } catch (error) {
+      console.error('[CHAT] Error loading conversation files:', error)
+      // Don't show error - files are optional
+    }
+  }
 
   const loadFeatureFlags = async () => {
     try {
@@ -773,6 +808,7 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
     setCurrentConversationId(null)
     setActiveConversationId(null) // Clear active conversation to start fresh
     setReferencedConversationIds([]) // Clear referenced conversations
+    setUploadedFiles([]) // Clear uploaded files for fresh start
     setShowHistory(false)
     // Navigate to base /chat URL for new conversation
     router.push('/chat')
@@ -992,7 +1028,10 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
                   }`}
                 >
                   <button
-                    onClick={() => loadConversationMessages(conv.conversation_id)}
+                    onClick={() => {
+                      loadConversationMessages(conv.conversation_id)
+                      loadConversationFiles(conv.conversation_id)
+                    }}
                     className="w-full text-left pr-8"
                   >
                     <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
@@ -1383,7 +1422,30 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
 
         {/* Input */}
         <div className="flex-shrink-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-3">
+          {/* Uploaded files preview for mobile */}
+          {uploadedFiles.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-1">
+              {uploadedFiles.map((file) => (
+                <div
+                  key={file.id}
+                  className="flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs text-gray-700 dark:text-gray-300"
+                >
+                  <span className="truncate max-w-[100px]">{file.name}</span>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="flex gap-2">
+            <FileUpload
+              onFilesChange={setUploadedFiles}
+              maxFiles={5}
+              disabled={isLoading}
+            />
+            <ConversationReferenceButton
+              conversations={conversations.filter(c => c.id !== activeConversationId)}
+              onReferenceSelect={handleConversationReference}
+              disabled={isLoading}
+            />
             <textarea
               ref={inputRef}
               value={message}
