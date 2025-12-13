@@ -32,7 +32,7 @@
     "clsx": "^2.0.0",
     "date-fns": "^2.30.0",
     "lucide-react": "^0.290.0",
-    "next": "^15.5.3",
+    "next": "15.5.9",
     "node-fetch": "^3.3.2",
     "openai": "^6.0.1",
     "pdf2json": "^4.0.0",
