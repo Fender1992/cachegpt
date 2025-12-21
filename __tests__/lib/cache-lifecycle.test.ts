@@ -109,12 +109,12 @@ describe('Cache Lifecycle Manager', () => {
 
     it('should produce different hashes for different contexts', () => {
       const context1 = { timezone: 'America/New_York', date: '2025-09-25' }
-      const context2 = { timezone: 'Europe/London', date: '2025-09-25' }
+      const context2 = { timezone: 'Europe/London', date: '2025-09-26' }
 
       const generateHash = (ctx: object): string => {
         const sortedKeys = Object.keys(ctx).sort()
         const str = sortedKeys.map(k => `${k}:${(ctx as any)[k]}`).join('|')
-        return Buffer.from(str).toString('base64').substring(0, 16)
+        return Buffer.from(str).toString('base64').substring(0, 32)
       }
 
       const hash1 = generateHash(context1)

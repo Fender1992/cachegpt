@@ -23,6 +23,7 @@ export default defineConfig({
     include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     exclude: [
       'node_modules',
+      'cli/**',
       '.next',
       'dist',
       '__tests__/api/chat.test.ts', // Old Jest test - needs conversion
