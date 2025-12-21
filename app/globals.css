@@ -55,6 +55,31 @@
   .animate-slide-in-right {
     animation: slide-in-right 0.3s ease-out forwards;
   }
+
+  /* Dynamic viewport height utilities */
+  .h-screen-dvh {
+    height: 100dvh;
+  }
+
+  .min-h-screen-dvh {
+    min-height: 100dvh;
+  }
+
+  /* Combined safe area insets for fixed positioning */
+  .inset-safe {
+    top: env(safe-area-inset-top);
+    right: env(safe-area-inset-right);
+    bottom: env(safe-area-inset-bottom);
+    left: env(safe-area-inset-left);
+  }
+
+  /* Full padding safe area utility */
+  .p-safe {
+    padding-top: env(safe-area-inset-top);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+  }
 }
 
 @layer base {

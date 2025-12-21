@@ -132,6 +132,29 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
     loadFeatureFlags()
   }, [])
 
+  // Keyboard visibility detection using Visual Viewport API
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const visualViewport = window.visualViewport
+    if (!visualViewport) return
+
+    const handleViewportResize = () => {
+      // Keyboard is likely visible if viewport height is significantly reduced
+      const heightDiff = window.innerHeight - visualViewport.height
+      const isKeyboardOpen = heightDiff > 150 // Threshold for keyboard detection
+      setKeyboardVisible(isKeyboardOpen)
+    }
+
+    visualViewport.addEventListener('resize', handleViewportResize)
+    visualViewport.addEventListener('scroll', handleViewportResize)
+
+    return () => {
+      visualViewport.removeEventListener('resize', handleViewportResize)
+      visualViewport.removeEventListener('scroll', handleViewportResize)
+    }
+  }, [])
+
   // Auto-load conversation messages and files when conversation ID from URL is available
   useEffect(() => {
     if (conversationId && userProfile) {
@@ -455,9 +478,11 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
 
 
   // Auto-scroll to bottom when new messages arrive
+  // Use instant scroll during keyboard transitions to prevent jank
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+    const scrollBehavior = keyboardVisible ? 'auto' : 'smooth'
+    messagesEndRef.current?.scrollIntoView({ behavior: scrollBehavior })
+  }, [messages, keyboardVisible])
 
   // Auto-resize textarea as user types
   useEffect(() => {
@@ -987,7 +1012,7 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
 
       {/* Chat History Sidebar */}
       {showHistory && (
-        <div className="fixed top-[85px] right-0 w-80 max-w-[90vw] bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 z-20 overflow-y-auto shadow-xl" style={{ height: 'calc(100vh - 85px - 80px)' }}>
+        <div className="fixed top-[85px] right-0 w-80 max-w-[90vw] bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 z-20 overflow-y-auto shadow-xl" style={{ height: 'calc(100dvh - 85px - 80px)' }}>
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Chat History</h2>
@@ -1320,7 +1345,7 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmId && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[70]">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[80]">
           <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-md w-full p-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
               Delete Conversation
@@ -1372,7 +1397,7 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
       >
         {/* Messages */}
         <div
-          className="flex-1 overflow-y-auto p-4"
+          className="flex-1 overflow-y-auto p-4 pb-safe"
           role="log"
           aria-live="polite"
           aria-label="Chat messages"
@@ -1434,7 +1459,10 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
         </div>
 
         {/* Input */}
-        <div className="flex-shrink-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-3">
+        <div
+          className="flex-shrink-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-3"
+          style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+        >
           {/* Uploaded files preview for mobile */}
           {uploadedFiles.length > 0 && (
             <div className="mb-2 flex flex-wrap gap-1">
