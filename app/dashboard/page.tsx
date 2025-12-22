@@ -14,6 +14,8 @@ import {
   Copy, Trash2, MoreVertical, Filter, Search
 } from 'lucide-react'
 import { error as logError } from '@/lib/logger'
+import UsageDashboard from '@/components/dashboard/usage-dashboard'
+import Link from 'next/link'
 
 interface Stat {
   title: string
@@ -549,6 +551,34 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Usage Tab - Detailed usage analytics */}
+        {activeTab === 'usage' && (
+          <UsageDashboard />
+        )}
+
+        {/* Settings Tab - Redirect to settings page */}
+        {activeTab === 'settings' && (
+          <div className="glass-card rounded-2xl p-8 text-center">
+            <div className="max-w-md mx-auto">
+              <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <Settings className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold mb-3">Account Settings</h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                Manage your profile, API keys, provider credentials, and subscription settings.
+              </p>
+              <Link
+                href="/settings"
+                className="btn-glow inline-flex items-center space-x-2 px-6 py-3"
+              >
+                <Settings className="w-5 h-5" />
+                <span>Go to Settings</span>
+                <ArrowUpRight className="w-4 h-4" />
+              </Link>
             </div>
           </div>
         )}

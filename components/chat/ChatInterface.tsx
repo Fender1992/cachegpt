@@ -155,6 +155,21 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
     }
   }, [])
 
+  // Restore mobile modal state from sessionStorage on mount (prevents losing modal on navigation)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const saved = sessionStorage.getItem('mobileModalOpen')
+    if (saved === 'true') {
+      setMobileModalOpen(true)
+    }
+  }, [])
+
+  // Persist mobile modal state to sessionStorage (survives navigation)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    sessionStorage.setItem('mobileModalOpen', mobileModalOpen.toString())
+  }, [mobileModalOpen])
+
   // Auto-load conversation messages and files when conversation ID from URL is available
   useEffect(() => {
     if (conversationId && userProfile) {

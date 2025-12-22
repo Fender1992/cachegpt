@@ -17,6 +17,9 @@ export default function MobileChatModal({
   const [swipeOffset, setSwipeOffset] = useState(0)
   const touchStartY = useRef(0)
 
+  // Track backdrop touch coordinates to prevent accidental closes
+  const backdropTouchStart = useRef({ x: 0, y: 0, time: 0 })
+
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY
   }
@@ -31,14 +34,45 @@ export default function MobileChatModal({
     setSwipeOffset(0)
   }
 
+  // Only close on direct backdrop click (not bubbled events)
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose()
+    }
+  }
+
+  // Track touch start on backdrop for scroll/tap differentiation
+  const handleBackdropTouchStart = (e: React.TouchEvent) => {
+    backdropTouchStart.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+      time: Date.now()
+    }
+  }
+
+  // Only close if touch was a tap (minimal movement, quick duration)
+  const handleBackdropTouchEnd = (e: React.TouchEvent) => {
+    const dx = Math.abs(e.changedTouches[0].clientX - backdropTouchStart.current.x)
+    const dy = Math.abs(e.changedTouches[0].clientY - backdropTouchStart.current.y)
+    const duration = Date.now() - backdropTouchStart.current.time
+
+    // Only close if: minimal movement (< 10px) AND quick tap (< 300ms)
+    // This prevents closing on scroll gestures or accidental touches
+    if (dx < 10 && dy < 10 && duration < 300) {
+      onClose()
+    }
+  }
+
   if (!isOpen) return null
 
   return (
     <>
-      {/* Backdrop with fade on swipe */}
+      {/* Backdrop with fade on swipe - protected against accidental closes */}
       <div
         className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[60] md:hidden"
-        onClick={onClose}
+        onClick={handleBackdropClick}
+        onTouchStart={handleBackdropTouchStart}
+        onTouchEnd={handleBackdropTouchEnd}
         aria-hidden="true"
         style={{ opacity: 1 - (swipeOffset / 200) * 0.5 }}
       />
