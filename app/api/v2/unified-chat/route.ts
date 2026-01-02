@@ -163,6 +163,53 @@ async function findCachedResponse(
 }
 
 /**
+ * Find cached response by exact query + external context hash match
+ */
+async function findExactContextMatch(
+  query: string,
+  contextHash: string,
+  model: string,
+  provider: string
+): Promise<any | null> {
+  try {
+    const { createHash } = await import('crypto');
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    );
+
+    // Generate query hash (same algorithm as DB computed column)
+    const queryHash = createHash('sha256').update(query).digest('hex');
+
+    const { data, error } = await supabase
+      .from('cached_responses')
+      .select('*')
+      .eq('query_hash', queryHash)
+      .eq('external_context_hash', contextHash)
+      .eq('is_archived', false)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !data) return null;
+
+    // Update access stats (fire and forget)
+    supabase
+      .from('cached_responses')
+      .update({
+        access_count: data.access_count + 1,
+        last_accessed: new Date().toISOString()
+      })
+      .eq('id', data.id);
+
+    return data;
+  } catch (error) {
+    console.error('[EXACT-CONTEXT-MATCH] Error:', error);
+    return null;
+  }
+}
+
+/**
  * Save chat history to unified conversation system
  */
 async function saveChatHistory(
@@ -301,7 +348,9 @@ async function storeInCache(
   responseTimeMs: number,
   contextHash?: string,
   freshnessAnalysis?: any,
-  timezone?: string
+  timezone?: string,
+  externalContextHash?: string,  // NEW: from API request
+  externalContextType?: string   // NEW: from API request
 ): Promise<void> {
   try {
     const tierCacheInstance = await getTierCache();
@@ -369,7 +418,10 @@ async function storeInCache(
         created_at: new Date().toISOString(),
         last_accessed: new Date().toISOString(),
         last_score_update: new Date().toISOString(),
-        lifecycle_updated_at: new Date().toISOString()
+        lifecycle_updated_at: new Date().toISOString(),
+        // External context metadata (NEW)
+        external_context_hash: externalContextHash || null,
+        external_context_type: externalContextType || null
       };
 
       const { data, error } = await supabase
@@ -679,7 +731,10 @@ export async function POST(request: NextRequest) {
       maxTokens,
       contextWindowSize,
       qualityMode = 'fast', // 'fast' (default) or 'best' (Self-MoA)
-      uploadedFiles
+      uploadedFiles,
+      contextHash: externalContextHash,    // NEW: e.g., "job_123" - stored as external_context_hash in DB
+      contextData,                          // NEW: { title, company, ghostScore, ... }
+      contextType: externalContextType      // NEW: "job" | "product" | "company" | etc
     } = body;
 
     // Try to authenticate user, but allow anonymous access
@@ -884,6 +939,25 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // NEW: Inject external context data if provided
+    if (contextData && Object.keys(contextData).length > 0) {
+      const { buildSystemPromptWithContext } = await import('@/lib/context-formatters');
+
+      const contextPrompt = buildSystemPromptWithContext(
+        null,
+        contextData,
+        externalContextType
+      );
+
+      if (contextPrompt) {
+        enrichedMessages.splice(enrichedMessages.length - 1, 0, {
+          role: 'system',
+          content: contextPrompt
+        });
+        console.log('[UNIFIED-CHAT] ✅ Injected external context:', externalContextType || 'generic');
+      }
+    }
+
     // If we have uploaded files, retrieve their content and add to context
     if (uploadedFiles && uploadedFiles.length > 0 && userId) {
       console.log('[UNIFIED-CHAT] 📎 Processing uploaded files:', uploadedFiles.length)
@@ -1043,6 +1117,58 @@ export async function POST(request: NextRequest) {
       date: timezoneDateKey
     });
 
+    // NEW: External context-aware caching (exact match)
+    if (externalContextHash) {
+      console.log('[UNIFIED-CHAT] 🔍 Looking for exact context match:', externalContextHash);
+      const exactMatch = await findExactContextMatch(
+        userMessage,
+        externalContextHash,
+        cacheModel,
+        cacheProvider
+      );
+
+      if (exactMatch) {
+        console.log('[UNIFIED-CHAT] ✅ External context cache hit for:', externalContextHash);
+
+        // Sanitize the cached response
+        const sanitizedExactResponse = sanitizeResponse(exactMatch.response);
+
+        // Increment usage counter for authenticated users
+        if (userId) {
+          const supabaseForUsage = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_KEY!
+          );
+          supabaseForUsage.rpc('increment_usage_count', { user_id_param: userId })
+            .then(() => {}, err => console.error('[USAGE] Failed to increment:', err));
+        }
+
+        return NextResponse.json({
+          response: sanitizedExactResponse,
+          cached: true,
+          cacheId: exactMatch.id,
+          provider: exactMatch.provider || cacheProvider,
+          model: exactMatch.model || cacheModel,
+          metadata: {
+            cached: true,
+            cacheHit: true,
+            contextHash: externalContextHash,
+            contextType: externalContextType,
+            provider: exactMatch.provider || cacheProvider,
+            tier: exactMatch.tier,
+            accessCount: exactMatch.access_count,
+          }
+        }, {
+          headers: {
+            'x-request-id': requestId,
+            'x-llm-provider-intent': providerResolution.provider,
+            'x-llm-provider-used': exactMatch.provider || cacheProvider,
+          },
+        });
+      }
+      console.log('[UNIFIED-CHAT] ❌ No exact context match, falling through to similarity search');
+    }
+
     // Skip cache for time-sensitive queries if bypass is recommended
     let cached: any = null;
     if (!freshnessAnalysis.bypassCache) {
@@ -1142,6 +1268,8 @@ export async function POST(request: NextRequest) {
           popularityScore: cached.metadata?.popularityScore,
           timeSavedMs: timeSaved,
           costSaved: costSaved,
+          contextHash: externalContextHash || undefined,
+          contextType: externalContextType || undefined,
           validation: {
             qualityScore: cachedQualityScore,
             responseLength: sanitizedCachedResponse.length,
@@ -1200,7 +1328,9 @@ export async function POST(request: NextRequest) {
       responseTime,
       contextHash, // Add context hash for invalidation tracking
       freshnessAnalysis, // Add freshness metadata
-      userTimezone.timezone // Add user's timezone
+      userTimezone.timezone, // Add user's timezone
+      externalContextHash, // NEW: from API request
+      externalContextType  // NEW: from API request
     );
 
     console.log('[UNIFIED-CHAT] 💾 Cached with freshness TTL:', {
@@ -1275,6 +1405,8 @@ export async function POST(request: NextRequest) {
         model: finalModel,
         responseTime,
         cost: providerResolution.provider === 'internal' || providerResolution.provider === 'free' ? 0 : 0.001, // Rough estimate
+        contextHash: externalContextHash || undefined,
+        contextType: externalContextType || undefined,
         validation: {
           qualityScore,
           responseLength: sanitizedResponse.length,
