@@ -1,12 +1,12 @@
 /**
  * Discord Client Wrapper
- * Uses Discord REST API with OAuth2 tokens (not the Gateway WebSocket)
+ * Routes all Discord API calls through our backend proxy to avoid
+ * OAuth2 scope limitations (guild endpoints require Bot tokens when
+ * called directly, but our backend proxies them server-side).
  */
 
 import { DiscordMessage, DiscordChannel, DiscordGuild } from './discord-gateway';
 import { supabase } from '@/lib/supabase-client';
-
-const DISCORD_API = 'https://discord.com/api/v10';
 
 export interface DiscordUser {
   id: string;
@@ -30,7 +30,7 @@ export interface DiscordState {
 }
 
 export class DiscordClient {
-  private token: string | null = null;
+  private connected = false;
   private pollInterval: ReturnType<typeof setInterval> | null = null;
   private listeners: Set<(state: DiscordState) => void> = new Set();
   private state: DiscordState = {
@@ -74,7 +74,16 @@ export class DiscordClient {
   }
 
   /**
-   * Connect to Discord via REST API
+   * Get auth header for our API routes
+   */
+  private async getAuthHeader(): Promise<Record<string, string>> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return {};
+    return { Authorization: `Bearer ${session.access_token}` };
+  }
+
+  /**
+   * Connect — validate Discord integration and load user info + guilds
    */
   async connect(): Promise<void> {
     if (this.state.isConnected || this.state.isConnecting) {
@@ -84,20 +93,36 @@ export class DiscordClient {
     try {
       this.updateState({ isConnecting: true, error: null });
 
-      const token = await this.getDiscordToken();
-      if (!token) {
-        throw new Error('No Discord token found. Please link your Discord account.');
+      const headers = await this.getAuthHeader();
+
+      // Check Discord integration status (returns user info from provider_data)
+      const statusRes = await fetch('/api/integrations/discord', { headers });
+      if (!statusRes.ok) {
+        throw new Error('Failed to check Discord status');
+      }
+      const status = await statusRes.json();
+
+      if (!status.connected) {
+        throw new Error('Discord not connected. Please link your Discord account in Settings.');
       }
 
-      this.token = token;
+      // Build user from provider_data
+      const pd = status.providerData || {};
+      const user: DiscordUser = {
+        id: status.providerUserId || '',
+        username: pd.username || 'Unknown',
+        discriminator: pd.discriminator,
+        global_name: pd.global_name,
+        avatar: pd.avatar,
+      };
 
-      // Validate token by fetching user info
-      const user = await this.apiFetch<DiscordUser>('/users/@me');
       console.log('[Discord Client] Connected as', user.username);
 
-      // Fetch guilds
-      const guilds = await this.apiFetch<DiscordGuild[]>('/users/@me/guilds');
+      // Fetch guilds through our proxy
+      const guildsRes = await fetch('/api/integrations/discord/guilds', { headers });
+      const guilds: DiscordGuild[] = guildsRes.ok ? await guildsRes.json() : [];
 
+      this.connected = true;
       this.updateState({
         isConnected: true,
         isConnecting: false,
@@ -108,7 +133,7 @@ export class DiscordClient {
 
     } catch (error) {
       console.error('[Discord Client] Connection error:', error);
-      this.token = null;
+      this.connected = false;
       this.updateState({
         isConnecting: false,
         error: error instanceof Error ? error.message : 'Failed to connect to Discord'
@@ -121,7 +146,7 @@ export class DiscordClient {
    */
   disconnect(): void {
     this.stopPolling();
-    this.token = null;
+    this.connected = false;
 
     this.updateState({
       isConnected: false,
@@ -140,13 +165,20 @@ export class DiscordClient {
    * Select a guild and load its channels
    */
   async selectGuild(guild: DiscordGuild): Promise<void> {
-    if (!this.token) return;
+    if (!this.connected) return;
 
     try {
       this.stopPolling();
       this.updateState({ selectedGuild: guild, selectedChannel: null, messages: [] });
 
-      const channels = await this.apiFetch<DiscordChannel[]>(`/guilds/${guild.id}/channels`);
+      const headers = await this.getAuthHeader();
+      const res = await fetch(`/api/integrations/discord/channels?guildId=${guild.id}`, { headers });
+
+      if (!res.ok) {
+        throw new Error(`Failed to load channels: ${res.status}`);
+      }
+
+      const channels: DiscordChannel[] = await res.json();
 
       // Filter to text channels only (type 0) and sort by name
       const textChannels = channels
@@ -165,15 +197,23 @@ export class DiscordClient {
    * Select a channel and load its messages
    */
   async selectChannel(channel: DiscordChannel): Promise<void> {
-    if (!this.token) return;
+    if (!this.connected) return;
 
     try {
       this.stopPolling();
       this.updateState({ selectedChannel: channel, messages: [] });
 
-      const messages = await this.apiFetch<DiscordMessage[]>(
-        `/channels/${channel.id}/messages?limit=50`
+      const headers = await this.getAuthHeader();
+      const res = await fetch(
+        `/api/integrations/discord/messages?channelId=${channel.id}&limit=50`,
+        { headers }
       );
+
+      if (!res.ok) {
+        throw new Error(`Failed to load messages: ${res.status}`);
+      }
+
+      const messages: DiscordMessage[] = await res.json();
 
       // Sort messages by timestamp (oldest first) — API returns newest first
       const sortedMessages = messages.sort((a, b) =>
@@ -195,18 +235,26 @@ export class DiscordClient {
    * Send a message to the selected channel
    */
   async sendMessage(content: string): Promise<void> {
-    if (!this.token || !this.state.selectedChannel) {
+    if (!this.connected || !this.state.selectedChannel) {
       throw new Error('No channel selected');
     }
 
     try {
-      const message = await this.apiFetch<DiscordMessage>(
-        `/channels/${this.state.selectedChannel.id}/messages`,
-        {
-          method: 'POST',
-          body: JSON.stringify({ content }),
-        }
-      );
+      const headers = await this.getAuthHeader();
+      const res = await fetch('/api/integrations/discord/messages', {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channelId: this.state.selectedChannel.id,
+          content,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to send message: ${res.status}`);
+      }
+
+      const message: DiscordMessage = await res.json();
 
       // Add sent message to state immediately
       this.updateState({
@@ -226,45 +274,30 @@ export class DiscordClient {
   }
 
   /**
-   * Make an authenticated request to the Discord API
-   */
-  private async apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-    const response = await fetch(`${DISCORD_API}${path}`, {
-      ...init,
-      headers: {
-        'Authorization': `Bearer ${this.token}`,
-        'Content-Type': 'application/json',
-        ...init?.headers,
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => response.statusText);
-      throw new Error(`Discord API error ${response.status}: ${errorText}`);
-    }
-
-    return response.json();
-  }
-
-  /**
    * Start polling for new messages in the selected channel
    */
   private startPolling(channelId: string): void {
     this.stopPolling();
 
     this.pollInterval = setInterval(async () => {
-      if (!this.token || this.state.selectedChannel?.id !== channelId) {
+      if (!this.connected || this.state.selectedChannel?.id !== channelId) {
         this.stopPolling();
         return;
       }
 
       try {
+        const headers = await this.getAuthHeader();
         const lastMessage = this.state.messages[this.state.messages.length - 1];
         const afterParam = lastMessage ? `&after=${lastMessage.id}` : '';
 
-        const newMessages = await this.apiFetch<DiscordMessage[]>(
-          `/channels/${channelId}/messages?limit=50${afterParam}`
+        const res = await fetch(
+          `/api/integrations/discord/messages?channelId=${channelId}&limit=50${afterParam}`,
+          { headers }
         );
+
+        if (!res.ok) return;
+
+        const newMessages: DiscordMessage[] = await res.json();
 
         if (newMessages.length > 0) {
           const sorted = newMessages.sort((a, b) =>
@@ -277,7 +310,7 @@ export class DiscordClient {
       } catch (error) {
         console.error('[Discord Client] Polling error:', error);
       }
-    }, 5000); // Poll every 5 seconds
+    }, 5000);
   }
 
   /**
@@ -287,35 +320,6 @@ export class DiscordClient {
     if (this.pollInterval) {
       clearInterval(this.pollInterval);
       this.pollInterval = null;
-    }
-  }
-
-  /**
-   * Get Discord token from Supabase
-   */
-  private async getDiscordToken(): Promise<string | null> {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user?.id) return null;
-
-      // Query user's Discord credentials from integrations table
-      const { data, error } = await supabase
-        .from('user_integrations')
-        .select('access_token')
-        .eq('user_id', session.user.id)
-        .eq('provider', 'discord')
-        .single();
-
-      if (error) {
-        console.error('[Discord Client] Error fetching token:', error);
-        return null;
-      }
-
-      return data?.access_token || null;
-
-    } catch (error) {
-      console.error('[Discord Client] Error getting Discord token:', error);
-      return null;
     }
   }
 }
