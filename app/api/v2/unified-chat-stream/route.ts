@@ -484,15 +484,35 @@ export async function POST(request: NextRequest) {
             })}\n\n`));
           }
 
-          // Final message with metadata
+          // Save history to get conversationId
+          let savedConversationId: string | null = clientConversationId || null;
+          if (userId && session?.authMethod !== 'api_key') {
+            const responseTime = Date.now() - startTime;
+            const historyConvId = await saveChatHistoryAsync(
+              userId,
+              messages,
+              sanitizedContent,
+              cachedProviderUsed,
+              versionedCacheModel,
+              responseTime,
+              clientConversationId,
+              uploadedFiles
+            );
+            if (historyConvId) {
+              savedConversationId = historyConvId;
+            }
+          }
+
+          // Final message with metadata and full content
           await writer.write(encoder.encode(`data: ${JSON.stringify({
-            content: '',
+            content: sanitizedContent,
             done: true,
             provider: cachedProviderUsed,
             model: versionedCacheModel,
             cached: true,
             cacheId: cached.metadata?.id,
             similarity: cached.similarity,
+            conversationId: savedConversationId,
           })}\n\n`));
 
           await writer.close();
@@ -533,8 +553,6 @@ export async function POST(request: NextRequest) {
         let streamModel: string = cacheModel;
 
         try {
-          let doneEventSent = false;
-
           if (adapter.chatStream) {
             // Real streaming path
             for await (const chunk of adapter.chatStream(chatParams)) {
@@ -553,15 +571,6 @@ export async function POST(request: NextRequest) {
               if (chunk.model) streamModel = chunk.model;
 
               if (chunk.done) {
-                await writer.write(encoder.encode(`data: ${JSON.stringify({
-                  content: '',
-                  done: true,
-                  provider: streamProvider,
-                  model: streamModel,
-                  cached: false,
-                  usage: chunk.usage,
-                })}\n\n`));
-                doneEventSent = true;
                 break;
               }
             }
@@ -585,26 +594,14 @@ export async function POST(request: NextRequest) {
             }
           }
 
-          // Ensure a done event is always sent
-          if (!doneEventSent) {
-            await writer.write(encoder.encode(`data: ${JSON.stringify({
-              content: '',
-              done: true,
-              provider: streamProvider,
-              model: streamModel,
-              cached: false,
-            })}\n\n`));
-          }
-
-          await writer.close();
-
-          // === Post-stream: Cache and save history (async, non-blocking) ===
+          // === Post-stream: Cache and save history before sending done event ===
           const responseTime = Date.now() - startTime;
+          let savedConversationId: string | null = clientConversationId || null;
 
           if (fullContent) {
             const sanitizedContent = sanitizeResponse(fullContent);
 
-            // Cache the response
+            // Cache the response (fire and forget)
             storeInCacheAsync(
               userMessage,
               sanitizedContent,
@@ -614,13 +611,13 @@ export async function POST(request: NextRequest) {
               responseTime
             ).catch(() => {});
 
-            // Save chat history
+            // Save chat history (await to get conversationId for client navigation)
             const userAgent = request.headers.get('user-agent') || '';
             const isCliRequest = userAgent.includes('cachegpt-cli');
             const shouldSaveHistory = session?.authMethod !== 'api_key' && !isCliRequest;
 
             if (shouldSaveHistory && userId) {
-              saveChatHistoryAsync(
+              const historyConvId = await saveChatHistoryAsync(
                 userId,
                 messages,
                 sanitizedContent,
@@ -629,10 +626,13 @@ export async function POST(request: NextRequest) {
                 responseTime,
                 clientConversationId,
                 uploadedFiles
-              ).catch(() => {});
+              );
+              if (historyConvId) {
+                savedConversationId = historyConvId;
+              }
             }
 
-            // Log usage
+            // Log usage (fire and forget)
             if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
               const supabase = createClient(
                 process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -663,6 +663,18 @@ export async function POST(request: NextRequest) {
                 .then(() => {}, () => {});
             }
           }
+
+          // Send done event with full content and conversationId
+          await writer.write(encoder.encode(`data: ${JSON.stringify({
+            content: fullContent,
+            done: true,
+            provider: streamProvider,
+            model: streamModel,
+            cached: false,
+            conversationId: savedConversationId,
+          })}\n\n`));
+
+          await writer.close();
         } catch (error: any) {
           console.error('[STREAM] Provider streaming error:', error.message);
 

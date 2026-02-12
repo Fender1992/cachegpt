@@ -717,6 +717,7 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
 
       let buffer = ''
       let finalData: any = {}
+      let accumulatedContent = ''
 
       while (true) {
         const { done, value } = await reader.read()
@@ -739,8 +740,9 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
                 throw new Error(data.error)
               }
 
-              // Update streaming message
-              setStreamingMessage(data.content || '')
+              // Accumulate streaming content locally (avoids stale closure)
+              accumulatedContent += (data.content || '')
+              setStreamingMessage(accumulatedContent)
 
               // If this is the final message, save the metadata
               if (data.done) {
@@ -777,7 +779,7 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
       // Add assistant message with final content and metadata
       const assistantMessage: ChatMessage = {
         role: 'assistant',
-        content: finalData.content || streamingMessage,
+        content: finalData.content || accumulatedContent,
         provider: finalData.provider,
         model: finalData.model,
         created_at: new Date().toISOString(),
