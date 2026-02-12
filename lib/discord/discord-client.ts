@@ -1,10 +1,12 @@
 /**
  * Discord Client Wrapper
- * Provides a higher-level interface for Discord interactions
+ * Uses Discord REST API with OAuth2 tokens (not the Gateway WebSocket)
  */
 
-import { DiscordGatewayClient, DiscordMessage, DiscordChannel, DiscordGuild } from './discord-gateway';
+import { DiscordMessage, DiscordChannel, DiscordGuild } from './discord-gateway';
 import { supabase } from '@/lib/supabase-client';
+
+const DISCORD_API = 'https://discord.com/api/v10';
 
 export interface DiscordUser {
   id: string;
@@ -28,7 +30,8 @@ export interface DiscordState {
 }
 
 export class DiscordClient {
-  private gateway: DiscordGatewayClient | null = null;
+  private token: string | null = null;
+  private pollInterval: ReturnType<typeof setInterval> | null = null;
   private listeners: Set<(state: DiscordState) => void> = new Set();
   private state: DiscordState = {
     isConnected: false,
@@ -48,9 +51,8 @@ export class DiscordClient {
    */
   subscribe(listener: (state: DiscordState) => void): () => void {
     this.listeners.add(listener);
-    // Send current state immediately
     listener(this.state);
-    
+
     return () => {
       this.listeners.delete(listener);
     };
@@ -72,7 +74,7 @@ export class DiscordClient {
   }
 
   /**
-   * Connect to Discord
+   * Connect to Discord via REST API
    */
   async connect(): Promise<void> {
     if (this.state.isConnected || this.state.isConnecting) {
@@ -82,24 +84,34 @@ export class DiscordClient {
     try {
       this.updateState({ isConnecting: true, error: null });
 
-      // Get Discord token from Supabase
       const token = await this.getDiscordToken();
       if (!token) {
         throw new Error('No Discord token found. Please link your Discord account.');
       }
 
-      // Create gateway client
-      this.gateway = new DiscordGatewayClient(token);
-      this.setupEventListeners();
+      this.token = token;
 
-      // Connect to gateway
-      this.gateway.connect();
+      // Validate token by fetching user info
+      const user = await this.apiFetch<DiscordUser>('/users/@me');
+      console.log('[Discord Client] Connected as', user.username);
+
+      // Fetch guilds
+      const guilds = await this.apiFetch<DiscordGuild[]>('/users/@me/guilds');
+
+      this.updateState({
+        isConnected: true,
+        isConnecting: false,
+        user,
+        guilds,
+        error: null,
+      });
 
     } catch (error) {
       console.error('[Discord Client] Connection error:', error);
-      this.updateState({ 
-        isConnecting: false, 
-        error: error instanceof Error ? error.message : 'Failed to connect to Discord' 
+      this.token = null;
+      this.updateState({
+        isConnecting: false,
+        error: error instanceof Error ? error.message : 'Failed to connect to Discord'
       });
     }
   }
@@ -108,11 +120,8 @@ export class DiscordClient {
    * Disconnect from Discord
    */
   disconnect(): void {
-    if (this.gateway) {
-      this.gateway.disconnect();
-      this.gateway.removeAllListeners();
-      this.gateway = null;
-    }
+    this.stopPolling();
+    this.token = null;
 
     this.updateState({
       isConnected: false,
@@ -131,15 +140,15 @@ export class DiscordClient {
    * Select a guild and load its channels
    */
   async selectGuild(guild: DiscordGuild): Promise<void> {
-    if (!this.gateway) return;
+    if (!this.token) return;
 
     try {
+      this.stopPolling();
       this.updateState({ selectedGuild: guild, selectedChannel: null, messages: [] });
-      
-      // Fetch channels for the guild
-      const channels = await this.gateway.fetchChannels(guild.id);
-      
-      // Filter to text channels only (type 0) and sort by position/name
+
+      const channels = await this.apiFetch<DiscordChannel[]>(`/guilds/${guild.id}/channels`);
+
+      // Filter to text channels only (type 0) and sort by name
       const textChannels = channels
         .filter(ch => ch.type === 0)
         .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
@@ -156,20 +165,25 @@ export class DiscordClient {
    * Select a channel and load its messages
    */
   async selectChannel(channel: DiscordChannel): Promise<void> {
-    if (!this.gateway) return;
+    if (!this.token) return;
 
     try {
+      this.stopPolling();
       this.updateState({ selectedChannel: channel, messages: [] });
 
-      // Fetch recent messages from the channel
-      const messages = await this.gateway.fetchMessages(channel.id, 50);
-      
-      // Sort messages by timestamp (oldest first)
-      const sortedMessages = messages.sort((a, b) => 
+      const messages = await this.apiFetch<DiscordMessage[]>(
+        `/channels/${channel.id}/messages?limit=50`
+      );
+
+      // Sort messages by timestamp (oldest first) — API returns newest first
+      const sortedMessages = messages.sort((a, b) =>
         new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
       );
 
       this.updateState({ messages: sortedMessages });
+
+      // Start polling for new messages
+      this.startPolling(channel.id);
 
     } catch (error) {
       console.error('[Discord Client] Error selecting channel:', error);
@@ -181,12 +195,23 @@ export class DiscordClient {
    * Send a message to the selected channel
    */
   async sendMessage(content: string): Promise<void> {
-    if (!this.gateway || !this.state.selectedChannel) {
+    if (!this.token || !this.state.selectedChannel) {
       throw new Error('No channel selected');
     }
 
     try {
-      await this.gateway.sendMessage(this.state.selectedChannel.id, content);
+      const message = await this.apiFetch<DiscordMessage>(
+        `/channels/${this.state.selectedChannel.id}/messages`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ content }),
+        }
+      );
+
+      // Add sent message to state immediately
+      this.updateState({
+        messages: [...this.state.messages, message],
+      });
     } catch (error) {
       console.error('[Discord Client] Error sending message:', error);
       throw error;
@@ -198,6 +223,71 @@ export class DiscordClient {
    */
   clearUnreadCount(): void {
     this.updateState({ unreadCount: 0 });
+  }
+
+  /**
+   * Make an authenticated request to the Discord API
+   */
+  private async apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+    const response = await fetch(`${DISCORD_API}${path}`, {
+      ...init,
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+        'Content-Type': 'application/json',
+        ...init?.headers,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => response.statusText);
+      throw new Error(`Discord API error ${response.status}: ${errorText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Start polling for new messages in the selected channel
+   */
+  private startPolling(channelId: string): void {
+    this.stopPolling();
+
+    this.pollInterval = setInterval(async () => {
+      if (!this.token || this.state.selectedChannel?.id !== channelId) {
+        this.stopPolling();
+        return;
+      }
+
+      try {
+        const lastMessage = this.state.messages[this.state.messages.length - 1];
+        const afterParam = lastMessage ? `&after=${lastMessage.id}` : '';
+
+        const newMessages = await this.apiFetch<DiscordMessage[]>(
+          `/channels/${channelId}/messages?limit=50${afterParam}`
+        );
+
+        if (newMessages.length > 0) {
+          const sorted = newMessages.sort((a, b) =>
+            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          );
+          this.updateState({
+            messages: [...this.state.messages, ...sorted],
+          });
+        }
+      } catch (error) {
+        console.error('[Discord Client] Polling error:', error);
+      }
+    }, 5000); // Poll every 5 seconds
+  }
+
+  /**
+   * Stop polling for messages
+   */
+  private stopPolling(): void {
+    if (this.pollInterval) {
+      clearInterval(this.pollInterval);
+      this.pollInterval = null;
+    }
   }
 
   /**
@@ -227,96 +317,6 @@ export class DiscordClient {
       console.error('[Discord Client] Error getting Discord token:', error);
       return null;
     }
-  }
-
-  /**
-   * Setup event listeners for the gateway
-   */
-  private setupEventListeners(): void {
-    if (!this.gateway) return;
-
-    this.gateway.on('connected', () => {
-      console.log('[Discord Client] Connected to gateway');
-    });
-
-    this.gateway.on('ready', async (data: any) => {
-      console.log('[Discord Client] Gateway ready');
-      this.updateState({ 
-        isConnected: true, 
-        isConnecting: false, 
-        user: data.user,
-        error: null
-      });
-
-      try {
-        // Load user's guilds
-        const guilds = await this.gateway!.fetchGuilds();
-        this.updateState({ guilds });
-      } catch (error) {
-        console.error('[Discord Client] Error loading guilds:', error);
-      }
-    });
-
-    this.gateway.on('messageCreate', (message: DiscordMessage) => {
-      // Add new message if it's for the selected channel
-      if (message.channel_id === this.state.selectedChannel?.id) {
-        this.updateState({
-          messages: [...this.state.messages, message]
-        });
-      } else {
-        // Increment unread count for other channels
-        this.updateState({
-          unreadCount: this.state.unreadCount + 1
-        });
-      }
-    });
-
-    this.gateway.on('messageUpdate', (message: DiscordMessage) => {
-      // Update existing message if it's in the selected channel
-      if (message.channel_id === this.state.selectedChannel?.id) {
-        this.updateState({
-          messages: this.state.messages.map(msg => 
-            msg.id === message.id ? message : msg
-          )
-        });
-      }
-    });
-
-    this.gateway.on('messageDelete', (data: { id: string; channel_id: string }) => {
-      // Remove message if it's from the selected channel
-      if (data.channel_id === this.state.selectedChannel?.id) {
-        this.updateState({
-          messages: this.state.messages.filter(msg => msg.id !== data.id)
-        });
-      }
-    });
-
-    this.gateway.on('guildUpdate', (guild: DiscordGuild) => {
-      // Update guild in the list
-      this.updateState({
-        guilds: this.state.guilds.map(g => g.id === guild.id ? guild : g)
-      });
-    });
-
-    this.gateway.on('channelUpdate', (channel: DiscordChannel) => {
-      // Update channel in the list
-      this.updateState({
-        channels: this.state.channels.map(ch => ch.id === channel.id ? channel : ch)
-      });
-    });
-
-    this.gateway.on('error', (error: any) => {
-      console.error('[Discord Client] Gateway error:', error);
-      this.updateState({ error: 'Connection error occurred' });
-    });
-
-    this.gateway.on('disconnected', (code: number) => {
-      console.log('[Discord Client] Disconnected with code:', code);
-      this.updateState({ 
-        isConnected: false,
-        error: code === 1000 ? null : 'Connection lost'
-      });
-    });
   }
 }
 
