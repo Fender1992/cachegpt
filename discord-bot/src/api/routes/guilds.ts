@@ -77,38 +77,50 @@ router.get('/:guildId/channels', async (req: Request, res: Response) => {
       return;
     }
 
-    // Fetch the member to get their roles
+    // Fetch the member to get their roles for permission filtering
     let member;
     try {
       member = await guild.members.fetch(userId);
-    } catch {
-      res.status(404).json({ error: 'Member not found in guild' });
-      return;
+    } catch (err) {
+      console.log(`[API] Could not fetch member ${userId} in guild ${guildId}, returning all channels unfiltered`);
     }
 
-    const memberRoles = member.roles.cache.map((r) => r.id);
-    const guildRoles: Role[] = guild.roles.cache.map((r) => ({
-      id: r.id,
-      permissions: r.permissions.bitfield.toString(),
-      position: r.position,
-    }));
+    // If we have the member, filter by permissions; otherwise return all channels
+    let result;
+    if (member) {
+      const memberRoles = member.roles.cache.map((r) => r.id);
+      const guildRoles: Role[] = guild.roles.cache.map((r) => ({
+        id: r.id,
+        permissions: r.permissions.bitfield.toString(),
+        position: r.position,
+      }));
 
-    const filtered = filterChannelsByPermission(
-      guildChannels,
-      memberRoles,
-      guildRoles,
-      guild.ownerId,
-      userId
-    );
+      const filtered = filterChannelsByPermission(
+        guildChannels,
+        memberRoles,
+        guildRoles,
+        guild.ownerId,
+        userId
+      );
 
-    const result = filtered.map((ch) => ({
-      id: ch.id,
-      name: ch.name,
-      type: ch.type,
-      parentId: ch.parentId,
-      topic: ch.topic,
-      position: ch.position,
-    }));
+      result = filtered.map((ch) => ({
+        id: ch.id,
+        name: ch.name,
+        type: ch.type,
+        parentId: ch.parentId,
+        topic: ch.topic,
+        position: ch.position,
+      }));
+    } else {
+      result = guildChannels.map((ch) => ({
+        id: ch.id,
+        name: ch.name,
+        type: ch.type,
+        parentId: ch.parentId,
+        topic: ch.topic,
+        position: ch.position,
+      }));
+    }
 
     res.json(result);
   } catch (err) {
