@@ -45,6 +45,7 @@ export interface DiscordGuild {
   icon?: string | null;
   channels?: DiscordChannel[];
   member_count?: number;
+  botStatus?: 'full_access' | 'no_bot' | 'unknown';
 }
 
 interface GatewayPayload {

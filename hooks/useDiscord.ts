@@ -126,43 +126,46 @@ export function useDiscord(options: UseDiscordOptions = {}) {
     isConnecting: discord.isConnecting,
     error: discord.error,
     user: discord.user,
-    
+
     // Guild and channel state
     guilds: discord.guilds,
     selectedGuild: discord.selectedGuild,
     channels: textChannels,
     selectedChannel: discord.selectedChannel,
-    
+
     // Message state
     messages: discord.messages,
     unreadCount: discord.unreadCount,
-    
+
     // UI state
     isPanelOpen: discord.isPanelOpen,
-    
+
     // Connection methods
     connect: connectSafely,
     disconnect: discord.disconnect,
-    
+
     // Navigation methods
     selectGuild: selectGuildSafely,
     selectChannel: selectChannelSafely,
-    
+
     // Message methods
     sendMessage: sendMessageSafely,
     clearUnreadCount: discord.clearUnreadCount,
-    
+
+    // Bot invite
+    getInviteUrl: discord.getInviteUrl,
+
     // UI methods
     openPanel: discord.openPanel,
     closePanel: discord.closePanel,
-    
+
     // Helper properties
     isReady,
     hasUnreadMessages,
     canSendMessages,
     userDisplayName,
     formatUnreadCount,
-    
+
     // Raw discord context (for advanced usage)
     raw: discord,
   };

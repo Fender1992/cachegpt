@@ -169,12 +169,23 @@ export class DiscordClient {
 
     try {
       this.stopPolling();
-      this.updateState({ selectedGuild: guild, selectedChannel: null, messages: [] });
+      this.updateState({ selectedGuild: guild, selectedChannel: null, messages: [], channels: [], error: null });
+
+      // If the bot is not installed in this guild, don't try to fetch channels
+      if (guild.botStatus === 'no_bot') {
+        this.updateState({ error: 'bot_not_installed' });
+        return;
+      }
 
       const headers = await this.getAuthHeader();
       const res = await fetch(`/api/integrations/discord/channels?guildId=${guild.id}`, { headers });
 
       if (!res.ok) {
+        if (res.status === 403) {
+          // 403 means the bot doesn't have access to this guild
+          this.updateState({ error: 'bot_not_installed' });
+          return;
+        }
         throw new Error(`Failed to load channels: ${res.status}`);
       }
 
@@ -191,6 +202,16 @@ export class DiscordClient {
       console.error('[Discord Client] Error selecting guild:', error);
       this.updateState({ error: 'Failed to load channels' });
     }
+  }
+
+  /**
+   * Get the bot invite URL for a specific guild
+   */
+  getInviteUrl(guildId: string): string {
+    const clientId = typeof window !== 'undefined'
+      ? (window as any).__ENV__?.NEXT_PUBLIC_DISCORD_CLIENT_ID || process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID || ''
+      : process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID || '';
+    return `https://discord.com/oauth2/authorize?client_id=${clientId}&scope=bot&permissions=66560&guild_id=${guildId}&disable_guild_select=true`;
   }
 
   /**

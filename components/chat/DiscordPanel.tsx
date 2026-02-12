@@ -1,17 +1,20 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { 
-  X, 
-  Hash, 
-  Users, 
-  Send, 
-  Loader2, 
+import {
+  X,
+  Hash,
+  Users,
+  Send,
+  Loader2,
   AlertCircle,
   ChevronDown,
   ChevronRight,
   MessageCircle,
-  Settings
+  Settings,
+  Lock,
+  Copy,
+  Check
 } from 'lucide-react';
 import { useDiscord } from '@/hooks/useDiscord';
 import { DiscordMessage, DiscordGuild, DiscordChannel } from '@/lib/discord/discord-gateway';
@@ -26,6 +29,7 @@ export default function DiscordPanel({ className }: DiscordPanelProps) {
   const [messageInput, setMessageInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [expandedGuilds, setExpandedGuilds] = useState<Set<string>>(new Set());
+  const [copiedGuildId, setCopiedGuildId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -92,6 +96,30 @@ export default function DiscordPanel({ className }: DiscordPanelProps) {
     }
   }, [handleSendMessage]);
 
+  // Copy invite link to clipboard
+  const handleCopyInviteLink = useCallback(async (guildId: string) => {
+    const url = discord.getInviteUrl(guildId);
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedGuildId(guildId);
+      setTimeout(() => setCopiedGuildId(null), 2000);
+    } catch (err) {
+      console.error('[DiscordPanel] Failed to copy invite link:', err);
+    }
+  }, [discord.getInviteUrl]);
+
+  // Sort guilds: full_access first, then no_bot/unknown
+  const sortedGuilds = [...discord.guilds].sort((a, b) => {
+    const order = { full_access: 0, unknown: 1, no_bot: 2 };
+    const aOrder = order[a.botStatus || 'unknown'] ?? 1;
+    const bOrder = order[b.botStatus || 'unknown'] ?? 1;
+    if (aOrder !== bOrder) return aOrder - bOrder;
+    return a.name.localeCompare(b.name);
+  });
+
+  // Check if the current error is a bot_not_installed error
+  const isBotNotInstalled = discord.error === 'bot_not_installed';
+
   // Format timestamp for messages
   const formatTimestamp = (timestamp: string): string => {
     const date = new Date(timestamp);
@@ -153,7 +181,7 @@ export default function DiscordPanel({ className }: DiscordPanelProps) {
       </div>
 
       {/* Connection Status */}
-      {discord.error && (
+      {discord.error && !isBotNotInstalled && (
         <div className="flex-shrink-0 p-3 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800">
           <div className="flex items-center gap-2 text-red-700 dark:text-red-400">
             <AlertCircle className="w-4 h-4" />
@@ -200,7 +228,7 @@ export default function DiscordPanel({ className }: DiscordPanelProps) {
               <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
                 Servers
               </h3>
-              {discord.guilds.map((guild) => (
+              {sortedGuilds.map((guild) => (
                 <div key={guild.id} className="mb-1">
                   <button
                     onClick={() => handleGuildSelect(guild)}
@@ -224,6 +252,12 @@ export default function DiscordPanel({ className }: DiscordPanelProps) {
                         <ChevronRight className="w-3 h-3" />
                       )}
                     </button>
+                    {/* Bot status indicator */}
+                    {guild.botStatus === 'full_access' ? (
+                      <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" title="Bot installed" />
+                    ) : guild.botStatus === 'no_bot' ? (
+                      <Lock className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                    ) : null}
                     <span className="truncate">{guild.name}</span>
                     {guild.member_count && (
                       <Users className="w-3 h-3 ml-auto opacity-60" />
@@ -329,6 +363,38 @@ export default function DiscordPanel({ className }: DiscordPanelProps) {
                   </div>
                 </div>
               </>
+            ) : isBotNotInstalled && discord.selectedGuild ? (
+              /* Bot not installed invite prompt */
+              <div className="flex-1 flex items-center justify-center text-center p-6">
+                <div className="max-w-xs space-y-4">
+                  <Lock className="w-10 h-10 text-gray-400 mx-auto" />
+                  <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                    CacheGPT bot is not in this server
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    To browse channels and messages, ask a server admin to add the bot:
+                  </p>
+                  <button
+                    onClick={() => handleCopyInviteLink(discord.selectedGuild!.id)}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+                  >
+                    {copiedGuildId === discord.selectedGuild.id ? (
+                      <>
+                        <Check className="w-4 h-4" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4" />
+                        Copy Invite Link
+                      </>
+                    )}
+                  </button>
+                  <p className="text-xs text-gray-400 dark:text-gray-500">
+                    The bot only requests permission to view channels and read message history.
+                  </p>
+                </div>
+              </div>
             ) : (
               <div className="flex-1 flex items-center justify-center text-center p-4">
                 <div>

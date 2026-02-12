@@ -8,15 +8,18 @@ interface DiscordContextValue extends DiscordState {
   // Connection methods
   connect: () => Promise<void>;
   disconnect: () => void;
-  
+
   // Navigation methods
   selectGuild: (guild: DiscordGuild) => Promise<void>;
   selectChannel: (channel: DiscordChannel) => Promise<void>;
-  
+
   // Interaction methods
   sendMessage: (content: string) => Promise<void>;
   clearUnreadCount: () => void;
-  
+
+  // Bot invite
+  getInviteUrl: (guildId: string) => string;
+
   // UI state
   isPanelOpen: boolean;
   openPanel: () => void;
@@ -74,6 +77,10 @@ export function DiscordProvider({ children, autoConnect = false }: DiscordProvid
     discordClient.clearUnreadCount();
   };
 
+  const getInviteUrl = (guildId: string): string => {
+    return discordClient.getInviteUrl(guildId);
+  };
+
   // UI state methods
   const openPanel = (): void => {
     setIsPanelOpen(true);
@@ -92,6 +99,7 @@ export function DiscordProvider({ children, autoConnect = false }: DiscordProvid
     selectChannel,
     sendMessage,
     clearUnreadCount,
+    getInviteUrl,
     isPanelOpen,
     openPanel,
     closePanel,

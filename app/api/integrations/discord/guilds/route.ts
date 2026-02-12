@@ -1,11 +1,13 @@
 /**
  * Discord Guilds API
- * GET: Fetch user's guilds from synced database metadata
+ * GET: Fetch user's guilds from synced database metadata,
+ *      cross-referenced with bot's guild list for access status
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveAuthentication, isAuthError } from '@/lib/unified-auth-resolver';
 import { createClient } from '@supabase/supabase-js';
+import { botProxy } from '@/lib/discord/bot-proxy';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -43,13 +45,32 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch guilds' }, { status: 500 });
     }
 
-    // Map to Discord-compatible format
+    // Try to get bot's guild list for access status
+    let botGuildIds = new Set<string>();
+    try {
+      const botAvailable = await botProxy.isAvailable();
+      if (botAvailable) {
+        const botGuilds = await botProxy.getGuilds();
+        botGuildIds = new Set(botGuilds.map(g => g.id));
+      }
+    } catch (err) {
+      console.log('[Discord Guilds] Bot proxy unavailable, all guilds will show as unknown status');
+    }
+
+    // Map to Discord-compatible format with bot status
     const result = (guilds || []).map(g => ({
       id: g.guild_id,
       name: g.guild_name,
       icon: g.icon_url,
       member_count: g.member_count,
+      botStatus: botGuildIds.size > 0
+        ? (botGuildIds.has(g.guild_id) ? 'full_access' : 'no_bot')
+        : 'unknown' as const,
     }));
+
+    // Sort: full_access first, then no_bot, then unknown
+    const statusOrder = { full_access: 0, unknown: 1, no_bot: 2 };
+    result.sort((a, b) => statusOrder[a.botStatus] - statusOrder[b.botStatus] || a.name.localeCompare(b.name));
 
     return NextResponse.json(result);
   } catch (error) {
