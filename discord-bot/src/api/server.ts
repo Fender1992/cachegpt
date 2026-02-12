@@ -60,7 +60,7 @@ export function startApiServer(): Promise<void> {
     const app = createApiServer();
     const port = config.api.port;
 
-    app.listen(port, () => {
+    app.listen(port, '0.0.0.0', () => {
       console.log(`[API] Internal REST API listening on port ${port}`);
       console.log(`[API] Allowed origins: ${config.api.allowedOrigins.join(', ')}`);
       resolve();
