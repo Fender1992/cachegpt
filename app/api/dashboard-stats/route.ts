@@ -13,15 +13,15 @@ export async function GET(request: NextRequest) {
 
     // Get authenticated user
     const {
-      data: { session },
+      data: { user },
       error: authError,
-    } = await supabase.auth.getSession();
+    } = await supabase.auth.getUser();
 
-    if (authError || !session) {
+    if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = session.user.id;
+    const userId = user.id;
 
     // Get total chats (conversations)
     const { count: totalChats, error: chatsError } = await supabase

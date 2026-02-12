@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
-import { cookies } from 'next/headers';
 import { error as logError } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
-    const cookieStore = cookies();
     const supabase = await createClient();
 
     // Check authentication
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -24,7 +22,7 @@ export async function GET(request: NextRequest) {
     const { data: usageData, error: usageError } = await supabase
       .from('usage')
       .select('*')
-      .eq('user_id', session.user.id)
+      .eq('user_id', user.id)
       .gte('created_at', startDate.toISOString())
       .order('created_at', { ascending: false });
 
