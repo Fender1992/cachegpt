@@ -1,13 +1,11 @@
 /**
- * Discord Channels Proxy
- * GET: Fetch channels for a guild via Discord API using stored access token
+ * Discord Channels API
+ * GET: Fetch channels for a guild from synced database metadata
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveAuthentication, isAuthError } from '@/lib/unified-auth-resolver';
 import { createClient } from '@supabase/supabase-js';
-
-const DISCORD_API = 'https://discord.com/api/v10';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -26,28 +24,43 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'guildId is required' }, { status: 400 });
     }
 
+    // Get the user's Discord integration
     const { data: integration } = await supabase
       .from('user_integrations')
-      .select('access_token')
+      .select('id')
       .eq('user_id', authResult.user.id)
       .eq('provider', 'discord')
       .single();
 
-    if (!integration?.access_token) {
+    if (!integration) {
       return NextResponse.json({ error: 'Discord not connected' }, { status: 404 });
     }
 
-    const response = await fetch(`${DISCORD_API}/guilds/${guildId}/channels`, {
-      headers: { Authorization: `Bearer ${integration.access_token}` },
-    });
+    // Fetch channels from synced metadata
+    const { data: channels, error } = await supabase
+      .from('discord_channel_metadata')
+      .select('channel_id, channel_name, channel_type, topic, parent_id, last_message_id')
+      .eq('integration_id', integration.id)
+      .eq('guild_id', guildId)
+      .order('channel_name');
 
-    if (!response.ok) {
-      const text = await response.text();
-      return NextResponse.json({ error: text }, { status: response.status });
+    if (error) {
+      console.error('[Discord Channels] DB error:', error);
+      return NextResponse.json({ error: 'Failed to fetch channels' }, { status: 500 });
     }
 
-    const channels = await response.json();
-    return NextResponse.json(channels);
+    // Map to Discord-compatible format
+    const result = (channels || []).map(ch => ({
+      id: ch.channel_id,
+      name: ch.channel_name,
+      type: ch.channel_type,
+      topic: ch.topic,
+      guild_id: guildId,
+      parent_id: ch.parent_id,
+      last_message_id: ch.last_message_id,
+    }));
+
+    return NextResponse.json(result);
   } catch (error) {
     console.error('[Discord Channels] Error:', error);
     return NextResponse.json({ error: 'Failed to fetch channels' }, { status: 500 });

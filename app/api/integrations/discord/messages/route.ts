@@ -1,7 +1,7 @@
 /**
- * Discord Messages Proxy
- * GET: Fetch messages from a channel via Discord API using stored access token
- * POST: Send a message to a channel
+ * Discord Messages API
+ * GET: Fetch messages from synced integration_documents for a channel
+ * POST: Send a message via Discord API using stored access token
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -15,16 +15,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY!
 );
 
-async function getDiscordToken(userId: string): Promise<string | null> {
-  const { data } = await supabase
-    .from('user_integrations')
-    .select('access_token')
-    .eq('user_id', userId)
-    .eq('provider', 'discord')
-    .single();
-  return data?.access_token || null;
-}
-
 export async function GET(req: NextRequest) {
   try {
     const authResult = await resolveAuthentication(req);
@@ -37,27 +27,63 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'channelId is required' }, { status: 400 });
     }
 
-    const token = await getDiscordToken(authResult.user.id);
-    if (!token) {
+    // Get the user's Discord integration
+    const { data: integration } = await supabase
+      .from('user_integrations')
+      .select('id')
+      .eq('user_id', authResult.user.id)
+      .eq('provider', 'discord')
+      .single();
+
+    if (!integration) {
       return NextResponse.json({ error: 'Discord not connected' }, { status: 404 });
     }
 
-    const limit = req.nextUrl.searchParams.get('limit') || '50';
-    const after = req.nextUrl.searchParams.get('after') || '';
-    const params = new URLSearchParams({ limit });
-    if (after) params.set('after', after);
+    // Fetch synced message documents for this channel
+    const { data: docs, error } = await supabase
+      .from('integration_documents')
+      .select('id, content, metadata, created_at, updated_at')
+      .eq('integration_id', integration.id)
+      .eq('provider', 'discord')
+      .filter('metadata->>channel_id', 'eq', channelId)
+      .order('created_at', { ascending: true })
+      .limit(50);
 
-    const response = await fetch(
-      `${DISCORD_API}/channels/${channelId}/messages?${params}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-
-    if (!response.ok) {
-      const text = await response.text();
-      return NextResponse.json({ error: text }, { status: response.status });
+    if (error) {
+      console.error('[Discord Messages] DB error:', error);
+      return NextResponse.json({ error: 'Failed to fetch messages' }, { status: 500 });
     }
 
-    const messages = await response.json();
+    // Transform integration_documents into a message-like format for the UI
+    const messages = (docs || []).map(doc => {
+      const meta = doc.metadata || {};
+      const authors: string[] = meta.authors || [];
+      return {
+        id: doc.id,
+        channel_id: channelId,
+        guild_id: meta.guild_id,
+        author: {
+          id: 'synced',
+          username: authors[0] || 'Unknown',
+          global_name: authors[0] || 'Unknown',
+        },
+        content: doc.content,
+        timestamp: meta.first_message_at || doc.created_at,
+        edited_timestamp: null,
+        mentions: [],
+        mention_everyone: false,
+        attachments: [],
+        embeds: [],
+        type: 0,
+        // Extra metadata for the UI
+        _synced: true,
+        _authors: authors,
+        _messageCount: meta.message_count,
+        _guildName: meta.guild_name,
+        _channelName: meta.channel_name,
+      };
+    });
+
     return NextResponse.json(messages);
   } catch (error) {
     console.error('[Discord Messages] Error:', error);
@@ -77,15 +103,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'channelId and content are required' }, { status: 400 });
     }
 
-    const token = await getDiscordToken(authResult.user.id);
-    if (!token) {
+    const { data: integration } = await supabase
+      .from('user_integrations')
+      .select('access_token')
+      .eq('user_id', authResult.user.id)
+      .eq('provider', 'discord')
+      .single();
+
+    if (!integration?.access_token) {
       return NextResponse.json({ error: 'Discord not connected' }, { status: 404 });
     }
 
     const response = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${integration.access_token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ content }),
