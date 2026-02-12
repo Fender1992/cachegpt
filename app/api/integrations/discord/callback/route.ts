@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Get user ID from cookie
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const userId = cookieStore.get('discord_oauth_uid')?.value;
     
     if (!userId) {
