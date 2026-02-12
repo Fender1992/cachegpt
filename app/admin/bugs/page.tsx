@@ -1,20 +1,10 @@
-import { redirect } from 'next/navigation'
-import { verifyAdminAuth } from '@/lib/admin-auth'
 import AdminBugsClient from './AdminBugsClient'
 
 /**
- * Server component that enforces admin authentication
- * Redirects non-admin users before rendering anything
+ * Admin bug tracker page.
+ * Auth is enforced client-side (session check + redirect)
+ * and at the API level (requireAdminAuth on /api/bugs/manage).
  */
-export default async function AdminBugsPage() {
-  try {
-    // Verify admin access on server side
-    await verifyAdminAuth()
-  } catch (error) {
-    // Redirect to home page if not admin
-    redirect('/')
-  }
-
-  // Only render if user is admin
+export default function AdminBugsPage() {
   return <AdminBugsClient />
 }
