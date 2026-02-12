@@ -50,18 +50,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'No access token' }, { status: 400 });
   }
 
-  try {
-    const result = await syncGitHubRepos(userId, integration.id, integration.access_token);
-    return NextResponse.json({
-      success: true,
-      reposProcessed: result.reposProcessed,
-      documentsUpserted: result.documentsUpserted,
-      errors: result.errors,
-    });
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || 'Sync failed' },
-      { status: 500 }
-    );
-  }
+  // Fire-and-forget: start sync in background to avoid serverless timeout
+  syncGitHubRepos(userId, integration.id, integration.access_token).catch((err) => {
+    console.error('[GitHub Sync] Background sync failed:', err);
+  });
+
+  return NextResponse.json({ success: true, message: 'Sync started' });
 }

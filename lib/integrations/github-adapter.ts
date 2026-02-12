@@ -27,6 +27,7 @@ const MAX_FILE_SIZE = 100 * 1024; // 100KB
 const CHUNK_SIZE = 2000;
 const CHUNK_OVERLAP = 200;
 const EMBEDDING_BATCH_SIZE = 20;
+const FILE_FETCH_DELAY_MS = 50; // delay between individual file fetches to stay under rate limit
 
 interface GitHubRepo {
   full_name: string;
@@ -61,10 +62,29 @@ async function githubFetch(url: string, token: string) {
       Accept: 'application/vnd.github.v3+json',
     },
   });
+
+  // Handle rate limiting: if we hit the limit, wait until reset
+  if (res.status === 403 || res.status === 429) {
+    const resetHeader = res.headers.get('x-ratelimit-reset');
+    if (resetHeader) {
+      const resetTime = parseInt(resetHeader, 10) * 1000;
+      const waitMs = Math.max(resetTime - Date.now(), 0) + 1000;
+      if (waitMs <= 60_000) {
+        await new Promise(resolve => setTimeout(resolve, waitMs));
+        return githubFetch(url, token); // retry once after waiting
+      }
+    }
+    throw new Error(`GitHub API rate limited: ${res.status} ${res.statusText}`);
+  }
+
   if (!res.ok) {
     throw new Error(`GitHub API error: ${res.status} ${res.statusText}`);
   }
   return res.json();
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function shouldIndexFile(path: string, size?: number): boolean {
@@ -154,6 +174,18 @@ export async function syncGitHubRepos(
       }
     });
 
+    // Load saved tree SHAs to skip repos that haven't changed
+    const { data: integrationRow } = await supabase
+      .from('user_integrations')
+      .select('provider_data')
+      .eq('id', integrationId)
+      .single();
+    const savedTreeShas: Record<string, string> = integrationRow?.provider_data?.tree_shas ?? {};
+    const newTreeShas: Record<string, string> = {};
+
+    // Track all source_ids we've seen this sync for stale cleanup
+    const allCurrentSourceIds = new Set<string>();
+
     for (const repo of repos) {
       try {
         // Get repo tree recursively
@@ -162,11 +194,29 @@ export async function syncGitHubRepos(
           accessToken
         );
 
+        const treeSha: string = tree.sha;
+        newTreeShas[repo.full_name] = treeSha;
+
+        // Skip repo entirely if tree SHA hasn't changed
+        if (savedTreeShas[repo.full_name] === treeSha) {
+          // Still track existing source_ids so we don't delete them as stale
+          const { data: existingRepoDocs } = await supabase
+            .from('integration_documents')
+            .select('source_id')
+            .eq('integration_id', integrationId)
+            .like('source_id', `${repo.full_name}/%`);
+          existingRepoDocs?.forEach(d => allCurrentSourceIds.add(d.source_id));
+          continue;
+        }
+
         const indexableFiles: GitHubTreeItem[] = (tree.tree || [])
           .filter((item: GitHubTreeItem) =>
             item.type === 'blob' && shouldIndexFile(item.path, item.size)
           )
           .slice(0, MAX_FILES_PER_REPO);
+
+        // Track source_ids for this repo
+        const repoSourceIds = new Set<string>();
 
         // Process files in batches for embedding
         const pendingChunks: {
@@ -181,9 +231,14 @@ export async function syncGitHubRepos(
 
         for (const file of indexableFiles) {
           const sourceId = `${repo.full_name}/${file.path}`;
+          repoSourceIds.add(sourceId);
+          allCurrentSourceIds.add(sourceId);
           const sourceUrl = `https://github.com/${repo.full_name}/blob/${repo.default_branch}/${file.path}`;
 
           try {
+            // Throttle individual file fetches to avoid rate limiting
+            await delay(FILE_FETCH_DELAY_MS);
+
             // Fetch file content
             const fileData = await githubFetch(
               `${GITHUB_API}/repos/${repo.full_name}/contents/${file.path}?ref=${repo.default_branch}`,
@@ -267,18 +322,66 @@ export async function syncGitHubRepos(
             }
           }
         }
+
+        // Clean up stale documents for this repo (files that were removed)
+        const { data: repoDocs } = await supabase
+          .from('integration_documents')
+          .select('id, source_id')
+          .eq('integration_id', integrationId)
+          .like('source_id', `${repo.full_name}/%`);
+
+        if (repoDocs) {
+          const staleIds = repoDocs
+            .filter(d => !repoSourceIds.has(d.source_id))
+            .map(d => d.id);
+
+          if (staleIds.length > 0) {
+            await supabase
+              .from('integration_documents')
+              .delete()
+              .in('id', staleIds);
+          }
+        }
       } catch (repoError: any) {
         errors.push(`Error syncing ${repo.full_name}: ${repoError.message}`);
       }
     }
 
-    // Update integration status
+    // Clean up documents for repos that are no longer in the user's repo list
+    const syncedRepoNames = new Set(repos.map(r => r.full_name));
+    const { data: allDocs } = await supabase
+      .from('integration_documents')
+      .select('id, source_id')
+      .eq('integration_id', integrationId);
+
+    if (allDocs) {
+      const orphanedIds = allDocs
+        .filter(d => {
+          const repoName = d.source_id.split('/').slice(0, 2).join('/');
+          return !syncedRepoNames.has(repoName);
+        })
+        .map(d => d.id);
+
+      if (orphanedIds.length > 0) {
+        // Delete in batches to avoid query size limits
+        for (let i = 0; i < orphanedIds.length; i += 100) {
+          await supabase
+            .from('integration_documents')
+            .delete()
+            .in('id', orphanedIds.slice(i, i + 100));
+        }
+      }
+    }
+
+    // Update integration status and save tree SHAs for next sync
+    const existingProviderData = integrationRow?.provider_data ?? {};
     await supabase
       .from('user_integrations')
       .update({
         status: 'active',
         last_synced_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        provider_data: { ...existingProviderData, tree_shas: newTreeShas },
       })
       .eq('id', integrationId);
 

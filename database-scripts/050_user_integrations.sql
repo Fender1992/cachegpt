@@ -52,9 +52,10 @@ CREATE INDEX IF NOT EXISTS idx_integration_documents_embedding
   USING ivfflat (embedding vector_cosine_ops)
   WITH (lists = 100);
 
--- Composite index for upsert deduplication
-CREATE INDEX IF NOT EXISTS idx_integration_documents_dedup
-  ON public.integration_documents(user_id, provider, source_id, chunk_index);
+-- Unique constraint for upsert deduplication (required by Supabase upsert onConflict)
+ALTER TABLE public.integration_documents
+  ADD CONSTRAINT uq_integration_documents_dedup
+  UNIQUE (user_id, provider, source_id, chunk_index);
 
 -- Fast lookup by integration
 CREATE INDEX IF NOT EXISTS idx_integration_documents_integration
