@@ -1,12 +1,14 @@
 /**
  * Discord Messages API
- * GET: Fetch messages from a channel via Discord API using Bot token
- * POST: Send a message via Discord API using Bot token
+ * GET: Fetch messages from a channel via Discord API
+ * POST: Send a message to a channel via Discord API
+ * Uses user's OAuth token (auto-refreshed) with Bot token fallback
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveAuthentication, isAuthError } from '@/lib/unified-auth-resolver';
 import { createClient } from '@supabase/supabase-js';
+import { getValidDiscordToken } from '@/lib/discord/discord-token';
 
 const DISCORD_API = 'https://discord.com/api/v10';
 
@@ -27,10 +29,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'channelId is required' }, { status: 400 });
     }
 
-    // Verify user has a Discord integration
+    // Get user's Discord integration with token info
     const { data: integration } = await supabase
       .from('user_integrations')
-      .select('id, access_token')
+      .select('id, access_token, refresh_token, token_expires_at')
       .eq('user_id', authResult.user.id)
       .eq('provider', 'discord')
       .single();
@@ -46,10 +48,11 @@ export async function GET(req: NextRequest) {
 
     const url = `${DISCORD_API}/channels/${channelId}/messages?${params}`;
 
-    // Try user's OAuth token first
-    if (integration.access_token) {
+    // Try user's OAuth token first (auto-refreshed)
+    const token = await getValidDiscordToken(integration.id, integration.access_token, integration.refresh_token, integration.token_expires_at);
+    if (token) {
       const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${integration.access_token}` },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (response.ok) {
@@ -76,7 +79,7 @@ export async function GET(req: NextRequest) {
       console.error('[Discord Messages] Bot token failed:', response.status, text);
     }
 
-    return NextResponse.json({ error: 'Failed to fetch messages. The OAuth token may have expired — try reconnecting Discord.' }, { status: 403 });
+    return NextResponse.json({ error: 'Failed to fetch messages. Try disconnecting and reconnecting Discord in Settings.' }, { status: 403 });
   } catch (error) {
     console.error('[Discord Messages] Error:', error);
     return NextResponse.json({ error: 'Failed to fetch messages' }, { status: 500 });
@@ -95,10 +98,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'channelId and content are required' }, { status: 400 });
     }
 
-    // Verify user has a Discord integration
+    // Get user's Discord integration with token info
     const { data: integration } = await supabase
       .from('user_integrations')
-      .select('id, access_token')
+      .select('id, access_token, refresh_token, token_expires_at')
       .eq('user_id', authResult.user.id)
       .eq('provider', 'discord')
       .single();
@@ -110,12 +113,13 @@ export async function POST(req: NextRequest) {
     const url = `${DISCORD_API}/channels/${channelId}/messages`;
     const body = JSON.stringify({ content });
 
-    // Try user's OAuth token first
-    if (integration.access_token) {
+    // Try user's OAuth token first (auto-refreshed)
+    const token = await getValidDiscordToken(integration.id, integration.access_token, integration.refresh_token, integration.token_expires_at);
+    if (token) {
       const response = await fetch(url, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${integration.access_token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body,

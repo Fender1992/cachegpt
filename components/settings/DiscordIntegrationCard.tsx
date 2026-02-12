@@ -94,15 +94,13 @@ export default function DiscordIntegrationCard({ userId }: DiscordIntegrationCar
   const handleConnect = () => {
     const clientId = process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID;
     const redirectUri = `${window.location.origin}/api/integrations/discord/callback`;
-    const scope = 'identify guilds messages.read bot'; // bot scope adds the bot to the selected server
-    // Bot permissions: VIEW_CHANNEL (1024) + SEND_MESSAGES (2048) + READ_MESSAGE_HISTORY (65536) = 68608
-    const permissions = '68608';
+    const scope = 'identify guilds guilds.members.read messages.read';
 
     // Store user ID in cookie for callback
     document.cookie = `discord_oauth_uid=${userId}; path=/; max-age=600; SameSite=Lax; Secure`;
 
-    // Discord OAuth URL - includes bot scope so bot joins the selected guild
-    window.location.href = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}&permissions=${permissions}`;
+    // Discord OAuth URL
+    window.location.href = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}`;
   };
 
   const handleSync = async () => {
