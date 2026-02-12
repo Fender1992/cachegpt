@@ -1,180 +1,137 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { modelRegistry } from '@/lib/models/registry';
 
-// Dynamic model update endpoint that checks for latest models from providers
+/**
+ * Model Updates API
+ *
+ * Returns current model configuration for all providers.
+ * Sources: 1) provider_models DB table, 2) in-memory registry fallback.
+ * Consumed by lib/llm-config.ts for auto-update checks.
+ */
 export async function GET(request: NextRequest) {
   try {
-    // Fetch latest model info from provider APIs (with fallbacks)
-    const modelUpdates = await fetchLatestModels()
+    // Try database first for the most up-to-date data
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_KEY
+      );
+
+      const { data: models, error } = await supabase
+        .from('provider_models')
+        .select('*')
+        .eq('is_active', true)
+        .order('provider')
+        .order('is_default', { ascending: false });
+
+      if (!error && models && models.length > 0) {
+        // Group by provider
+        const providers: Record<string, any> = {};
+
+        // Map DB provider names to display names
+        const displayNames: Record<string, string> = {
+          chatgpt: 'ChatGPT',
+          claude: 'Claude',
+          gemini: 'Gemini',
+          perplexity: 'Perplexity',
+          groq: 'Groq',
+          openrouter: 'OpenRouter',
+          huggingface: 'HuggingFace',
+        };
+
+        for (const model of models) {
+          if (!providers[model.provider]) {
+            providers[model.provider] = {
+              name: displayNames[model.provider] || model.provider,
+              models: [],
+            };
+          }
+
+          providers[model.provider].models.push({
+            id: model.model_id,
+            name: model.model_name,
+            default: model.is_default || false,
+            maxTokens: model.max_tokens || model.max_context_tokens || 128000,
+            maxOutputTokens: model.max_output_tokens || 4096,
+            tier: model.tier || 'balanced',
+            supportsStreaming: model.supports_streaming ?? true,
+            supportsVision: model.supports_vision ?? false,
+          });
+        }
+
+        return NextResponse.json({
+          providers,
+          lastUpdated: new Date().toISOString().split('T')[0],
+          updateUrl: 'https://cachegpt.app/api/model-updates',
+          autoUpdate: true,
+          source: 'database',
+        });
+      }
+    }
+
+    // Fallback: use in-memory registry
+    const allModels = modelRegistry.getAllModels();
+    const providers: Record<string, any> = {};
+
+    const providerDisplayNames: Record<string, string> = {
+      openai: 'ChatGPT',
+      anthropic: 'Claude',
+      google: 'Gemini',
+      perplexity: 'Perplexity',
+      groq: 'Groq',
+      openrouter: 'OpenRouter',
+      huggingface: 'HuggingFace',
+      grok: 'Grok',
+    };
+
+    for (const model of allModels) {
+      const providerKey = model.provider;
+      if (!providers[providerKey]) {
+        providers[providerKey] = {
+          name: providerDisplayNames[providerKey] || providerKey,
+          models: [],
+        };
+      }
+
+      providers[providerKey].models.push({
+        id: model.id,
+        name: model.name,
+        default: model.isDefault,
+        maxTokens: model.maxContextTokens,
+        maxOutputTokens: model.maxOutputTokens,
+        tier: model.tier,
+        supportsStreaming: model.supportsStreaming,
+        supportsVision: model.supportsVision,
+      });
+    }
 
     return NextResponse.json({
-      "providers": modelUpdates,
-      "lastUpdated": new Date().toISOString().split('T')[0],
-      "updateUrl": "https://cachegpt.app/api/model-updates",
-      "autoUpdate": true
-    })
+      providers,
+      lastUpdated: new Date().toISOString().split('T')[0],
+      updateUrl: 'https://cachegpt.app/api/model-updates',
+      autoUpdate: true,
+      source: 'registry',
+    });
   } catch (error) {
-    console.error('Failed to fetch model updates:', error)
+    console.error('[MODEL-UPDATES] Failed to fetch models:', error);
 
-    // Return static config as fallback
+    // Last resort: return minimal static config
     return NextResponse.json({
-      "providers": getStaticModelConfig(),
-      "lastUpdated": new Date().toISOString().split('T')[0],
-      "updateUrl": "https://cachegpt.app/api/model-updates",
-      "autoUpdate": false
-    })
-  }
-}
-
-// Fetch latest model information from provider APIs
-async function fetchLatestModels() {
-  const config = {
-    "chatgpt": {
-      "name": "ChatGPT",
-      "models": [
-        {
-          "id": "gpt-5",
-          "name": "GPT-5",
-          "default": true,
-          "maxTokens": 256000
+      providers: {
+        chatgpt: {
+          name: 'ChatGPT',
+          models: [{ id: 'gpt-4o', name: 'GPT-4o', default: true, maxTokens: 128000 }],
         },
-        {
-          "id": "gpt-5-vision",
-          "name": "GPT-5 Vision",
-          "maxTokens": 256000
+        claude: {
+          name: 'Claude',
+          models: [{ id: 'claude-sonnet-4-5-20250929', name: 'Claude Sonnet 4.5', default: true, maxTokens: 200000 }],
         },
-        {
-          "id": "gpt-4-turbo-preview",
-          "name": "GPT-4 Turbo",
-          "maxTokens": 128000
-        }
-      ]
-    },
-    "claude": {
-      "name": "Claude",
-      "models": [
-        {
-          "id": "claude-opus-4-1-20250805",
-          "name": "Claude Opus 4.1",
-          "default": true,
-          "maxTokens": 500000
-        },
-        {
-          "id": "claude-sonnet-4-20250924",
-          "name": "Claude Sonnet 4",
-          "maxTokens": 300000
-        },
-        {
-          "id": "claude-3-haiku-20240307",
-          "name": "Claude 3 Haiku",
-          "maxTokens": 200000
-        }
-      ]
-    },
-    "gemini": {
-      "name": "Gemini",
-      "models": [
-        {
-          "id": "gemini-2.0-ultra",
-          "name": "Gemini 2.0 Ultra",
-          "default": true,
-          "maxTokens": 5000000
-        },
-        {
-          "id": "gemini-2.0-pro",
-          "name": "Gemini 2.0 Pro",
-          "maxTokens": 2000000
-        },
-        {
-          "id": "gemini-1.5-flash",
-          "name": "Gemini 1.5 Flash",
-          "maxTokens": 1000000
-        }
-      ]
-    },
-    "perplexity": {
-      "name": "Perplexity",
-      "models": [
-        {
-          "id": "pplx-pro-online",
-          "name": "Perplexity Pro Online",
-          "default": true,
-          "maxTokens": 32768
-        },
-        {
-          "id": "sonar-ultra-online",
-          "name": "Sonar Ultra Online",
-          "maxTokens": 32768
-        },
-        {
-          "id": "llama-3-405b-instruct",
-          "name": "Llama 3 405B",
-          "maxTokens": 32768
-        }
-      ]
-    }
-  }
-
-  // NOTE: Future enhancement - automatically fetch latest models from provider APIs
-  // Current approach: manually update configuration when new models are released
-  return config
-}
-
-// Static fallback configuration
-function getStaticModelConfig() {
-  return {
-    "chatgpt": {
-      "name": "ChatGPT",
-      "models": [
-        {
-          "id": "gpt-5",
-          "name": "GPT-5",
-          "default": true,
-          "maxTokens": 256000
-        },
-        {
-          "id": "gpt-4-turbo-preview",
-          "name": "GPT-4 Turbo",
-          "maxTokens": 128000
-        }
-      ]
-    },
-    "claude": {
-      "name": "Claude",
-      "models": [
-        {
-          "id": "claude-opus-4-1-20250805",
-          "name": "Claude Opus 4.1",
-          "default": true,
-          "maxTokens": 500000
-        },
-        {
-          "id": "claude-sonnet-4-20250924",
-          "name": "Claude Sonnet 4",
-          "maxTokens": 300000
-        }
-      ]
-    },
-    "gemini": {
-      "name": "Gemini",
-      "models": [
-        {
-          "id": "gemini-2.0-ultra",
-          "name": "Gemini 2.0 Ultra",
-          "default": true,
-          "maxTokens": 5000000
-        }
-      ]
-    },
-    "perplexity": {
-      "name": "Perplexity",
-      "models": [
-        {
-          "id": "pplx-pro-online",
-          "name": "Perplexity Pro Online",
-          "default": true,
-          "maxTokens": 32768
-        }
-      ]
-    }
+      },
+      lastUpdated: new Date().toISOString().split('T')[0],
+      updateUrl: 'https://cachegpt.app/api/model-updates',
+      autoUpdate: false,
+      source: 'static-fallback',
+    });
   }
 }

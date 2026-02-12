@@ -7,6 +7,10 @@ const getTierCache = async () => {
 };
 
 export async function POST(request: NextRequest) {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not available' }, { status: 404 });
+  }
+
   try {
     const { query } = await request.json();
 

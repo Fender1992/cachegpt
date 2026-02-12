@@ -33,7 +33,23 @@ export interface LLMChatResponse {
   aggregatedFrom?: string[]; // List of providers used in aggregation (for 'best' mode)
 }
 
+/**
+ * Streaming chunk emitted by chatStream()
+ */
+export interface StreamChunk {
+  content: string;       // Incremental delta text
+  done: boolean;
+  provider: string;
+  model?: string;
+  usage?: {
+    promptTokens?: number;
+    completionTokens?: number;
+    totalTokens?: number;
+  };
+}
+
 export interface LLMAdapter {
   name: string;
   chat(params: LLMChatParams): Promise<LLMChatResponse>;
+  chatStream?(params: LLMChatParams): AsyncGenerator<StreamChunk>;
 }

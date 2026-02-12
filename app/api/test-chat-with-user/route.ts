@@ -149,6 +149,10 @@ async function callFreeProvider(messages: any[]): Promise<{ response: string; pr
  * RESTRICTED: Admin-only endpoint for testing purposes
  */
 export async function POST(request: NextRequest) {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not available' }, { status: 404 });
+  }
+
   try {
     // SECURITY: Require admin authentication
     const authHeader = request.headers.get('authorization');

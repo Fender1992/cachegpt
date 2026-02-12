@@ -15,7 +15,9 @@ const CACHE_SIZE_LIMIT = 1000;
 
 /**
  * Generate embedding vector for text using OpenAI
- * Uses text-embedding-3-small (1536 dimensions, $0.02/1M tokens)
+ * Uses text-embedding-3-small (1536 dimensions by default, $0.02/1M tokens)
+ * Note: If the pgvector column uses fewer dimensions (e.g., 384),
+ * pass `dimensions: 384` to the API call for truncated embeddings.
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
   // Check cache first

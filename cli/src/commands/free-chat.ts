@@ -21,6 +21,9 @@ import {
   ShellOperation
 } from '../lib/shell-operations';
 import * as readline from 'readline';
+import fs from 'fs';
+import pathMod from 'path';
+import os from 'os';
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -105,7 +108,206 @@ function formatResponse(text: string): string {
   return formatted;
 }
 
+// --- Conversation Persistence (4.5) ---
+
+const CONVERSATIONS_DIR = pathMod.join(os.homedir(), '.cachegpt', 'conversations');
+
+function saveConversation(messages: ChatMessage[], conversationId?: string): string {
+  if (!fs.existsSync(CONVERSATIONS_DIR)) {
+    fs.mkdirSync(CONVERSATIONS_DIR, { recursive: true });
+  }
+
+  const id = conversationId || `conv_${Date.now()}`;
+  const filePath = pathMod.join(CONVERSATIONS_DIR, `${id}.json`);
+
+  fs.writeFileSync(filePath, JSON.stringify({
+    id,
+    messages: messages.filter(m => m.role !== 'system'),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  }, null, 2));
+
+  return id;
+}
+
+function loadLastConversation(): { id: string; messages: ChatMessage[] } | null {
+  if (!fs.existsSync(CONVERSATIONS_DIR)) return null;
+
+  const files = fs.readdirSync(CONVERSATIONS_DIR)
+    .filter(f => f.endsWith('.json'))
+    .sort()
+    .reverse();
+
+  if (files.length === 0) return null;
+
+  const data = JSON.parse(fs.readFileSync(pathMod.join(CONVERSATIONS_DIR, files[0]), 'utf-8'));
+  return { id: data.id, messages: data.messages };
+}
+
+// --- Streaming API (4.1) ---
+
+async function callStreamingAPI(
+  bearerToken: string,
+  messages: ChatMessage[],
+  onChunk: (text: string) => void
+): Promise<{
+  response: string;
+  provider: string;
+  cached: boolean;
+  timeSaved?: number;
+  costSaved?: number;
+}> {
+  const apiUrl = process.env.CACHEGPT_API_URL || 'https://cachegpt.app';
+
+  const response = await fetch(`${apiUrl}/api/v2/unified-chat-stream`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${bearerToken}`,
+      'Content-Type': 'application/json',
+      'User-Agent': 'cachegpt-cli/1.0.0'
+    },
+    body: JSON.stringify({
+      provider: 'auto',
+      messages,
+      authMethod: 'oauth',
+    })
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Request failed: ${response.status}`);
+  }
+
+  if (!response.body) {
+    throw new Error('No response body for streaming');
+  }
+
+  let fullResponse = '';
+  let provider = 'free-provider';
+  let cached = false;
+  let timeSaved = 0;
+  let costSaved = 0;
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+
+    // Parse SSE events
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        const data = line.slice(6);
+        if (data === '[DONE]') continue;
+
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.content) {
+            fullResponse += parsed.content;
+            onChunk(parsed.content);
+          }
+          if (parsed.metadata) {
+            provider = parsed.metadata.provider || provider;
+            cached = parsed.metadata.cached || parsed.metadata.cacheHit || cached;
+            timeSaved = parsed.metadata.timeSavedMs || timeSaved;
+            costSaved = parsed.metadata.costSaved || costSaved;
+          }
+        } catch {
+          // Skip unparseable lines
+        }
+      }
+    }
+  }
+
+  return { response: fullResponse, provider, cached, timeSaved, costSaved };
+}
+
 export async function freeChatCommand(): Promise<void> {
+  const tokenManager = new TokenManager();
+
+  // --- Parse flags (4.3, 4.4, 4.5) ---
+
+  // Parse --file flag
+  const fileArgIndex = process.argv.indexOf('--file');
+  let fileContext = '';
+  if (fileArgIndex !== -1 && process.argv[fileArgIndex + 1]) {
+    const filePath = process.argv[fileArgIndex + 1];
+    try {
+      const resolvedPath = pathMod.resolve(filePath);
+      fileContext = fs.readFileSync(resolvedPath, 'utf-8');
+      if (process.stdin.isTTY) {
+        console.log(chalk.dim(`  Loaded file: ${filePath} (${fileContext.length} chars)`));
+      }
+    } catch (err: any) {
+      console.log(chalk.red(`  Error reading file: ${err.message}`));
+    }
+  }
+
+  // Parse --output flag
+  const outputArgIndex = process.argv.indexOf('--output');
+  const outputFormat = outputArgIndex !== -1 ? process.argv[outputArgIndex + 1] : (process.stdin.isTTY ? 'markdown' : 'plain');
+
+  // Parse --continue flag
+  const continueConversation = process.argv.includes('--continue');
+
+  // --- Pipe Support (4.2) ---
+  if (!process.stdin.isTTY) {
+    // Check authentication first
+    let authToken = null;
+    try {
+      authToken = await tokenManager.refreshIfNeeded();
+    } catch {
+      try {
+        authToken = tokenManager.getCacheGPTAuth();
+      } catch (error) {
+        console.error('Authentication required. Run: cachegpt login');
+        process.exit(1);
+      }
+    }
+
+    // Read from stdin
+    const chunks: Buffer[] = [];
+    for await (const chunk of process.stdin) {
+      chunks.push(chunk);
+    }
+    const pipedInput = Buffer.concat(chunks).toString('utf-8').trim();
+
+    if (pipedInput) {
+      let content = pipedInput;
+      if (fileContext) {
+        content = `File contents:\n\`\`\`\n${fileContext}\n\`\`\`\n\n${pipedInput}`;
+      }
+
+      const pipedMessages: ChatMessage[] = [
+        { role: 'user', content }
+      ];
+
+      try {
+        const response = await callFreeProviderAPI(authToken.value, pipedMessages);
+
+        if (outputFormat === 'json') {
+          process.stdout.write(JSON.stringify(response) + '\n');
+        } else if (outputFormat === 'markdown') {
+          process.stdout.write(formatResponse(response.response) + '\n');
+        } else {
+          process.stdout.write(response.response + '\n');
+        }
+      } catch (error: any) {
+        console.error(`Error: ${error.message}`);
+        process.exit(1);
+      }
+    }
+    process.exit(0);
+  }
+
+  // --- Interactive mode ---
   console.clear();
 
   // Minimal header like Claude Code
@@ -116,22 +318,41 @@ export async function freeChatCommand(): Promise<void> {
   console.log(chalk.dim('  Working directory: ') + chalk.white(process.cwd()));
   console.log();
 
-  const tokenManager = new TokenManager();
-
   // Check authentication
   let authToken = null;
   let userEmail = 'You';
   try {
-    authToken = tokenManager.getCacheGPTAuth();
+    authToken = await tokenManager.refreshIfNeeded();
     userEmail = authToken.userEmail || 'You';
     console.log(chalk.dim('  Authenticated: ') + chalk.white(userEmail));
     console.log();
-  } catch (error) {
-    console.log(chalk.yellow('  Authentication required'));
-    console.log();
-    console.log('  Run: ' + chalk.cyan('cachegpt login'));
-    console.log();
-    return;
+  } catch {
+    try {
+      authToken = tokenManager.getCacheGPTAuth();
+      userEmail = authToken.userEmail || 'You';
+      console.log(chalk.dim('  Authenticated: ') + chalk.white(userEmail));
+      console.log();
+    } catch (error) {
+      console.log(chalk.yellow('  Authentication required'));
+      console.log();
+      console.log('  Run: ' + chalk.cyan('cachegpt login'));
+      console.log();
+      return;
+    }
+  }
+
+  // Load previous conversation if --continue
+  let conversationId: string | undefined;
+  let restoredMessages: ChatMessage[] = [];
+  if (continueConversation) {
+    const last = loadLastConversation();
+    if (last) {
+      conversationId = last.id;
+      restoredMessages = last.messages;
+      console.log(chalk.dim(`  Continuing conversation: ${conversationId}`));
+      console.log(chalk.dim(`  ${restoredMessages.length} previous messages loaded`));
+      console.log();
+    }
   }
 
   // Start chat with system context
@@ -217,6 +438,11 @@ System power commands (shutdown, reboot) show warnings but can execute.
     }
   ];
 
+  // Restore previous conversation messages if --continue
+  if (restoredMessages.length > 0) {
+    messages.push(...restoredMessages);
+  }
+
   const rl = createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -251,6 +477,11 @@ System power commands (shutdown, reboot) show warnings but can execute.
     isProcessing = true;
 
     if (input.toLowerCase() === 'exit' || input.toLowerCase() === 'quit') {
+      // Save conversation before exiting
+      if (messages.length > 1) {
+        conversationId = saveConversation(messages, conversationId);
+        console.log(chalk.dim(`\n  Conversation saved: ${conversationId}`));
+      }
       console.log(chalk.dim('\n  Goodbye\n'));
       rl.close();
       process.exit(0);
@@ -280,116 +511,176 @@ System power commands (shutdown, reboot) show warnings but can execute.
       });
     }
 
+    // Prepend file context from --file flag if present
+    let messageContent = enrichedMessage;
+    if (fileContext) {
+      messageContent = `File contents:\n\`\`\`\n${fileContext}\n\`\`\`\n\n${enrichedMessage}`;
+    }
+
     // Show compressed version if input is very long
-    if (enrichedMessage.length > 200) {
-      console.log(chalk.dim('  [Input: ' + enrichedMessage.length + ' characters]'));
+    if (messageContent.length > 200) {
+      console.log(chalk.dim('  [Input: ' + messageContent.length + ' characters]'));
     }
 
     // Add message (use enriched message with file context)
-    messages.push({ role: 'user', content: enrichedMessage });
+    messages.push({ role: 'user', content: messageContent });
     rl.pause();
 
-    // Minimal thinking indicator
-    console.log(chalk.dim('\n  ⋯\n'));
+    // Try streaming first, fall back to non-streaming
+    try {
+      // Try to refresh token before API call
+      try {
+        authToken = await tokenManager.refreshIfNeeded();
+      } catch {
+        // Token refresh failed, use existing token
+      }
 
-    // Call API
-    callFreeProviderAPI(authToken.value, messages)
-      .then(async response => {
-        // Clear thinking indicator
-        process.stdout.write('\x1B[2A\x1B[2K\x1B[1A\x1B[2K');
+      let fullResponseText = '';
+      let responseMeta = { cached: false, provider: 'free-provider' };
 
-        // Parse AI response for file and shell operations
-        const { cleanResponse: cleanResponseAfterFiles, operations: fileOps } = parseFileOperations(response.response);
-        const { cleanResponse: finalCleanResponse, operations: shellOps } = parseShellOperations(cleanResponseAfterFiles);
+      try {
+        // Attempt streaming
+        console.log(); // blank line before response
+        fullResponseText = '';
 
-        messages.push({ role: 'assistant', content: response.response });
-
-        // Format and display response
-        console.log(formatResponse(finalCleanResponse));
-
-        // Execute file operations if any
-        if (fileOps.length > 0) {
-          console.log(chalk.dim('\n  File Operations:\n'));
-
-          for (const op of fileOps) {
-            let result: FileOperation;
-
-            if (op.type === 'write') {
-              result = await writeFile(op.path, op.content || '');
-              console.log('  ' + formatOperationResult(result));
-
-              if (result.success && result.content) {
-                const lines = result.content.split('\n').length;
-                console.log(chalk.dim(`    ${lines} lines written`));
-              }
-            } else if (op.type === 'edit') {
-              result = await editFile(op.path, 'replace', op.searchText, op.replaceText);
-              console.log('  ' + formatOperationResult(result));
-
-              if (result.success && result.oldContent && result.newContent) {
-                console.log(showDiff(result.oldContent, result.newContent, 5));
-              }
-            } else if (op.type === 'delete') {
-              result = await deleteFile(op.path);
-              console.log('  ' + formatOperationResult(result));
+        const streamResult = await callStreamingAPI(
+          authToken!.value,
+          messages,
+          (chunk: string) => {
+            if (outputFormat === 'plain') {
+              process.stdout.write(chunk);
+            } else if (outputFormat === 'json') {
+              // Buffer for JSON output, don't stream
+            } else {
+              // Markdown: stream raw text, we'll format at the end
+              process.stdout.write(chunk);
             }
+            fullResponseText += chunk;
           }
+        );
 
+        fullResponseText = streamResult.response;
+        responseMeta.cached = streamResult.cached;
+        responseMeta.provider = streamResult.provider;
+
+        // Newline after streamed content
+        if (outputFormat !== 'json') {
           console.log();
         }
 
-        // Execute shell commands if any
-        if (shellOps.length > 0) {
-          console.log(chalk.dim('\n  Shell Commands:\n'));
-
-          for (const op of shellOps) {
-            // Safety check
-            const warning = getSafetyWarning(op.command);
-            if (warning) {
-              console.log(chalk.yellow(`  ${warning}\n`));
-              if (isDangerousCommand(op.command)) {
-                // Skip dangerous commands
-                continue;
-              }
-            }
-
-            // Execute command
-            const result = await executeCommand(op.command);
-            console.log(formatShellResult(result));
-          }
-
-          console.log();
+        // For JSON output, print full response now
+        if (outputFormat === 'json') {
+          console.log(JSON.stringify(streamResult));
         }
+      } catch {
+        // Streaming failed, fall back to non-streaming
+        console.log(chalk.dim('\n  ⋯\n'));
 
-        // Show metadata if cached
-        if (response.cached) {
-          console.log(chalk.dim('  ⚡ cached'));
-        }
-        console.log();
+        const response = await callFreeProviderAPI(authToken!.value, messages);
+        fullResponseText = response.response;
+        responseMeta.cached = response.cached;
+        responseMeta.provider = response.provider;
 
-        isProcessing = false;
-        setImmediate(() => {
-          rl.resume();
-          promptNext();
-        });
-      })
-      .catch((error: any) => {
         // Clear thinking indicator
         process.stdout.write('\x1B[2A\x1B[2K\x1B[1A\x1B[2K');
 
-        console.log(chalk.red('  Error: ') + chalk.dim(error.message));
+        // Display based on output format
+        if (outputFormat === 'json') {
+          console.log(JSON.stringify(response));
+        } else if (outputFormat === 'plain') {
+          console.log(fullResponseText);
+        } else {
+          // Parse AI response for file and shell operations
+          const { cleanResponse: cleanResponseAfterFiles, operations: fileOps } = parseFileOperations(fullResponseText);
+          const { cleanResponse: finalCleanResponse, operations: shellOps } = parseShellOperations(cleanResponseAfterFiles);
 
-        if (error.message.includes('401') || error.message.includes('authentication')) {
-          console.log(chalk.dim('  Try: ') + chalk.cyan('cachegpt logout && cachegpt login'));
+          // Format and display response
+          console.log(formatResponse(finalCleanResponse));
+
+          // Execute file operations if any
+          if (fileOps.length > 0) {
+            console.log(chalk.dim('\n  File Operations:\n'));
+
+            for (const op of fileOps) {
+              let result: FileOperation;
+
+              if (op.type === 'write') {
+                result = await writeFile(op.path, op.content || '');
+                console.log('  ' + formatOperationResult(result));
+
+                if (result.success && result.content) {
+                  const lines = result.content.split('\n').length;
+                  console.log(chalk.dim(`    ${lines} lines written`));
+                }
+              } else if (op.type === 'edit') {
+                result = await editFile(op.path, 'replace', op.searchText, op.replaceText);
+                console.log('  ' + formatOperationResult(result));
+
+                if (result.success && result.oldContent && result.newContent) {
+                  console.log(showDiff(result.oldContent, result.newContent, 5));
+                }
+              } else if (op.type === 'delete') {
+                result = await deleteFile(op.path);
+                console.log('  ' + formatOperationResult(result));
+              }
+            }
+
+            console.log();
+          }
+
+          // Execute shell commands if any
+          if (shellOps.length > 0) {
+            console.log(chalk.dim('\n  Shell Commands:\n'));
+
+            for (const op of shellOps) {
+              // Safety check
+              const warning = getSafetyWarning(op.command);
+              if (warning) {
+                console.log(chalk.yellow(`  ${warning}\n`));
+                if (isDangerousCommand(op.command)) {
+                  continue;
+                }
+              }
+
+              const result = await executeCommand(op.command);
+              console.log(formatShellResult(result));
+            }
+
+            console.log();
+          }
         }
-        console.log();
+      }
 
-        isProcessing = false;
-        setImmediate(() => {
-          rl.resume();
-          promptNext();
-        });
+      messages.push({ role: 'assistant', content: fullResponseText });
+
+      // Save conversation after each exchange
+      conversationId = saveConversation(messages, conversationId);
+
+      // Show metadata if cached
+      if (responseMeta.cached) {
+        console.log(chalk.dim('  ⚡ cached'));
+      }
+      console.log();
+
+      isProcessing = false;
+      setImmediate(() => {
+        rl.resume();
+        promptNext();
       });
+    } catch (error: any) {
+      console.log(chalk.red('  Error: ') + chalk.dim(error.message));
+
+      if (error.message.includes('401') || error.message.includes('authentication')) {
+        console.log(chalk.dim('  Try: ') + chalk.cyan('cachegpt logout && cachegpt login'));
+      }
+      console.log();
+
+      isProcessing = false;
+      setImmediate(() => {
+        rl.resume();
+        promptNext();
+      });
+    }
   };
 
   // Handle input with paste detection

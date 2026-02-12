@@ -36,6 +36,10 @@ function generateSimpleEmbedding(text: string): number[] {
  * Test cache storage directly to database
  */
 export async function POST(request: NextRequest) {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not available' }, { status: 404 });
+  }
+
   try {
     const body = await request.json();
     const { query, response, action } = body;

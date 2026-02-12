@@ -44,21 +44,14 @@ export class WeatherService {
     const lowerMessage = message.toLowerCase();
     const needsWeather = keywords.some(keyword => lowerMessage.includes(keyword));
 
-    // Temporary debug logging to diagnose issue
-    if (needsWeather) {
-      console.log('[WEATHER-DEBUG] Query detected as needing weather:', message.substring(0, 100));
-    } else {
-      console.log('[WEATHER-DEBUG] Query does NOT need weather:', message.substring(0, 100));
-    }
-
     return needsWeather;
   }
 
   /**
    * Extract location from user message
-   * Returns default location if none found
+   * Returns null if no location found
    */
-  private extractLocation(message: string): string {
+  private extractLocation(message: string): string | null {
     // Try to find patterns like "in [location]", "at [location]", "[location] weather"
     const patterns = [
       // "in Kansas City", "at KCMO", "for Boston", "in fredericksburg va"
@@ -77,14 +70,12 @@ export class WeatherService {
       const match = message.match(pattern);
       if (match && match[1]) {
         const location = match[1].trim();
-        console.log('[WEATHER-DEBUG] Extracted location:', location);
         return location;
       }
     }
 
-    // Default to a major city if no location found
-    console.log('[WEATHER-DEBUG] No location found, using default: New York');
-    return 'New York';
+    console.log('[WEATHER] No location found in query, skipping weather context');
+    return null;
   }
 
   /**
@@ -92,7 +83,6 @@ export class WeatherService {
    */
   private async geocodeLocation(location: string): Promise<{ lat: number; lon: number; name: string } | null> {
     try {
-      console.log('[WEATHER-DEBUG] Geocoding location:', location);
       const response = await axios.get('https://geocoding-api.open-meteo.com/v1/search', {
         params: {
           name: location,
@@ -102,8 +92,6 @@ export class WeatherService {
         },
         timeout: 10000 // Increased to 10 seconds
       });
-      console.log('[WEATHER-DEBUG] Geocoding response received:', response.data.results?.length || 0, 'results');
-
       if (response.data.results && response.data.results.length > 0) {
         const result = response.data.results[0];
         return {
@@ -113,10 +101,8 @@ export class WeatherService {
         };
       }
 
-      console.log('[WEATHER-DEBUG] Geocoding found no results for:', location);
       return null;
     } catch (error: any) {
-      console.log('[WEATHER-DEBUG] Geocoding error:', error.message);
       return null;
     }
   }
@@ -180,7 +166,6 @@ export class WeatherService {
         sources: ['Open-Meteo']
       };
     } catch (error: any) {
-      console.log('[WEATHER-DEBUG] Open-Meteo API error:', error.message);
       return { sources: [] };
     }
   }
@@ -253,7 +238,6 @@ export class WeatherService {
         sources: ['OpenWeatherMap']
       };
     } catch (error: any) {
-      console.log('[WEATHER-DEBUG] OpenWeatherMap API error:', error.message);
       return { sources: [] };
     }
   }
@@ -263,6 +247,10 @@ export class WeatherService {
    */
   async fetchWeather(userMessage: string): Promise<WeatherResult> {
     const location = this.extractLocation(userMessage);
+
+    if (!location) {
+      return { sources: [] };
+    }
 
     // Try Open-Meteo first (free, no API key)
     const coords = await this.geocodeLocation(location);
@@ -349,20 +337,9 @@ export class WeatherService {
     }
 
     try {
-      console.log('[WEATHER-DEBUG] Fetching weather for query...');
       const weatherResult = await this.fetchWeather(userMessage);
-      const context = this.formatWeatherContext(weatherResult);
-
-      if (context) {
-        console.log('[WEATHER-DEBUG] Weather context generated:', context.length, 'chars');
-        console.log('[WEATHER-DEBUG] First 200 chars:', context.substring(0, 200));
-      } else {
-        console.log('[WEATHER-DEBUG] No weather context generated (empty result)');
-      }
-
-      return context;
+      return this.formatWeatherContext(weatherResult);
     } catch (error: any) {
-      console.log('[WEATHER-DEBUG] Error fetching weather:', error.message);
       return '';
     }
   }

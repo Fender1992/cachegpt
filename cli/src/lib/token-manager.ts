@@ -157,6 +157,45 @@ export class TokenManager {
     return auth;
   }
 
+  async refreshIfNeeded(): Promise<SupabaseJWT> {
+    const auth = this.storage.cachegpt_auth;
+    if (!auth) {
+      throw new Error('No CacheGPT authentication found');
+    }
+
+    // Check if token expires within 5 minutes
+    const fiveMinutes = 5 * 60 * 1000;
+    if (Date.now() + fiveMinutes < auth.expiresAt) {
+      return auth; // Still valid
+    }
+
+    // Try to refresh using refresh token
+    if (!auth.refreshToken) {
+      throw new Error('Token expired and no refresh token available. Please re-authenticate.');
+    }
+
+    try {
+      const response = await fetch(`${process.env.CACHEGPT_API_URL || 'https://cachegpt.app'}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+        },
+        body: JSON.stringify({ refresh_token: auth.refreshToken })
+      });
+
+      if (!response.ok) {
+        throw new Error('Refresh failed');
+      }
+
+      const data = await response.json();
+      this.setCacheGPTAuth(data.access_token, data.refresh_token, auth.userId, auth.userEmail);
+      return this.storage.cachegpt_auth!;
+    } catch (error) {
+      throw new Error('Token refresh failed. Please re-authenticate with: cachegpt login');
+    }
+  }
+
   /**
    * Web session management
    */

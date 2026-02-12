@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { error as logError } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not available' }, { status: 404 });
+  }
+
   try {
     const { provider, apiKey } = await request.json();
 
