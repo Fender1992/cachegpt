@@ -3,6 +3,11 @@
  * Routes all Discord API calls through our backend proxy to avoid
  * OAuth2 scope limitations (guild endpoints require Bot tokens when
  * called directly, but our backend proxies them server-side).
+ *
+ * Caching strategy:
+ * - Guilds: cached until explicit refresh, revalidated on connect
+ * - Channels per guild: cached with TTL, revalidated on guild select
+ * - Messages per channel: cached, diff-based polling fetches only new messages
  */
 
 import { DiscordMessage, DiscordChannel, DiscordGuild } from './discord-gateway';
@@ -29,6 +34,14 @@ export interface DiscordState {
   error: string | null;
 }
 
+interface CacheEntry<T> {
+  data: T;
+  fetchedAt: number;
+}
+
+const CHANNEL_CACHE_TTL = 5 * 60_000; // 5 minutes
+const POLL_INTERVAL = 30_000; // 30 seconds — only fetches new messages via diff
+
 export class DiscordClient {
   private connected = false;
   private pollInterval: ReturnType<typeof setInterval> | null = null;
@@ -45,6 +58,10 @@ export class DiscordClient {
     unreadCount: 0,
     error: null,
   };
+
+  // Caches
+  private channelCache = new Map<string, CacheEntry<DiscordChannel[]>>(); // guildId -> channels
+  private messageCache = new Map<string, DiscordMessage[]>(); // channelId -> messages
 
   /**
    * Subscribe to state changes
@@ -147,6 +164,8 @@ export class DiscordClient {
   disconnect(): void {
     this.stopPolling();
     this.connected = false;
+    this.channelCache.clear();
+    this.messageCache.clear();
 
     this.updateState({
       isConnected: false,
@@ -162,18 +181,25 @@ export class DiscordClient {
   }
 
   /**
-   * Select a guild and load its channels
+   * Select a guild and load its channels (from cache if fresh)
    */
   async selectGuild(guild: DiscordGuild): Promise<void> {
     if (!this.connected) return;
 
     try {
       this.stopPolling();
-      this.updateState({ selectedGuild: guild, selectedChannel: null, messages: [], channels: [], error: null });
+      this.updateState({ selectedGuild: guild, selectedChannel: null, messages: [], error: null });
 
       // If the bot is not installed in this guild, don't try to fetch channels
       if (guild.botStatus === 'no_bot') {
         this.updateState({ error: 'bot_not_installed' });
+        return;
+      }
+
+      // Check channel cache
+      const cached = this.channelCache.get(guild.id);
+      if (cached && (Date.now() - cached.fetchedAt) < CHANNEL_CACHE_TTL) {
+        this.updateState({ channels: cached.data });
         return;
       }
 
@@ -182,7 +208,6 @@ export class DiscordClient {
 
       if (!res.ok) {
         if (res.status === 403) {
-          // 403 means the bot doesn't have access to this guild
           this.updateState({ error: 'bot_not_installed' });
           return;
         }
@@ -196,6 +221,8 @@ export class DiscordClient {
         .filter(ch => ch.type === 0)
         .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
+      // Cache the channels
+      this.channelCache.set(guild.id, { data: textChannels, fetchedAt: Date.now() });
       this.updateState({ channels: textChannels });
 
     } catch (error) {
@@ -215,37 +242,89 @@ export class DiscordClient {
   }
 
   /**
-   * Select a channel and load its messages
+   * Select a channel and load its messages (from cache, then diff for new)
    */
   async selectChannel(channel: DiscordChannel): Promise<void> {
     if (!this.connected) return;
 
     try {
       this.stopPolling();
-      this.updateState({ selectedChannel: channel, messages: [] });
 
-      const headers = await this.getAuthHeader();
-      const res = await fetch(
-        `/api/integrations/discord/messages?channelId=${channel.id}&limit=50`,
-        { headers }
-      );
-
-      if (!res.ok) {
-        throw new Error(`Failed to load messages: ${res.status}`);
+      // Serve cached messages immediately if available
+      const cachedMessages = this.messageCache.get(channel.id);
+      if (cachedMessages && cachedMessages.length > 0) {
+        this.updateState({ selectedChannel: channel, messages: cachedMessages });
+        // Diff-fetch new messages since last cached message
+        this.fetchNewMessages(channel.id, cachedMessages);
+      } else {
+        this.updateState({ selectedChannel: channel, messages: [] });
+        await this.fetchAllMessages(channel.id);
       }
 
-      const messages: DiscordMessage[] = await res.json();
-
-      // Sort messages by timestamp (oldest first) — API returns newest first
-      const sortedMessages = messages.sort((a, b) =>
-        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-      );
-
-      this.updateState({ messages: sortedMessages });
+      // Start light polling for new messages (diff only)
+      this.startPolling(channel.id);
 
     } catch (error) {
       console.error('[Discord Client] Error selecting channel:', error);
       this.updateState({ error: 'Failed to load messages' });
+    }
+  }
+
+  /**
+   * Fetch full message history for a channel (initial load)
+   */
+  private async fetchAllMessages(channelId: string): Promise<void> {
+    const headers = await this.getAuthHeader();
+    const res = await fetch(
+      `/api/integrations/discord/messages?channelId=${channelId}&limit=50`,
+      { headers }
+    );
+
+    if (!res.ok) {
+      throw new Error(`Failed to load messages: ${res.status}`);
+    }
+
+    const messages: DiscordMessage[] = await res.json();
+    const sorted = messages.sort((a, b) =>
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+
+    this.messageCache.set(channelId, sorted);
+    this.updateState({ messages: sorted });
+  }
+
+  /**
+   * Diff-fetch: only get messages newer than the last cached one
+   */
+  private async fetchNewMessages(channelId: string, existing: DiscordMessage[]): Promise<void> {
+    try {
+      const lastMessage = existing[existing.length - 1];
+      if (!lastMessage) return;
+
+      const headers = await this.getAuthHeader();
+      const res = await fetch(
+        `/api/integrations/discord/messages?channelId=${channelId}&limit=50&after=${lastMessage.id}`,
+        { headers }
+      );
+
+      if (!res.ok) return;
+
+      const newMessages: DiscordMessage[] = await res.json();
+      if (newMessages.length === 0) return;
+
+      const sorted = newMessages.sort((a, b) =>
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+
+      const merged = [...existing, ...sorted];
+      this.messageCache.set(channelId, merged);
+
+      // Only update UI if we're still viewing this channel
+      if (this.state.selectedChannel?.id === channelId) {
+        this.updateState({ messages: merged });
+      }
+    } catch (error) {
+      console.error('[Discord Client] Diff fetch error:', error);
     }
   }
 
@@ -273,11 +352,13 @@ export class DiscordClient {
       }
 
       const message: DiscordMessage = await res.json();
+      const channelId = this.state.selectedChannel.id;
 
-      // Add sent message to state immediately
-      this.updateState({
-        messages: [...this.state.messages, message],
-      });
+      // Add to cache and state
+      const cached = this.messageCache.get(channelId) || [];
+      const updated = [...cached, message];
+      this.messageCache.set(channelId, updated);
+      this.updateState({ messages: updated });
     } catch (error) {
       console.error('[Discord Client] Error sending message:', error);
       throw error;
@@ -292,7 +373,7 @@ export class DiscordClient {
   }
 
   /**
-   * Start polling for new messages in the selected channel
+   * Start light polling — only fetches new messages (diff) every 30s
    */
   private startPolling(channelId: string): void {
     this.stopPolling();
@@ -303,32 +384,9 @@ export class DiscordClient {
         return;
       }
 
-      try {
-        const headers = await this.getAuthHeader();
-        const lastMessage = this.state.messages[this.state.messages.length - 1];
-        const afterParam = lastMessage ? `&after=${lastMessage.id}` : '';
-
-        const res = await fetch(
-          `/api/integrations/discord/messages?channelId=${channelId}&limit=50${afterParam}`,
-          { headers }
-        );
-
-        if (!res.ok) return;
-
-        const newMessages: DiscordMessage[] = await res.json();
-
-        if (newMessages.length > 0) {
-          const sorted = newMessages.sort((a, b) =>
-            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-          );
-          this.updateState({
-            messages: [...this.state.messages, ...sorted],
-          });
-        }
-      } catch (error) {
-        console.error('[Discord Client] Polling error:', error);
-      }
-    }, 5000);
+      const cached = this.messageCache.get(channelId) || [];
+      await this.fetchNewMessages(channelId, cached);
+    }, POLL_INTERVAL);
   }
 
   /**
