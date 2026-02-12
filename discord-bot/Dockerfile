@@ -35,7 +35,7 @@ USER botuser
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-  CMD node -e "const http = require('http'); http.get('http://localhost:${INTERNAL_API_PORT:-3100}/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"
+  CMD node -e "const http = require('http'); const port = process.env.PORT || process.env.INTERNAL_API_PORT || 3100; http.get('http://0.0.0.0:' + port + '/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"
 
 # Start the bot
 CMD ["node", "dist/index.js"]
