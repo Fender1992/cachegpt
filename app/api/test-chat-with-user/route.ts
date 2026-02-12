@@ -179,11 +179,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
     }
 
-    // In production, require explicit enable flag
-    if (process.env.NODE_ENV === 'production' && process.env.ENABLE_TEST_ENDPOINTS !== 'true') {
-      return NextResponse.json({ error: 'Test endpoint disabled in production' }, { status: 403 });
-    }
-
     const body = await request.json();
     const { messages, userId } = body;
 
