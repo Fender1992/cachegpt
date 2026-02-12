@@ -8,6 +8,7 @@
 import { LLM_CONFIG } from '@/config/llmConfig';
 import type { LLMAdapter, LLMChatParams, LLMChatResponse, StreamChunk } from './types';
 import { parseAnthropicStream } from '@/lib/streaming/sse-parser';
+import { getDefaultModelId, getModelMaxOutput } from '@/lib/models/registry';
 
 const TIMEOUT_MS = 60000; // 60s — Claude responses can be long
 const RETRY_DELAY_MS = 2000;
@@ -40,8 +41,8 @@ export class AnthropicAdapter implements LLMAdapter {
     const combinedSystem = systemMessages.join('\n\n');
 
     const requestBody: any = {
-      model: model || 'claude-sonnet-4-5-20250929',
-      max_tokens: maxTokens || 8192,
+      model: model || getDefaultModelId('anthropic'),
+      max_tokens: maxTokens || getModelMaxOutput('anthropic', model),
       messages: anthropicMessages,
     };
 
@@ -134,8 +135,8 @@ export class AnthropicAdapter implements LLMAdapter {
     const combinedSystem = systemMessages.join('\n\n');
 
     const requestBody: any = {
-      model: model || 'claude-sonnet-4-5-20250929',
-      max_tokens: maxTokens || 8192,
+      model: model || getDefaultModelId('anthropic'),
+      max_tokens: maxTokens || getModelMaxOutput('anthropic', model),
       messages: anthropicMessages,
       stream: true,
     };

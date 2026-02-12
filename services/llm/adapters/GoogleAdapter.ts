@@ -8,6 +8,7 @@
 import { LLMAdapter, LLMChatParams, LLMChatResponse, StreamChunk } from './types';
 import { LLM_CONFIG } from '@/config/llmConfig';
 import { parseGeminiStream } from '@/lib/streaming/sse-parser';
+import { getDefaultModelId } from '@/lib/models/registry';
 
 const TIMEOUT_MS = 30000;
 
@@ -20,7 +21,7 @@ export class GoogleAdapter implements LLMAdapter {
     const apiKey = this.userApiKey || LLM_CONFIG.premium.google.apiKey;
     if (!apiKey) throw new Error('Google API key not configured');
 
-    const model = params.model || 'gemini-2.0-flash-exp';
+    const model = params.model || getDefaultModelId('google');
 
     // Build contents array (Gemini format) — exclude system messages
     const contents: any[] = [];
@@ -100,7 +101,7 @@ export class GoogleAdapter implements LLMAdapter {
     const apiKey = this.userApiKey || LLM_CONFIG.premium.google.apiKey;
     if (!apiKey) throw new Error('Google API key not configured');
 
-    const model = params.model || 'gemini-2.0-flash-exp';
+    const model = params.model || getDefaultModelId('google');
 
     const contents: any[] = [];
     for (const msg of params.messages) {

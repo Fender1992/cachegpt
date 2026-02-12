@@ -8,6 +8,7 @@
 import { LLMAdapter, LLMChatParams, LLMChatResponse, StreamChunk } from './types';
 import { LLM_CONFIG } from '@/config/llmConfig';
 import { parseOpenAIStream } from '@/lib/streaming/sse-parser';
+import { getDefaultModelId } from '@/lib/models/registry';
 
 const TIMEOUT_MS = 30000;
 const RETRY_DELAY_MS = 2000;
@@ -30,7 +31,7 @@ export class PerplexityAdapter implements LLMAdapter {
     messages.push(...params.messages);
 
     const requestBody = {
-      model: params.model || 'llama-3.1-sonar-huge-128k-online',
+      model: params.model || getDefaultModelId('perplexity'),
       messages,
       temperature: params.temperature ?? 0.7,
       max_tokens: params.maxTokens || 2000,
@@ -113,7 +114,7 @@ export class PerplexityAdapter implements LLMAdapter {
     messages.push(...params.messages);
 
     const requestBody = {
-      model: params.model || 'llama-3.1-sonar-huge-128k-online',
+      model: params.model || getDefaultModelId('perplexity'),
       messages,
       temperature: params.temperature ?? 0.7,
       max_tokens: params.maxTokens || 2000,

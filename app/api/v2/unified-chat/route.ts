@@ -140,14 +140,8 @@ async function findCachedResponse(
 
       const bestMatch = matches[0];
 
-      // Update access count
-      await supabase
-        .from('cached_responses')
-        .update({
-          access_count: bestMatch.access_count + 1,
-          last_accessed: new Date().toISOString()
-        })
-        .eq('id', bestMatch.id);
+      // Atomic access count increment (avoids race condition)
+      await supabase.rpc('increment_cache_access', { cache_id: bestMatch.id });
 
       return {
         response: bestMatch.response,
@@ -193,14 +187,8 @@ async function findExactContextMatch(
 
     if (error || !data) return null;
 
-    // Update access stats (fire and forget)
-    supabase
-      .from('cached_responses')
-      .update({
-        access_count: data.access_count + 1,
-        last_accessed: new Date().toISOString()
-      })
-      .eq('id', data.id);
+    // Atomic access count increment (fire and forget)
+    supabase.rpc('increment_cache_access', { cache_id: data.id });
 
     return data;
   } catch (error) {

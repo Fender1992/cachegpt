@@ -7,6 +7,7 @@
 
 import { LLMAdapter, LLMChatParams, LLMChatResponse, StreamChunk } from './types';
 import { parseOpenAIStream } from '@/lib/streaming/sse-parser';
+import { getDefaultModelId } from '@/lib/models/registry';
 
 const TIMEOUT_MS = 30000;
 
@@ -14,7 +15,7 @@ export class GrokAdapter implements LLMAdapter {
   name = 'grok';
   private apiKey: string;
   private endpoint: string = 'https://openrouter.ai/api/v1/chat/completions';
-  private model: string = 'x-ai/grok-2-1212';
+  private model: string = getDefaultModelId('grok');
 
   constructor(apiKey?: string) {
     this.apiKey = apiKey || process.env.OPENROUTER_API_KEY || '';

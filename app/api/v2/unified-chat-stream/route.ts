@@ -529,8 +529,8 @@ export async function POST(request: NextRequest) {
 
       (async () => {
         let fullContent = '';
-        let streamProvider = providerResolution.provider;
-        let streamModel = cacheModel;
+        let streamProvider: string = providerResolution.provider;
+        let streamModel: string = cacheModel;
 
         try {
           let doneEventSent = false;

@@ -1,4 +1,5 @@
 import modelConfig from '@/config/llm-models.json'
+import { modelRegistry } from '@/lib/models/registry'
 
 export interface LLMModel {
   id: string
@@ -24,6 +25,13 @@ class LLMConfig {
   }
 
   async getDefaultModel(provider: string): Promise<string> {
+    // Primary: use the centralized model registry
+    const registryDefault = modelRegistry.getDefaultModel(provider)
+    if (registryDefault && registryDefault !== 'unknown') {
+      return registryDefault
+    }
+
+    // Fallback: use JSON config
     const providers = await this.getProviders()
     const providerConfig = providers[provider]
     if (!providerConfig) {
@@ -135,8 +143,12 @@ class LLMConfig {
 
   // Get the most advanced model for a provider
   async getMostAdvancedModel(provider: string): Promise<string> {
+    // Primary: check registry for premium tier
+    const premiumModel = modelRegistry.getModel(provider, 'premium')
+    if (premiumModel) return premiumModel.id
+
+    // Fallback: first model in JSON config list
     const models = await this.getModelsForProvider(provider)
-    // First model in list is typically the most advanced
     return models[0]?.id || 'unknown'
   }
 }

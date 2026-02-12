@@ -8,6 +8,7 @@
 import { LLM_CONFIG } from '@/config/llmConfig';
 import type { LLMAdapter, LLMChatParams, LLMChatResponse, StreamChunk } from './types';
 import { parseOpenAIStream } from '@/lib/streaming/sse-parser';
+import { getDefaultModelId } from '@/lib/models/registry';
 
 const TIMEOUT_MS = 30000;
 
@@ -220,7 +221,7 @@ export class FreeProvidersAdapter implements LLMAdapter {
         name: 'groq',
         apiKey: LLM_CONFIG.free.groq.apiKey,
         endpoint: 'https://api.groq.com/openai/v1/chat/completions',
-        model: 'llama-3.3-70b-versatile',
+        model: getDefaultModelId('groq'),
       });
     }
 
@@ -229,12 +230,12 @@ export class FreeProvidersAdapter implements LLMAdapter {
         name: 'openrouter',
         apiKey: LLM_CONFIG.free.openrouter.apiKey,
         endpoint: 'https://openrouter.ai/api/v1/chat/completions',
-        model: 'meta-llama/llama-4-maverick:free',
+        model: getDefaultModelId('openrouter'),
       });
     }
 
     if (LLM_CONFIG.free.huggingface.enabled) {
-      const hfModels = LLM_CONFIG.free.huggingface.models || ['meta-llama/Llama-3.3-70B-Instruct'];
+      const hfModels = LLM_CONFIG.free.huggingface.models || [getDefaultModelId('huggingface')];
       hfModels.forEach((model, index) => {
         providers.push({
           name: `huggingface-${index + 1}`,

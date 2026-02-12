@@ -8,6 +8,7 @@
 import { LLMAdapter, LLMChatParams, LLMChatResponse, StreamChunk } from './types';
 import { LLM_CONFIG } from '@/config/llmConfig';
 import { parseOpenAIStream } from '@/lib/streaming/sse-parser';
+import { getDefaultModelId } from '@/lib/models/registry';
 
 const TIMEOUT_MS = 30000;
 const RETRY_DELAY_MS = 2000;
@@ -32,7 +33,7 @@ export class OpenAIAdapter implements LLMAdapter {
     allMessages.push(...messages);
 
     const requestBody = {
-      model: model || 'gpt-4o',
+      model: model || getDefaultModelId('openai'),
       messages: allMessages,
       temperature: temperature ?? 0.7,
       max_tokens: maxTokens || 2000,
@@ -123,7 +124,7 @@ export class OpenAIAdapter implements LLMAdapter {
     allMessages.push(...messages);
 
     const requestBody = {
-      model: model || 'gpt-4o',
+      model: model || getDefaultModelId('openai'),
       messages: allMessages,
       temperature: temperature ?? 0.7,
       max_tokens: maxTokens || 2000,
