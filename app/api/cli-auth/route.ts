@@ -55,7 +55,6 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
-    const cookieStore = cookies()
     const supabase = await createClient()
 
     // Check current user
