@@ -208,11 +208,12 @@ export class DiscordClient {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user?.id) return null;
 
-      // Query user's Discord credentials
+      // Query user's Discord credentials from integrations table
       const { data, error } = await supabase
-        .from('user_discord_credentials')
+        .from('user_integrations')
         .select('access_token')
         .eq('user_id', session.user.id)
+        .eq('provider', 'discord')
         .single();
 
       if (error) {
