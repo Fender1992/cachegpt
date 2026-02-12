@@ -324,7 +324,7 @@ export async function POST(request: NextRequest) {
     // Integration context (GitHub repos, etc.)
     if (userId) {
       try {
-        const { retrieveRelevantContext } = await import('@/lib/integrations/context-retriever');
+        const { retrieveRelevantContext } = await import('@/lib/integrations/enhanced-context-retriever');
         const integrationContext = await retrieveRelevantContext(userId, userMessage);
         if (integrationContext) {
           enrichedMessages.splice(enrichedMessages.length - 1, 0,
