@@ -41,6 +41,7 @@
     "apps-disabled-cli-v2-pending",
     "packages",
     "cli",
-    "supabase"
+    "supabase",
+    "discord-bot"
   ]
 }
