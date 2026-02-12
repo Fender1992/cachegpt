@@ -69,8 +69,8 @@ export async function GET(req: NextRequest) {
     }));
 
     // Sort: full_access first, then no_bot, then unknown
-    const statusOrder = { full_access: 0, unknown: 1, no_bot: 2 };
-    result.sort((a, b) => statusOrder[a.botStatus] - statusOrder[b.botStatus] || a.name.localeCompare(b.name));
+    const statusOrder: Record<string, number> = { full_access: 0, unknown: 1, no_bot: 2 };
+    result.sort((a, b) => (statusOrder[a.botStatus] ?? 1) - (statusOrder[b.botStatus] ?? 1) || a.name.localeCompare(b.name));
 
     return NextResponse.json(result);
   } catch (error) {
