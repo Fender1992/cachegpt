@@ -740,13 +740,13 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
                 throw new Error(data.error)
               }
 
-              // Accumulate streaming content locally (avoids stale closure)
-              accumulatedContent += (data.content || '')
-              setStreamingMessage(accumulatedContent)
-
-              // If this is the final message, save the metadata
+              // If this is the final message, save the metadata (don't accumulate)
               if (data.done) {
                 finalData = data
+              } else {
+                // Accumulate streaming content locally (avoids stale closure)
+                accumulatedContent += (data.content || '')
+                setStreamingMessage(accumulatedContent)
               }
             } catch (e) {
               console.error('[STREAM] Parse error:', e)
