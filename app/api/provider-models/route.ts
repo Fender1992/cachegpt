@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
-import { cookies } from 'next/headers'
 
 // GET /api/provider-models - Get available models for each provider
 export async function GET(request: NextRequest) {
@@ -10,7 +9,6 @@ export async function GET(request: NextRequest) {
     const freeOnly = searchParams.get('free_only') === 'true'
 
     // Create Supabase client (public read access to provider models)
-    const cookieStore = cookies()
     const supabase = await createClient()
 
     // Build query
@@ -65,17 +63,16 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Create Supabase client with user session
-    const cookieStore = cookies()
     const supabase = await createClient()
 
     // Get current authenticated user
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    const { data: { user }, error: sessionError } = await supabase.auth.getUser()
 
-    if (sessionError || !session?.user) {
+    if (sessionError || !user) {
       return NextResponse.json({ error: 'Unauthorized - Please log in' }, { status: 401 })
     }
 
-    const userId = session.user.id
+    const userId = user.id
 
     // Check if user has API keys configured (premium access)
     const { data: credentials, error: credError } = await supabase

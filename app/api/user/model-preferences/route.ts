@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
-import { cookies } from 'next/headers'
 
 // GET /api/user/model-preferences - Get user's model preferences (ONLY their own)
 export async function GET(request: NextRequest) {
@@ -9,17 +8,16 @@ export async function GET(request: NextRequest) {
     const platform = searchParams.get('platform') || 'web'
 
     // Create Supabase client with user session
-    const cookieStore = cookies()
     const supabase = await createClient()
 
     // Get current authenticated user
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    const { data: { user }, error: sessionError } = await supabase.auth.getUser()
 
-    if (sessionError || !session?.user) {
+    if (sessionError || !user) {
       return NextResponse.json({ error: 'Unauthorized - Please log in' }, { status: 401 })
     }
 
-    const userId = session.user.id
+    const userId = user.id
 
     // Get user's model preferences - ONLY for this user
     const { data: preferences, error } = await supabase
@@ -56,17 +54,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Create Supabase client with user session
-    const cookieStore = cookies()
     const supabase = await createClient()
 
     // Get current authenticated user
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    const { data: { user }, error: sessionError } = await supabase.auth.getUser()
 
-    if (sessionError || !session?.user) {
+    if (sessionError || !user) {
       return NextResponse.json({ error: 'Unauthorized - Please log in' }, { status: 401 })
     }
 
-    const userId = session.user.id
+    const userId = user.id
 
     // Upsert user's model preference - ONLY for this user
     const { data: preference, error } = await supabase
@@ -112,17 +109,16 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Create Supabase client with user session
-    const cookieStore = cookies()
     const supabase = await createClient()
 
     // Get current authenticated user
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    const { data: { user }, error: sessionError } = await supabase.auth.getUser()
 
-    if (sessionError || !session?.user) {
+    if (sessionError || !user) {
       return NextResponse.json({ error: 'Unauthorized - Please log in' }, { status: 401 })
     }
 
-    const userId = session.user.id
+    const userId = user.id
 
     // Delete user's model preference - ONLY for this user
     const { error } = await supabase

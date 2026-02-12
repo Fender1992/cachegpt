@@ -26,8 +26,8 @@ export async function POST(request: NextRequest) {
     let userId: string | undefined;
     try {
       const supabase = await createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      userId = session?.user?.id;
+      const { data: { user } } = await supabase.auth.getUser();
+      userId = user?.id;
     } catch (error) {
       // Not authenticated, that's okay for telemetry
     }
@@ -56,10 +56,10 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user } } = await supabase.auth.getUser();
 
     // Check if admin
-    if (session?.user?.email !== 'rolandofender@gmail.com') {
+    if (user?.email !== 'rolandofender@gmail.com') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

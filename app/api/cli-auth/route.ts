@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase-server'
-import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
@@ -8,7 +7,6 @@ export async function POST(request: Request) {
   try {
     const { email, password } = await request.json()
 
-    const cookieStore = cookies()
     const supabase = await createClient()
 
     // Sign in with email/password
@@ -60,18 +58,18 @@ export async function GET(request: Request) {
     const cookieStore = cookies()
     const supabase = await createClient()
 
-    // Check current session
-    const { data: { session }, error } = await supabase.auth.getSession()
+    // Check current user
+    const { data: { user }, error } = await supabase.auth.getUser()
 
-    if (error || !session) {
+    if (error || !user) {
       return NextResponse.json({ authenticated: false }, { status: 401 })
     }
 
     return NextResponse.json({
       authenticated: true,
       user: {
-        id: session.user.id,
-        email: session.user.email
+        id: user.id,
+        email: user.email
       }
     })
   } catch (error: any) {

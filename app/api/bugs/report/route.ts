@@ -17,9 +17,13 @@ export async function POST(request: NextRequest) {
             return cookieStore.getAll()
           },
           setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options)
+              )
+            } catch {
+              // Safe to ignore in Server Components
+            }
           },
         },
       }
@@ -59,8 +63,8 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Get user session (optional - bugs can be submitted anonymously)
-    const { data: { session } } = await supabaseAuth.auth.getSession()
+    // Get user info (optional - bugs can be submitted anonymously)
+    const { data: { user } } = await supabaseAuth.auth.getUser()
 
     // Collect browser/device information
     const userAgent = request.headers.get('user-agent') || 'Unknown'
@@ -77,8 +81,8 @@ export async function POST(request: NextRequest) {
       description: description.trim(),
       category,
       priority,
-      user_id: session?.user?.id || null,
-      user_email: session?.user?.email || null,
+      user_id: user?.id || null,
+      user_email: user?.email || null,
       user_agent: userAgent,
       url: url || browserInfo.url,
       steps_to_reproduce: stepsToReproduce?.trim() || null,

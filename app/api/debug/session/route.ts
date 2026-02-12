@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
-import { cookies } from 'next/headers';
 
 export async function GET(request: NextRequest) {
   if (process.env.NODE_ENV === 'production') {
@@ -12,12 +11,12 @@ export async function GET(request: NextRequest) {
     const allCookies = cookieStore.getAll();
 
     const supabase = await createClient();
-    const { data: { session }, error } = await supabase.auth.getSession();
+    const { data: { user }, error } = await supabase.auth.getUser();
 
     return NextResponse.json({
-      hasSession: !!session,
+      hasSession: !!user,
       sessionError: error?.message || null,
-      userId: session?.user?.id || null,
+      userId: user?.id || null,
       cookieCount: allCookies.length,
       cookies: allCookies.map(c => ({ name: c.name, hasValue: !!c.value })),
       supabaseConfigured: {
