@@ -3,11 +3,10 @@
  * Uses text-embedding-3-small for fast, accurate similarity matching
  */
 
-import OpenAI from 'openai';
-
-let _openai: OpenAI | null = null;
-function getOpenAI(): OpenAI {
+let _openai: any = null;
+async function getOpenAI() {
   if (!_openai) {
+    const { default: OpenAI } = await import('openai');
     _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   }
   return _openai;
@@ -31,7 +30,8 @@ export async function generateEmbedding(text: string): Promise<number[]> {
   }
 
   try {
-    const response = await getOpenAI().embeddings.create({
+    const openai = await getOpenAI();
+    const response = await openai.embeddings.create({
       model: 'text-embedding-3-small',
       input: text,
       encoding_format: 'float',
@@ -108,7 +108,8 @@ export async function generateEmbeddingsBatch(texts: string[]): Promise<number[]
   if (texts.length === 0) return [];
 
   try {
-    const response = await getOpenAI().embeddings.create({
+    const openai = await getOpenAI();
+    const response = await openai.embeddings.create({
       model: 'text-embedding-3-small',
       input: texts,
       encoding_format: 'float',
