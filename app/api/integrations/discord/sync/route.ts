@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
       if (isAuthError(authResult)) {
         return NextResponse.json({ error: authResult.error }, { status: 401 });
       }
-      userId = authResult.userId;
+      userId = authResult.user.id;
       
       // Get integration ID for user
       const { data: integration } = await supabase
