@@ -16,6 +16,32 @@ function getSupabaseAdmin() {
   );
 }
 
+/**
+ * Resolve user ID from multiple sources:
+ * 1. Try resolveAuthentication (cookies/bearer)
+ * 2. Fall back to github_oauth_uid cookie set before redirect
+ */
+async function resolveUserId(request: NextRequest): Promise<string | null> {
+  // Try standard auth first
+  const authResult = await resolveAuthentication(request);
+  if (!isAuthError(authResult)) {
+    const session = authResult as UnifiedSession;
+    const uid = getUserId(session);
+    if (uid) return uid;
+  }
+
+  // Fall back to the cookie set by IntegrationCard before OAuth redirect
+  const oauthUid = request.cookies.get('github_oauth_uid')?.value;
+  if (oauthUid && /^[0-9a-f-]{36}$/.test(oauthUid)) {
+    // Verify this user actually exists
+    const supabase = getSupabaseAdmin();
+    const { data } = await supabase.auth.admin.getUserById(oauthUid);
+    if (data?.user) return oauthUid;
+  }
+
+  return null;
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
@@ -29,14 +55,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/settings?github_error=no_code', request.url));
   }
 
-  // Resolve user authentication
-  const authResult = await resolveAuthentication(request);
-  if (isAuthError(authResult)) {
-    return NextResponse.redirect(new URL('/login?redirect=/settings', request.url));
-  }
-
-  const session = authResult as UnifiedSession;
-  const userId = getUserId(session);
+  const userId = await resolveUserId(request);
   if (!userId) {
     return NextResponse.redirect(new URL('/login?redirect=/settings', request.url));
   }
@@ -106,7 +125,10 @@ export async function GET(request: NextRequest) {
       console.error('[GitHub] Initial sync failed:', syncError);
     });
 
-    return NextResponse.redirect(new URL('/settings?github_connected=true', request.url));
+    // Clear the oauth cookie and redirect
+    const response = NextResponse.redirect(new URL('/settings?github_connected=true', request.url));
+    response.cookies.delete('github_oauth_uid');
+    return response;
   } catch (err: any) {
     console.error('[GitHub Callback] Error:', err);
     return NextResponse.redirect(new URL('/settings?github_error=unknown', request.url));

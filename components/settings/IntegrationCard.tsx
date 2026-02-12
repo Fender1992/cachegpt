@@ -56,6 +56,9 @@ export default function IntegrationCard({ provider, userId }: IntegrationCardPro
     const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
     const redirectUri = `${window.location.origin}/api/integrations/github/callback`;
     const scope = 'repo,read:user';
+    // Store user ID in a cookie so the callback can identify the user
+    // after the GitHub redirect (Supabase session cookies may not survive the redirect)
+    document.cookie = `github_oauth_uid=${userId}; path=/; max-age=600; SameSite=Lax; Secure`;
     window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}`;
   };
 
