@@ -134,7 +134,12 @@
       "Bash(sudo apt-get update:*)",
       "Bash(sudo apt-get install:*)",
       "Bash(PGPASSWORD=\"Redr0v3r!992\" psql:*)",
-      "Bash(npm test:*)"
+      "Bash(npm test:*)",
+      "WebFetch(domain:docs.github.com)",
+      "Bash(where npm:*)",
+      "Bash(where:*)",
+      "Bash(powershell:*)",
+      "Bash(git check-ignore:*)"
     ],
     "deny": [],
     "ask": []

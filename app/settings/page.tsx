@@ -12,6 +12,7 @@ import { validateApiKeyFormat, testApiKeyConnection } from '@/lib/api-key-valida
 import CacheGPTApiKeys from '@/components/settings/cachegpt-api-keys'
 import SubscriptionInfo from '@/components/settings/subscription-info'
 import IntegrationCard from '@/components/settings/IntegrationCard'
+import DiscordIntegrationCard from '@/components/settings/DiscordIntegrationCard'
 
 interface ApiKey {
   provider: string
@@ -394,7 +395,10 @@ export default function SettingsPage() {
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
               Integrations
             </h2>
-            <IntegrationCard provider="github" userId={user.id} />
+            <div className="space-y-4">
+              <IntegrationCard provider="github" userId={user.id} />
+              <DiscordIntegrationCard userId={user.id} />
+            </div>
           </div>
         )}
 

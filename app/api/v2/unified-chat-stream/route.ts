@@ -321,14 +321,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Integration context (GitHub repos, etc.)
+    // Integration context (GitHub repos, Discord messages, etc.)
     if (userId) {
       try {
-        const { retrieveRelevantContext } = await import('@/lib/integrations/enhanced-context-retriever');
-        const integrationContext = await retrieveRelevantContext(userId, userMessage);
-        if (integrationContext) {
+        // GitHub context
+        const { retrieveRelevantContext: retrieveGitHubContext } = await import('@/lib/integrations/enhanced-context-retriever');
+        const githubContext = await retrieveGitHubContext(userId, userMessage);
+        if (githubContext) {
           enrichedMessages.splice(enrichedMessages.length - 1, 0,
-            { role: 'system', content: integrationContext });
+            { role: 'system', content: githubContext });
+        }
+        
+        // Discord context
+        const { retrieveDiscordContext } = await import('@/lib/integrations/discord-context-retriever');
+        const discordContext = await retrieveDiscordContext(userId, userMessage);
+        if (discordContext) {
+          enrichedMessages.splice(enrichedMessages.length - 1, 0,
+            { role: 'system', content: discordContext });
         }
       } catch (e) {
         // Non-blocking: skip integration context on error
