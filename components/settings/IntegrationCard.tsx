@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Loader2, Check, AlertCircle, RefreshCw, Link2, Unlink, Github,
+  Loader2, Check, AlertCircle, Link2, Unlink, Github,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
 import type { IntegrationStatus } from '@/lib/integrations/types';
@@ -15,7 +15,6 @@ interface IntegrationCardProps {
 export default function IntegrationCard({ provider, userId }: IntegrationCardProps) {
   const [status, setStatus] = useState<IntegrationStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -51,7 +50,7 @@ export default function IntegrationCard({ provider, userId }: IntegrationCardPro
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('github_connected') === 'true') {
-      setMessage({ type: 'success', text: 'GitHub connected! Initial sync started.' });
+      setMessage({ type: 'success', text: 'GitHub connected!' });
       fetchStatus();
       // Clean URL
       window.history.replaceState({}, '', '/settings');
@@ -99,29 +98,6 @@ export default function IntegrationCard({ provider, userId }: IntegrationCardPro
     }
   };
 
-  const handleSync = async () => {
-    setSyncing(true);
-    setMessage(null);
-    try {
-      const headers = await getAuthHeaders();
-      const res = await fetch('/api/integrations/github/sync', { method: 'POST', headers });
-      const data = await res.json();
-      if (res.ok) {
-        setMessage({
-          type: 'success',
-          text: `Synced ${data.reposProcessed} repos, ${data.documentsUpserted} documents indexed.`,
-        });
-        fetchStatus();
-      } else {
-        setMessage({ type: 'error', text: data.error || 'Sync failed.' });
-      }
-    } catch {
-      setMessage({ type: 'error', text: 'Sync failed.' });
-    } finally {
-      setSyncing(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 sm:p-6">
@@ -144,12 +120,8 @@ export default function IntegrationCard({ provider, userId }: IntegrationCardPro
         </div>
 
         {status?.connected && (
-          <span className={`text-xs px-2 py-1 rounded-full ${
-            status.syncing
-              ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-              : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-          }`}>
-            {status.syncing ? 'Syncing...' : 'Connected'}
+          <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+            Connected
           </span>
         )}
       </div>
@@ -177,26 +149,10 @@ export default function IntegrationCard({ provider, userId }: IntegrationCardPro
             {status.providerUserId && (
               <p>Account: <span className="font-medium text-gray-900 dark:text-white">@{status.providerUserId}</span></p>
             )}
-            <p>Documents indexed: <span className="font-medium text-gray-900 dark:text-white">{status.documentCount}</span></p>
-            {status.lastSyncedAt && (
-              <p>Last synced: <span className="font-medium text-gray-900 dark:text-white">{new Date(status.lastSyncedAt).toLocaleString()}</span></p>
-            )}
           </div>
 
           {/* Actions */}
           <div className="flex gap-2">
-            <button
-              onClick={handleSync}
-              disabled={syncing || status.syncing}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {syncing || status.syncing ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <RefreshCw className="w-3.5 h-3.5" />
-              )}
-              {syncing || status.syncing ? 'Syncing...' : 'Sync Now'}
-            </button>
             <button
               onClick={handleDisconnect}
               disabled={disconnecting}
@@ -231,8 +187,7 @@ export default function IntegrationCard({ provider, userId }: IntegrationCardPro
         <div className="flex items-start gap-2">
           <AlertCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
           <p className="text-xs text-gray-600 dark:text-gray-400">
-            Your repos are indexed locally. Code context is used to personalize AI responses.
-            Only text files under 100KB are indexed.
+            When you ask about your code, we fetch relevant context from your repos on the fly to personalize AI responses.
           </p>
         </div>
       </div>

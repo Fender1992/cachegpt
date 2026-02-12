@@ -1,13 +1,12 @@
 /**
  * GitHub OAuth Callback
- * GET - Exchange authorization code for access token, store in user_integrations, trigger initial sync
+ * GET - Exchange authorization code for access token, store in user_integrations
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { resolveAuthentication, isAuthError, getUserId } from '@/lib/unified-auth-resolver';
 import type { UnifiedSession } from '@/lib/unified-auth-resolver';
-import { syncGitHubRepos } from '@/lib/integrations/github-adapter';
 
 function getSupabaseAdmin() {
   return createClient(
@@ -119,11 +118,6 @@ export async function GET(request: NextRequest) {
     if (upsertError || !integration) {
       return NextResponse.redirect(new URL('/settings?github_error=save_failed', request.url));
     }
-
-    // Trigger initial sync in background (non-blocking)
-    syncGitHubRepos(userId, integration.id, accessToken).catch((syncError) => {
-      console.error('[GitHub] Initial sync failed:', syncError);
-    });
 
     // Clear the oauth cookie and redirect
     const response = NextResponse.redirect(new URL('/settings?github_connected=true', request.url));
