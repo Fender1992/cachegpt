@@ -68,7 +68,9 @@ export async function GET(req: NextRequest) {
     }
 
     const tokenData = await tokenResponse.json();
-    const { access_token, refresh_token, expires_in, scope } = tokenData;
+    const { access_token, refresh_token, expires_in, scope, guild } = tokenData;
+    // When bot scope is used, `guild` contains the guild the bot was added to
+    console.log('[Discord OAuth] Token response - scope:', scope, 'guild:', guild?.id || 'none');
 
     // Get Discord user info
     const userResponse = await fetch(`${DISCORD_API}/users/@me`, {
