@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Loader2, Check, AlertCircle, RefreshCw, Link2, Unlink, Github,
 } from 'lucide-react';
+import { supabase } from '@/lib/supabase-client';
 import type { IntegrationStatus } from '@/lib/integrations/types';
 
 interface IntegrationCardProps {
@@ -18,9 +19,19 @@ export default function IntegrationCard({ provider, userId }: IntegrationCardPro
   const [disconnecting, setDisconnecting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  const getAuthHeaders = useCallback(async (): Promise<HeadersInit> => {
+    const { data } = await supabase.auth.getSession();
+    const token = data?.session?.access_token;
+    if (token) {
+      return { Authorization: `Bearer ${token}` };
+    }
+    return {};
+  }, []);
+
   const fetchStatus = useCallback(async () => {
     try {
-      const res = await fetch('/api/integrations/github');
+      const headers = await getAuthHeaders();
+      const res = await fetch('/api/integrations/github', { headers });
       if (res.ok) {
         const data: IntegrationStatus = await res.json();
         setStatus(data);
@@ -30,7 +41,7 @@ export default function IntegrationCard({ provider, userId }: IntegrationCardPro
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [getAuthHeaders]);
 
   useEffect(() => {
     fetchStatus();
@@ -66,7 +77,8 @@ export default function IntegrationCard({ provider, userId }: IntegrationCardPro
     setDisconnecting(true);
     setMessage(null);
     try {
-      const res = await fetch('/api/integrations/github', { method: 'DELETE' });
+      const headers = await getAuthHeaders();
+      const res = await fetch('/api/integrations/github', { method: 'DELETE', headers });
       if (res.ok) {
         setStatus({
           connected: false,
@@ -91,7 +103,8 @@ export default function IntegrationCard({ provider, userId }: IntegrationCardPro
     setSyncing(true);
     setMessage(null);
     try {
-      const res = await fetch('/api/integrations/github/sync', { method: 'POST' });
+      const headers = await getAuthHeaders();
+      const res = await fetch('/api/integrations/github/sync', { method: 'POST', headers });
       const data = await res.json();
       if (res.ok) {
         setMessage({
