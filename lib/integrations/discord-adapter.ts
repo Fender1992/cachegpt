@@ -96,9 +96,13 @@ function getSupabaseAdmin() {
 }
 
 async function discordFetch(url: string, token: string): Promise<Response> {
+  // Use Bot token if available, fall back to Bearer token
+  const botToken = process.env.DISCORD_BOT_TOKEN;
+  const authHeader = botToken ? `Bot ${botToken}` : `Bearer ${token}`;
+
   const response = await fetch(url, {
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: authHeader,
       'Content-Type': 'application/json',
     },
   });
