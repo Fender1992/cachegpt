@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     const { data: integration } = await supabase
       .from('user_integrations')
       .select('*')
-      .eq('user_id', authResult.userId)
+      .eq('user_id', authResult.user.id)
       .eq('provider', 'discord')
       .single();
 
@@ -87,7 +87,7 @@ export async function DELETE(req: NextRequest) {
     const { data: integration } = await supabase
       .from('user_integrations')
       .select('id')
-      .eq('user_id', authResult.userId)
+      .eq('user_id', authResult.user.id)
       .eq('provider', 'discord')
       .single();
 
