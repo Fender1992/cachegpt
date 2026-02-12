@@ -29,9 +29,14 @@ async function hasAdminRole(userId: string): Promise<boolean> {
           return cookieStore.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          )
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            )
+          } catch {
+            // setAll is called from a Server Component where cookies are read-only.
+            // This is safe to ignore because middleware already refreshes the session.
+          }
         },
       },
     }
@@ -78,9 +83,14 @@ async function getUserRoles(userId: string): Promise<string[]> {
           return cookieStore.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          )
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            )
+          } catch {
+            // setAll is called from a Server Component where cookies are read-only.
+            // This is safe to ignore because middleware already refreshes the session.
+          }
         },
       },
     }
@@ -160,9 +170,14 @@ export async function verifyAdminAuth(): Promise<AdminSession> {
           return cookieStore.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          )
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            )
+          } catch {
+            // setAll is called from a Server Component where cookies are read-only.
+            // This is safe to ignore because middleware already refreshes the session.
+          }
         },
       },
     }

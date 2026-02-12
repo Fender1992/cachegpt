@@ -88,9 +88,9 @@ export default function Home() {
       const fetchBugCount = async () => {
         try {
           const { count } = await supabase
-            .from('bug_reports')
+            .from('bugs')
             .select('*', { count: 'exact', head: true })
-            .eq('status', 'new')
+            .eq('status', 'open')
 
           setNewBugCount(count || 0)
         } catch (err) {
