@@ -243,9 +243,6 @@ export class DiscordClient {
 
       this.updateState({ messages: sortedMessages });
 
-      // Start polling for new messages
-      this.startPolling(channel.id);
-
     } catch (error) {
       console.error('[Discord Client] Error selecting channel:', error);
       this.updateState({ error: 'Failed to load messages' });

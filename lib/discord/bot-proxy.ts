@@ -51,19 +51,27 @@ export interface GuildWithStatus extends BotGuild {
 
 class BotProxyClient {
   private baseUrl: string;
+  private healthCache: { available: boolean; checkedAt: number } | null = null;
+  private static HEALTH_CACHE_TTL = 60_000; // Cache health check for 60 seconds
 
   constructor() {
     this.baseUrl = BOT_API_URL;
   }
 
   /**
-   * Check if the bot service is reachable
+   * Check if the bot service is reachable (cached for 60s)
    */
   async isAvailable(): Promise<boolean> {
+    const now = Date.now();
+    if (this.healthCache && (now - this.healthCache.checkedAt) < BotProxyClient.HEALTH_CACHE_TTL) {
+      return this.healthCache.available;
+    }
     try {
       const res = await fetch(`${this.baseUrl}/health`, { signal: AbortSignal.timeout(3000) });
+      this.healthCache = { available: res.ok, checkedAt: now };
       return res.ok;
     } catch {
+      this.healthCache = { available: false, checkedAt: now };
       return false;
     }
   }
