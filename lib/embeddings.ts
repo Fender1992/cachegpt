@@ -115,7 +115,7 @@ export async function generateEmbeddingsBatch(texts: string[]): Promise<number[]
       encoding_format: 'float',
     });
 
-    return response.data.map(item => item.embedding);
+    return response.data.map((item: any) => item.embedding);
   } catch (error) {
     console.error('Error generating batch embeddings:', error);
     // Fallback to individual simple embeddings
