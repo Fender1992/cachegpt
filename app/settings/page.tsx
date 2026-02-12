@@ -11,6 +11,7 @@ import {
 import { validateApiKeyFormat, testApiKeyConnection } from '@/lib/api-key-validator'
 import CacheGPTApiKeys from '@/components/settings/cachegpt-api-keys'
 import SubscriptionInfo from '@/components/settings/subscription-info'
+import IntegrationCard from '@/components/settings/IntegrationCard'
 
 interface ApiKey {
   provider: string
@@ -386,6 +387,16 @@ export default function SettingsPage() {
             </div>
           )}
         </div>
+
+        {/* Integrations Section */}
+        {user && (
+          <div className="mt-8">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+              Integrations
+            </h2>
+            <IntegrationCard provider="github" userId={user.id} />
+          </div>
+        )}
 
         {/* CacheGPT API Keys Section */}
         <div className="mt-8">

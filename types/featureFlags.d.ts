@@ -20,6 +20,9 @@ export type FlagKey =
   | 'share_answer_enabled'
   | 'templates_gallery_trending'
 
+  // Integration Flags
+  | 'ux_github_integration'
+
   // A/B Test Flags
   | 'ab_landing_hero_copy_v1'
   | 'ab_example_prompts_layout_v1'
@@ -39,6 +42,7 @@ export interface FeatureFlags {
   ux_example_prompts: boolean;
   share_answer_enabled: boolean;
   templates_gallery_trending: boolean;
+  ux_github_integration: boolean;
   ab_landing_hero_copy_v1: 'A' | 'B';
   ab_example_prompts_layout_v1: 'grid' | 'list';
   ab_onboarding_flow_v1: 'old' | 'new';

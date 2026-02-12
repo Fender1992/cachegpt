@@ -321,6 +321,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Integration context (GitHub repos, etc.)
+    if (userId) {
+      try {
+        const { retrieveRelevantContext } = await import('@/lib/integrations/context-retriever');
+        const integrationContext = await retrieveRelevantContext(userId, userMessage);
+        if (integrationContext) {
+          enrichedMessages.splice(enrichedMessages.length - 1, 0,
+            { role: 'system', content: integrationContext });
+        }
+      } catch (e) {
+        // Non-blocking: skip integration context on error
+      }
+    }
+
     // Uploaded files context
     if (uploadedFiles && uploadedFiles.length > 0 && userId) {
       const supabase = createClient(

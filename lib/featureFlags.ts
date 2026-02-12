@@ -28,6 +28,9 @@ const DEFAULT_FLAGS: FeatureFlags = {
   ux_cache_badges: false,
   ux_example_prompts: false,
 
+  // Integration flags
+  ux_github_integration: false,
+
   // Growth flags (default OFF - gradual rollout)
   share_answer_enabled: false,
   templates_gallery_trending: false,

@@ -285,6 +285,44 @@ function formatValue(value: any): string {
 }
 
 /**
+ * Format GitHub integration context chunks into a system prompt
+ */
+export function formatGitHubContext(
+  chunks: Array<{
+    source_id: string;
+    title: string | null;
+    content: string;
+    metadata: Record<string, any>;
+    similarity: number;
+  }>
+): string | null {
+  if (!chunks || chunks.length === 0) return null;
+
+  const sections: string[] = [
+    '## Your GitHub Context',
+    'The following code/docs from your repositories may be relevant:',
+    '',
+  ];
+
+  for (const chunk of chunks) {
+    const filePath = chunk.title || chunk.source_id;
+    const lang = chunk.metadata?.extension?.replace('.', '') || '';
+    const repo = chunk.metadata?.repo || '';
+    const label = repo ? `${repo}/${filePath}` : filePath;
+
+    sections.push(`**${label}**:`);
+    sections.push(`\`\`\`${lang}`);
+    sections.push(chunk.content);
+    sections.push('```');
+    sections.push('');
+  }
+
+  sections.push('Use this code context to give accurate, repo-aware answers when relevant.');
+
+  return sections.join('\n');
+}
+
+/**
  * Build a complete system prompt with context injection
  */
 export function buildSystemPromptWithContext(
