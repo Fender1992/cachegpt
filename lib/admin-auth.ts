@@ -168,22 +168,18 @@ export async function verifyAdminAuth(): Promise<AdminSession> {
     }
   )
 
-  const { data: { session }, error } = await supabase.auth.getSession()
+  const { data: { user }, error } = await supabase.auth.getUser()
 
-  if (error) {
-    throw new Error('Authentication required')
-  }
-
-  if (!session) {
+  if (error || !user) {
     throw new Error('Authentication required')
   }
 
   // Get user roles
-  const roles = await getUserRoles(session.user.id)
+  const roles = await getUserRoles(user.id)
 
   // Check if user has admin role in database
-  const hasAdminRoleInDb = await hasAdminRole(session.user.id)
-  const isHardcodedAdmin = session.user.email === ADMIN_EMAIL
+  const hasAdminRoleInDb = await hasAdminRole(user.id)
+  const isHardcodedAdmin = user.email === ADMIN_EMAIL
 
   if (!hasAdminRoleInDb && !isHardcodedAdmin) {
     throw new Error('Admin access required')
@@ -191,8 +187,8 @@ export async function verifyAdminAuth(): Promise<AdminSession> {
 
   return {
     user: {
-      id: session.user.id,
-      email: session.user.email || ''
+      id: user.id,
+      email: user.email || ''
     },
     isAdmin: true,
     roles: hasAdminRoleInDb ? roles : ['admin']
