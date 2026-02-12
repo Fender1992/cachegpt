@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     // Verify user has a Discord integration
     const { data: integration } = await supabase
       .from('user_integrations')
-      .select('id')
+      .select('id, access_token')
       .eq('user_id', authResult.user.id)
       .eq('provider', 'discord')
       .single();
@@ -39,29 +39,44 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Discord not connected' }, { status: 404 });
     }
 
-    const botToken = process.env.DISCORD_BOT_TOKEN;
-    if (!botToken) {
-      return NextResponse.json({ error: 'Bot token not configured' }, { status: 500 });
-    }
-
     const limit = req.nextUrl.searchParams.get('limit') || '50';
     const after = req.nextUrl.searchParams.get('after') || '';
     const params = new URLSearchParams({ limit });
     if (after) params.set('after', after);
 
-    const response = await fetch(
-      `${DISCORD_API}/channels/${channelId}/messages?${params}`,
-      { headers: { Authorization: `Bot ${botToken}` } }
-    );
+    const url = `${DISCORD_API}/channels/${channelId}/messages?${params}`;
 
-    if (!response.ok) {
-      const text = await response.text();
-      console.error('[Discord Messages] API error:', response.status, text);
-      return NextResponse.json({ error: text }, { status: response.status });
+    // Try user's OAuth token first
+    if (integration.access_token) {
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${integration.access_token}` },
+      });
+
+      if (response.ok) {
+        const messages = await response.json();
+        return NextResponse.json(messages);
+      }
+
+      console.error('[Discord Messages] OAuth token failed:', response.status);
     }
 
-    const messages = await response.json();
-    return NextResponse.json(messages);
+    // Fallback: try Bot token (works if bot is in the guild)
+    const botToken = process.env.DISCORD_BOT_TOKEN;
+    if (botToken) {
+      const response = await fetch(url, {
+        headers: { Authorization: `Bot ${botToken}` },
+      });
+
+      if (response.ok) {
+        const messages = await response.json();
+        return NextResponse.json(messages);
+      }
+
+      const text = await response.text();
+      console.error('[Discord Messages] Bot token failed:', response.status, text);
+    }
+
+    return NextResponse.json({ error: 'Failed to fetch messages. The OAuth token may have expired — try reconnecting Discord.' }, { status: 403 });
   } catch (error) {
     console.error('[Discord Messages] Error:', error);
     return NextResponse.json({ error: 'Failed to fetch messages' }, { status: 500 });
@@ -83,7 +98,7 @@ export async function POST(req: NextRequest) {
     // Verify user has a Discord integration
     const { data: integration } = await supabase
       .from('user_integrations')
-      .select('id')
+      .select('id, access_token')
       .eq('user_id', authResult.user.id)
       .eq('provider', 'discord')
       .single();
@@ -92,28 +107,50 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Discord not connected' }, { status: 404 });
     }
 
+    const url = `${DISCORD_API}/channels/${channelId}/messages`;
+    const body = JSON.stringify({ content });
+
+    // Try user's OAuth token first
+    if (integration.access_token) {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${integration.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body,
+      });
+
+      if (response.ok) {
+        const message = await response.json();
+        return NextResponse.json(message);
+      }
+
+      console.error('[Discord Send] OAuth token failed:', response.status);
+    }
+
+    // Fallback: try Bot token
     const botToken = process.env.DISCORD_BOT_TOKEN;
-    if (!botToken) {
-      return NextResponse.json({ error: 'Bot token not configured' }, { status: 500 });
-    }
+    if (botToken) {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bot ${botToken}`,
+          'Content-Type': 'application/json',
+        },
+        body,
+      });
 
-    const response = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bot ${botToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ content }),
-    });
+      if (response.ok) {
+        const message = await response.json();
+        return NextResponse.json(message);
+      }
 
-    if (!response.ok) {
       const text = await response.text();
-      console.error('[Discord Send] API error:', response.status, text);
-      return NextResponse.json({ error: text }, { status: response.status });
+      console.error('[Discord Send] Bot token failed:', response.status, text);
     }
 
-    const message = await response.json();
-    return NextResponse.json(message);
+    return NextResponse.json({ error: 'Failed to send message. Try reconnecting Discord.' }, { status: 403 });
   } catch (error) {
     console.error('[Discord Send Message] Error:', error);
     return NextResponse.json({ error: 'Failed to send message' }, { status: 500 });
