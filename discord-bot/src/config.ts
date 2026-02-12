@@ -12,8 +12,8 @@ export const config = {
     serviceKey: process.env.SUPABASE_SERVICE_KEY || '',
   },
   api: {
-    port: parseInt(process.env.INTERNAL_API_PORT || '3100', 10),
-    allowedOrigins: (process.env.ALLOWED_ORIGINS || 'http://localhost:3000')
+    port: parseInt(process.env.PORT || process.env.INTERNAL_API_PORT || '3100', 10),
+    allowedOrigins: (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,https://cachegpt.app')
       .split(',')
       .map((origin) => origin.trim()),
   },
