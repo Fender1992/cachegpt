@@ -9,7 +9,7 @@ export const config = {
   },
   supabase: {
     url: process.env.SUPABASE_URL || '',
-    serviceKey: process.env.SUPABASE_SERVICE_KEY || '',
+    serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
   },
   api: {
     port: parseInt(process.env.PORT || process.env.INTERNAL_API_PORT || '3100', 10),
@@ -25,6 +25,6 @@ export function validateConfig(): void {
   }
   // Supabase is optional — bot can run in cache-only mode
   if (config.supabase.url && !config.supabase.serviceKey) {
-    console.warn('[Config] SUPABASE_URL is set but SUPABASE_SERVICE_KEY is missing — Supabase writes will be disabled');
+    console.warn('[Config] SUPABASE_URL is set but SUPABASE_SERVICE_ROLE_KEY is missing — Supabase writes will be disabled');
   }
 }
