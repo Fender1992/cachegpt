@@ -33,6 +33,7 @@ interface DiscordGuild {
   name: string;
   icon: string | null;
   owner_id: string;
+  permissions?: string;
   member_count?: number;
   premium_tier?: number;
   description?: string | null;
