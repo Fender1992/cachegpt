@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   X,
   MessageCircle,
@@ -8,6 +8,8 @@ import {
   Calendar,
   MessageSquare,
   BookOpen,
+  Settings,
+  Link2,
 } from 'lucide-react';
 import { useDiscord } from '@/hooks/useDiscord';
 import { useGmail } from '@/hooks/useGmail';
@@ -21,6 +23,7 @@ import YahooPanelContent from './YahooPanelContent';
 import CalendarPanelContent from './CalendarPanelContent';
 import SlackPanelContent from './SlackPanelContent';
 import NotionPanelContent from './NotionPanelContent';
+import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
 export type IntegrationTab = 'discord' | 'gmail' | 'yahoo' | 'calendar' | 'slack' | 'notion';
@@ -108,6 +111,19 @@ export default function UnifiedIntegrationPanel({
     notion: { isConnected: notion.isConnected, isConnecting: notion.isConnecting, error: notion.error, count: 0 },
   };
 
+  // Only show tabs for integrations that are connected or actively connecting
+  const visibleTabs = TAB_ORDER.filter((tab) => {
+    const state = integrationState[tab];
+    return state.isConnected || state.isConnecting;
+  });
+
+  // Auto-switch to first visible tab if current tab is no longer visible
+  useEffect(() => {
+    if (isOpen && visibleTabs.length > 0 && !visibleTabs.includes(activeTab)) {
+      onTabChange(visibleTabs[0]);
+    }
+  }, [isOpen, visibleTabs, activeTab, onTabChange]);
+
   if (!isOpen) return null;
 
   return (
@@ -134,69 +150,105 @@ export default function UnifiedIntegrationPanel({
           </button>
         </div>
 
-        {/* Tab Bar */}
-        <div className="flex-shrink-0 flex border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
-          {TAB_ORDER.map((tab) => {
-            const config = TAB_CONFIG[tab];
-            const state = integrationState[tab];
-            const Icon = config.icon;
-            const isActive = activeTab === tab;
-
-            return (
-              <button
-                key={tab}
-                onClick={() => onTabChange(tab)}
-                className={cn(
-                  'flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap relative',
-                  isActive
-                    ? cn(config.activeText, config.activeBorder)
-                    : 'text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
-                )}
+        {/* Empty state when no integrations are connected */}
+        {visibleTabs.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center p-8">
+            <div className="text-center max-w-xs">
+              <Link2 className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+              <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">
+                No integrations connected
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">
+                Connect your accounts in Settings to access Discord, Gmail, Slack, and more right from chat.
+              </p>
+              <Link
+                href="/settings"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors"
               >
-                <div className="relative">
-                  <Icon className="w-4 h-4" />
-                  {/* Connection status dot */}
-                  <span className={cn(
-                    'absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full',
-                    getStatusDot(state.isConnected, state.isConnecting, state.error)
-                  )} />
-                </div>
-                <span className="hidden sm:inline">{config.label}</span>
-                {/* Unread/event count badge */}
-                {state.count > 0 && (
-                  <span className={cn(
-                    'text-[10px] leading-none px-1 py-0.5 rounded-full text-white font-medium',
-                    config.badgeBg
-                  )}>
-                    {state.count > 99 ? '99+' : state.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+                <Settings className="w-4 h-4" />
+                Go to Settings
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Tab Bar — only connected integrations */}
+            <div className="flex-shrink-0 flex border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
+              {visibleTabs.map((tab) => {
+                const config = TAB_CONFIG[tab];
+                const state = integrationState[tab];
+                const Icon = config.icon;
+                const isActive = activeTab === tab;
 
-        {/* Content Area - all mounted, hidden class toggles visibility */}
-        <div className="flex-1 min-h-0 relative">
-          <div className={cn('absolute inset-0', activeTab !== 'discord' && 'hidden')}>
-            <DiscordPanelContent isActive={activeTab === 'discord'} />
-          </div>
-          <div className={cn('absolute inset-0', activeTab !== 'gmail' && 'hidden')}>
-            <GmailPanelContent isActive={activeTab === 'gmail'} />
-          </div>
-          <div className={cn('absolute inset-0', activeTab !== 'yahoo' && 'hidden')}>
-            <YahooPanelContent isActive={activeTab === 'yahoo'} />
-          </div>
-          <div className={cn('absolute inset-0', activeTab !== 'calendar' && 'hidden')}>
-            <CalendarPanelContent isActive={activeTab === 'calendar'} />
-          </div>
-          <div className={cn('absolute inset-0', activeTab !== 'slack' && 'hidden')}>
-            <SlackPanelContent isActive={activeTab === 'slack'} />
-          </div>
-          <div className={cn('absolute inset-0', activeTab !== 'notion' && 'hidden')}>
-            <NotionPanelContent isActive={activeTab === 'notion'} />
-          </div>
-        </div>
+                return (
+                  <button
+                    key={tab}
+                    onClick={() => onTabChange(tab)}
+                    className={cn(
+                      'flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap relative',
+                      isActive
+                        ? cn(config.activeText, config.activeBorder)
+                        : 'text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                    )}
+                  >
+                    <div className="relative">
+                      <Icon className="w-4 h-4" />
+                      {/* Connection status dot */}
+                      <span className={cn(
+                        'absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full',
+                        getStatusDot(state.isConnected, state.isConnecting, state.error)
+                      )} />
+                    </div>
+                    <span className="hidden sm:inline">{config.label}</span>
+                    {/* Unread/event count badge */}
+                    {state.count > 0 && (
+                      <span className={cn(
+                        'text-[10px] leading-none px-1 py-0.5 rounded-full text-white font-medium',
+                        config.badgeBg
+                      )}>
+                        {state.count > 99 ? '99+' : state.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Content Area — only render connected panels */}
+            <div className="flex-1 min-h-0 relative">
+              {visibleTabs.includes('discord') && (
+                <div className={cn('absolute inset-0', activeTab !== 'discord' && 'hidden')}>
+                  <DiscordPanelContent isActive={activeTab === 'discord'} />
+                </div>
+              )}
+              {visibleTabs.includes('gmail') && (
+                <div className={cn('absolute inset-0', activeTab !== 'gmail' && 'hidden')}>
+                  <GmailPanelContent isActive={activeTab === 'gmail'} />
+                </div>
+              )}
+              {visibleTabs.includes('yahoo') && (
+                <div className={cn('absolute inset-0', activeTab !== 'yahoo' && 'hidden')}>
+                  <YahooPanelContent isActive={activeTab === 'yahoo'} />
+                </div>
+              )}
+              {visibleTabs.includes('calendar') && (
+                <div className={cn('absolute inset-0', activeTab !== 'calendar' && 'hidden')}>
+                  <CalendarPanelContent isActive={activeTab === 'calendar'} />
+                </div>
+              )}
+              {visibleTabs.includes('slack') && (
+                <div className={cn('absolute inset-0', activeTab !== 'slack' && 'hidden')}>
+                  <SlackPanelContent isActive={activeTab === 'slack'} />
+                </div>
+              )}
+              {visibleTabs.includes('notion') && (
+                <div className={cn('absolute inset-0', activeTab !== 'notion' && 'hidden')}>
+                  <NotionPanelContent isActive={activeTab === 'notion'} />
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </>
   );
