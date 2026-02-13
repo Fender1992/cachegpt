@@ -154,7 +154,7 @@ export default function DiscordPanel({ className }: DiscordPanelProps) {
 
   return (
     <div className={cn(
-      'fixed top-0 right-0 h-full w-96 max-w-[90vw] bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 shadow-2xl z-50 flex flex-col',
+      'fixed top-0 right-0 h-[calc(100%-4rem)] w-96 max-w-[90vw] bg-white dark:bg-gray-900 border-l border-b border-gray-200 dark:border-gray-700 shadow-2xl z-50 flex flex-col rounded-bl-xl',
       'transform transition-transform duration-300 ease-in-out',
       className
     )}>
