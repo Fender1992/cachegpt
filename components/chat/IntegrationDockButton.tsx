@@ -14,9 +14,10 @@ import { cn } from '@/lib/utils';
 interface IntegrationDockButtonProps {
   onClick: () => void;
   isPanelOpen: boolean;
+  isHistoryOpen?: boolean;
 }
 
-export default function IntegrationDockButton({ onClick, isPanelOpen }: IntegrationDockButtonProps) {
+export default function IntegrationDockButton({ onClick, isPanelOpen, isHistoryOpen }: IntegrationDockButtonProps) {
   const [showTooltip, setShowTooltip] = useState(false);
 
   const discord = useDiscord();
@@ -50,7 +51,10 @@ export default function IntegrationDockButton({ onClick, isPanelOpen }: Integrat
   else if (hasConnecting && connectedCount === 0) statusDotClass = 'bg-yellow-500';
 
   return (
-    <div className="fixed bottom-20 sm:bottom-4 right-4 z-50">
+    <div className={cn(
+      'fixed bottom-20 sm:bottom-4 z-[55] transition-all duration-300',
+      isHistoryOpen ? 'right-4 sm:right-[22rem]' : 'right-4'
+    )}>
       <button
         onClick={onClick}
         onMouseEnter={() => setShowTooltip(true)}

@@ -16,6 +16,7 @@ import QuickReplyToast from '@/components/chat/QuickReplyToast'
 function ChatPageWithDiscord(props: any) {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<IntegrationTab>('discord');
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   const handleOpenIntegration = (type: 'discord' | 'gmail') => {
     setActiveTab(type);
@@ -31,10 +32,11 @@ function ChatPageWithDiscord(props: any) {
               <DriveProvider autoConnect={true}>
                 <JiraProvider autoConnect={true}>
                   <div className="relative">
-                    <ChatInterface {...props} />
+                    <ChatInterface {...props} onShowHistoryChange={setIsHistoryOpen} />
                     <IntegrationDockButton
                       onClick={() => setIsPanelOpen(prev => !prev)}
                       isPanelOpen={isPanelOpen}
+                      isHistoryOpen={isHistoryOpen}
                     />
                     <UnifiedIntegrationPanel
                       isOpen={isPanelOpen}

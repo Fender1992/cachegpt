@@ -46,7 +46,7 @@ interface ChatMessage {
 // Maximum messages to keep in memory (prevents memory leaks in long sessions)
 const MAX_MESSAGES_IN_MEMORY = 50
 
-function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
+function ChatPageContent({ params, onShowHistoryChange }: { params?: Promise<{ id: string }>, onShowHistoryChange?: (show: boolean) => void }) {
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -123,6 +123,10 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
       year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
     })
   }
+
+  useEffect(() => {
+    onShowHistoryChange?.(showHistory)
+  }, [showHistory, onShowHistoryChange])
 
   useEffect(() => {
     loadUserProfile()
@@ -1410,14 +1414,14 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
   )
 }
 
-export default function ChatPage({ params }: { params?: Promise<{ id: string }> }) {
+export default function ChatPage({ params, onShowHistoryChange }: { params?: Promise<{ id: string }>, onShowHistoryChange?: (show: boolean) => void }) {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center">
         <div className="w-16 h-16 border-4 border-purple-200 rounded-full animate-spin border-t-purple-600"></div>
       </div>
     }>
-      <ChatPageContent params={params} />
+      <ChatPageContent params={params} onShowHistoryChange={onShowHistoryChange} />
     </Suspense>
   )
 }
