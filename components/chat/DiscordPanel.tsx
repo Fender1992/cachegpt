@@ -160,7 +160,7 @@ export default function DiscordPanel({ className }: DiscordPanelProps) {
         onClick={discord.closePanel}
       />
       <div className={cn(
-        'fixed top-0 right-0 h-[calc(100%-4rem)] w-96 max-w-[85vw] bg-white dark:bg-gray-900 border-l border-b border-gray-200 dark:border-gray-700 shadow-2xl z-50 flex flex-col rounded-bl-xl',
+        'fixed top-[85px] right-0 h-[calc(100%-85px-4rem)] w-96 max-w-[85vw] bg-white dark:bg-gray-900 border-l border-b border-gray-200 dark:border-gray-700 shadow-2xl z-50 flex flex-col rounded-bl-xl',
         'transform transition-transform duration-300 ease-in-out',
         className
       )}>

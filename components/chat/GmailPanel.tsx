@@ -151,7 +151,7 @@ export default function GmailPanel({ className }: GmailPanelProps) {
         onClick={gmail.closePanel}
       />
       <div className={cn(
-        'fixed top-0 left-0 h-[calc(100%-4rem)] w-96 max-w-[85vw] bg-white dark:bg-gray-900 border-r border-b border-gray-200 dark:border-gray-700 shadow-2xl z-50 flex flex-col rounded-br-xl',
+        'fixed top-[85px] left-0 h-[calc(100%-85px-4rem)] w-96 max-w-[85vw] bg-white dark:bg-gray-900 border-r border-b border-gray-200 dark:border-gray-700 shadow-2xl z-50 flex flex-col rounded-br-xl',
         'transform transition-transform duration-300 ease-in-out',
         className
       )}>

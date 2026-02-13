@@ -41,12 +41,13 @@ function getSupabaseAdmin() {
 }
 
 interface QueryAnalysis {
-  intent: 'list_repos' | 'search_code' | 'find_files' | 'general';
+  intent: 'list_repos' | 'list_commits' | 'search_code' | 'find_files' | 'general';
   searchTerms: string[];
   isHighValue: boolean;
   specificRepo?: string;
   language?: string;
   fileType?: string;
+  commitCount?: number;
 }
 
 interface GitHubRepo {
@@ -91,8 +92,16 @@ function analyzeQuery(query: string): QueryAnalysis {
   // Determine intent
   let intent: QueryAnalysis['intent'] = 'general';
   
+  // Check for commit/activity listing intent
+  const commitMatch = query.match(/(?:last|recent|latest|my)\s+(\d+)?\s*(?:commits?|pushes?|changes?|contributions?)/i)
+    || query.match(/(?:commits?|pushes?|changes?)\s+(?:to|on|in)\s+(?:github|my\s+repos?)/i)
+    || query.match(/what\s+(?:did|have)\s+I\s+(?:commit|push|change|work on)/i)
+    || query.match(/(?:show|list|get)\s+(?:my\s+)?(?:recent\s+)?commits?/i);
+
   // Check for repository listing intent
-  if (/what.*repos.*(?:can|do).*(?:see|have|access)|list.*(?:all.*)?repos|show.*repositories|my.*repos/i.test(query)) {
+  if (commitMatch) {
+    intent = 'list_commits';
+  } else if (/what.*repos.*(?:can|do).*(?:see|have|access)|list.*(?:all.*)?repos|show.*repositories|my.*repos/i.test(query)) {
     intent = 'list_repos';
   }
   // Check for code search intent
@@ -127,6 +136,13 @@ function analyzeQuery(query: string): QueryAnalysis {
   const fileTypeMatch = query.match(fileTypePattern);
   const fileType = fileTypeMatch ? fileTypeMatch[1].toLowerCase() : undefined;
   
+  // Extract commit count if specified
+  let commitCount: number | undefined;
+  if (intent === 'list_commits') {
+    const countMatch = query.match(/(\d+)\s*(?:commits?|pushes?|changes?)/i);
+    commitCount = countMatch ? Math.min(parseInt(countMatch[1], 10), 50) : 10;
+  }
+
   return {
     intent,
     searchTerms,
@@ -134,6 +150,7 @@ function analyzeQuery(query: string): QueryAnalysis {
     specificRepo,
     language,
     fileType,
+    commitCount,
   };
 }
 
@@ -413,7 +430,110 @@ function formatRepositoryList(repos: GitHubRepo[]): string {
   }
   
   lines.push(`\n**Total: ${repos.length} repositories**`);
-  
+
+  return lines.join('\n');
+}
+
+interface GitHubCommit {
+  sha: string;
+  commit: {
+    message: string;
+    author: {
+      name: string;
+      date: string;
+    };
+  };
+  html_url: string;
+}
+
+/**
+ * Fetch recent commits across user's repositories
+ */
+async function fetchRecentCommits(
+  token: string,
+  count: number,
+  specificRepo?: string
+): Promise<{ commits: Array<GitHubCommit & { repo: string }>; } | null> {
+  try {
+    let repos: GitHubRepo[];
+
+    if (specificRepo) {
+      // Search for the specific repo
+      const res = await githubFetch(
+        `${GITHUB_API}/user/repos?sort=pushed&per_page=30&type=owner`,
+        token
+      );
+      if (!res.ok) return null;
+      const allRepos: GitHubRepo[] = await res.json();
+      const match = allRepos.find(r =>
+        r.name.toLowerCase().includes(specificRepo.toLowerCase()) ||
+        r.full_name.toLowerCase().includes(specificRepo.toLowerCase())
+      );
+      repos = match ? [match] : allRepos.slice(0, 5);
+    } else {
+      // Get recently pushed repos
+      const res = await githubFetch(
+        `${GITHUB_API}/user/repos?sort=pushed&per_page=5&type=owner`,
+        token
+      );
+      if (!res.ok) return null;
+      repos = await res.json();
+    }
+
+    // Fetch commits from each repo in parallel
+    const perRepo = specificRepo ? count : Math.ceil(count / repos.length) + 2;
+    const allCommits: Array<GitHubCommit & { repo: string }> = [];
+
+    await Promise.all(
+      repos.map(async (repo) => {
+        try {
+          const res = await githubFetch(
+            `${GITHUB_API}/repos/${repo.full_name}/commits?per_page=${perRepo}`,
+            token
+          );
+          if (!res.ok) return;
+          const commits: GitHubCommit[] = await res.json();
+          commits.forEach(c => allCommits.push({ ...c, repo: repo.full_name }));
+        } catch {
+          // Skip this repo
+        }
+      })
+    );
+
+    // Sort by date descending and take the requested count
+    allCommits.sort((a, b) =>
+      new Date(b.commit.author.date).getTime() - new Date(a.commit.author.date).getTime()
+    );
+
+    return { commits: allCommits.slice(0, count) };
+  } catch (error) {
+    console.error('[GitHubContext] Error fetching commits:', error);
+    return null;
+  }
+}
+
+/**
+ * Format commits as context for the AI
+ */
+function formatCommitList(commits: Array<GitHubCommit & { repo: string }>): string {
+  const lines = ['## Your Recent GitHub Commits\n'];
+
+  commits.forEach((commit, i) => {
+    const date = new Date(commit.commit.author.date);
+    const dateStr = date.toLocaleDateString('en-US', {
+      weekday: 'short', year: 'numeric', month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+    const shortSha = commit.sha.slice(0, 7);
+    const message = commit.commit.message.split('\n')[0]; // First line only
+    const repoName = commit.repo.split('/')[1] || commit.repo;
+
+    lines.push(`${i + 1}. **${repoName}** \`${shortSha}\` — ${message}`);
+    lines.push(`   ${dateStr} by ${commit.commit.author.name}`);
+    lines.push('');
+  });
+
+  lines.push(`**Total: ${commits.length} commits shown**`);
   return lines.join('\n');
 }
 
@@ -450,7 +570,20 @@ export async function retrieveEnhancedContext(
     }
     return 'No repositories found or unable to fetch repository list.';
   }
-  
+
+  // Handle commit listing intent
+  if (analysis.intent === 'list_commits') {
+    const result = await fetchRecentCommits(
+      token,
+      analysis.commitCount || 10,
+      analysis.specificRepo
+    );
+    if (result && result.commits.length > 0) {
+      return formatCommitList(result.commits);
+    }
+    return 'No recent commits found or unable to fetch commit history.';
+  }
+
   // For code search or high-value queries, try GitHub Code Search first
   if ((analysis.intent === 'search_code' || analysis.isHighValue) && analysis.searchTerms.length > 0) {
     const codeResults = await searchCodeContent(token, queryText, analysis);

@@ -70,6 +70,9 @@ export default function DiscordNotificationBadge({
   const hasUnread = discord.hasUnreadMessages;
   const unreadDisplay = discord.formatUnreadCount(discord.unreadCount);
 
+  // Don't show badge if service is not connected
+  if (!discord.isConnected && !discord.isConnecting) return null;
+
   return (
     <div 
       className={cn(

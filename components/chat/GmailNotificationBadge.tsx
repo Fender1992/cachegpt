@@ -68,6 +68,9 @@ export default function GmailNotificationBadge({
   const hasUnread = gmail.hasUnread;
   const unreadDisplay = gmail.formatUnreadCount(gmail.unreadCount);
 
+  // Don't show badge if service is not connected
+  if (!gmail.isConnected && !gmail.isConnecting) return null;
+
   return (
     <div
       className={cn(
