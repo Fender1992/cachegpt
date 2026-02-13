@@ -15,6 +15,19 @@ interface CalendarContextValue extends CalendarState {
   clearSelectedEvent: () => void;
   loadEvents: (timeMin?: string, timeMax?: string, calendarId?: string) => Promise<void>;
 
+  // CRUD methods
+  createEvent: (event: {
+    summary: string;
+    description?: string;
+    location?: string;
+    start: { dateTime?: string; date?: string; timeZone?: string };
+    end: { dateTime?: string; date?: string; timeZone?: string };
+    attendees?: string[];
+  }) => Promise<{ id: string; htmlLink: string } | null>;
+  updateEvent: (eventId: string, updates: Record<string, any>) => Promise<boolean>;
+  deleteEvent: (eventId: string) => Promise<boolean>;
+  refreshEvents: () => Promise<void>;
+
   // UI state
   isPanelOpen: boolean;
   openPanel: () => void;
@@ -67,6 +80,22 @@ export function CalendarProvider({ children, autoConnect = false }: CalendarProv
     return calendarClient.loadEvents(timeMin, timeMax, calendarId);
   };
 
+  const createEvent: CalendarContextValue['createEvent'] = async (event) => {
+    return calendarClient.createEvent(event);
+  };
+
+  const updateEvent: CalendarContextValue['updateEvent'] = async (eventId, updates) => {
+    return calendarClient.updateEvent(eventId, updates);
+  };
+
+  const deleteEvent: CalendarContextValue['deleteEvent'] = async (eventId) => {
+    return calendarClient.deleteEvent(eventId);
+  };
+
+  const refreshEvents = async (): Promise<void> => {
+    return calendarClient.connect(); // Re-fetches today's events
+  };
+
   const closePanel = useCallback((): void => {
     setIsPanelOpen(false);
   }, []);
@@ -89,6 +118,10 @@ export function CalendarProvider({ children, autoConnect = false }: CalendarProv
     selectEvent,
     clearSelectedEvent,
     loadEvents,
+    createEvent,
+    updateEvent,
+    deleteEvent,
+    refreshEvents,
     isPanelOpen,
     openPanel,
     closePanel,

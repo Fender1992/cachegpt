@@ -253,6 +253,93 @@ export class CalendarClient {
   clearSelectedEvent(): void {
     this.updateState({ selectedEvent: null });
   }
+
+  async createEvent(event: {
+    summary: string;
+    description?: string;
+    location?: string;
+    start: { dateTime?: string; date?: string; timeZone?: string };
+    end: { dateTime?: string; date?: string; timeZone?: string };
+    attendees?: string[];
+    calendarId?: string;
+  }): Promise<{ id: string; htmlLink: string } | null> {
+    if (!this.connected) return null;
+
+    try {
+      const headers = await this.getAuthHeader();
+      const res = await fetch('/api/integrations/google-calendar/events', {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify(event),
+      });
+
+      if (!res.ok) return null;
+
+      const created = await res.json();
+      // Clear event cache so next load picks up the new event
+      this.eventCache.clear();
+      return created;
+    } catch (error) {
+      console.error('[Calendar Client] Error creating event:', error);
+      return null;
+    }
+  }
+
+  async updateEvent(eventId: string, updates: {
+    summary?: string;
+    description?: string;
+    location?: string;
+    start?: { dateTime?: string; date?: string; timeZone?: string };
+    end?: { dateTime?: string; date?: string; timeZone?: string };
+    calendarId?: string;
+  }): Promise<boolean> {
+    if (!this.connected) return false;
+
+    try {
+      const headers = await this.getAuthHeader();
+      const res = await fetch('/api/integrations/google-calendar/events', {
+        method: 'PATCH',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId, ...updates }),
+      });
+
+      if (!res.ok) return false;
+
+      this.eventCache.clear();
+      return true;
+    } catch (error) {
+      console.error('[Calendar Client] Error updating event:', error);
+      return false;
+    }
+  }
+
+  async deleteEvent(eventId: string, calendarId?: string): Promise<boolean> {
+    if (!this.connected) return false;
+
+    try {
+      const headers = await this.getAuthHeader();
+      const params = new URLSearchParams({ eventId });
+      if (calendarId) params.set('calendarId', calendarId);
+
+      const res = await fetch(
+        `/api/integrations/google-calendar/events?${params}`,
+        { method: 'DELETE', headers }
+      );
+
+      if (!res.ok) return false;
+
+      this.eventCache.clear();
+      // Remove from current state
+      this.updateState({
+        events: this.state.events.filter(e => e.id !== eventId),
+        selectedEvent: this.state.selectedEvent?.id === eventId ? null : this.state.selectedEvent,
+      });
+      return true;
+    } catch (error) {
+      console.error('[Calendar Client] Error deleting event:', error);
+      return false;
+    }
+  }
 }
 
 // Global client instance

@@ -73,7 +73,7 @@ export default function CalendarIntegrationCard({ userId }: CalendarIntegrationC
   const handleConnect = () => {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     const redirectUri = `${window.location.origin}/api/integrations/google-calendar/callback`;
-    const scope = 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/userinfo.email';
+    const scope = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.email';
 
     // Store user ID in cookie for callback
     document.cookie = `calendar_oauth_uid=${userId}; path=/; max-age=600; SameSite=Lax; Secure`;
@@ -225,7 +225,7 @@ export default function CalendarIntegrationCard({ userId }: CalendarIntegrationC
               When you ask about your schedule, we fetch events on demand to provide relevant context.
             </p>
             <p>
-              Read-only access. No events are modified or stored on our servers.
+              You can create, update, and delete events from the chat or the Calendar panel.
             </p>
           </div>
         </div>

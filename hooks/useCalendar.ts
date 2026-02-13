@@ -102,6 +102,12 @@ export function useCalendar(options: UseCalendarOptions = {}) {
     clearSelectedEvent: calendar.clearSelectedEvent,
     loadEvents: calendar.loadEvents,
 
+    // CRUD methods
+    createEvent: calendar.createEvent,
+    updateEvent: calendar.updateEvent,
+    deleteEvent: calendar.deleteEvent,
+    refreshEvents: calendar.refreshEvents,
+
     // UI methods
     openPanel: calendar.openPanel,
     closePanel: calendar.closePanel,

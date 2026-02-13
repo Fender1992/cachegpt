@@ -9,6 +9,9 @@ import {
   Clock,
   MapPin,
   Users,
+  Plus,
+  Trash2,
+  Send,
 } from 'lucide-react';
 import { useCalendar } from '@/hooks/useCalendar';
 import { CalendarEvent } from '@/lib/google-calendar/calendar-client';
@@ -18,11 +21,22 @@ interface CalendarPanelContentProps {
   isActive: boolean;
 }
 
-type PanelView = 'events' | 'event_detail';
+type PanelView = 'events' | 'event_detail' | 'create';
 
 export default function CalendarPanelContent({ isActive }: CalendarPanelContentProps) {
   const calendar = useCalendar();
   const [view, setView] = useState<PanelView>('events');
+  const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [newEvent, setNewEvent] = useState({
+    summary: '',
+    description: '',
+    location: '',
+    date: '',
+    startTime: '',
+    endTime: '',
+    allDay: false,
+  });
 
   const handleEventSelect = useCallback((event: CalendarEvent) => {
     calendar.selectEvent(event);
@@ -33,8 +47,55 @@ export default function CalendarPanelContent({ isActive }: CalendarPanelContentP
     if (view === 'event_detail') {
       calendar.clearSelectedEvent();
       setView('events');
+    } else if (view === 'create') {
+      setView('events');
+      setNewEvent({ summary: '', description: '', location: '', date: '', startTime: '', endTime: '', allDay: false });
     }
   }, [view, calendar.clearSelectedEvent]);
+
+  const handleCreate = useCallback(async () => {
+    if (!newEvent.summary || !newEvent.date || creating) return;
+
+    setCreating(true);
+    try {
+      const start = newEvent.allDay
+        ? { date: newEvent.date }
+        : { dateTime: new Date(`${newEvent.date}T${newEvent.startTime || '09:00'}`).toISOString() };
+      const end = newEvent.allDay
+        ? { date: newEvent.date }
+        : { dateTime: new Date(`${newEvent.date}T${newEvent.endTime || '10:00'}`).toISOString() };
+
+      const result = await calendar.createEvent({
+        summary: newEvent.summary,
+        description: newEvent.description || undefined,
+        location: newEvent.location || undefined,
+        start,
+        end,
+      });
+
+      if (result) {
+        setNewEvent({ summary: '', description: '', location: '', date: '', startTime: '', endTime: '', allDay: false });
+        setView('events');
+        // Reload events
+        calendar.refreshEvents();
+      }
+    } finally {
+      setCreating(false);
+    }
+  }, [newEvent, creating, calendar.createEvent, calendar.refreshEvents]);
+
+  const handleDelete = useCallback(async (eventId: string) => {
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      const success = await calendar.deleteEvent(eventId);
+      if (success) {
+        setView('events');
+      }
+    } finally {
+      setDeleting(false);
+    }
+  }, [deleting, calendar.deleteEvent]);
 
   const formatEventTime = (event: CalendarEvent): string => {
     if (event.isAllDay) return 'All day';
@@ -116,8 +177,8 @@ export default function CalendarPanelContent({ isActive }: CalendarPanelContentP
         </div>
       )}
 
-      {/* Navigation header for detail view */}
-      {calendar.isConnected && view === 'event_detail' && (
+      {/* Navigation header for sub-views */}
+      {calendar.isConnected && (view === 'event_detail' || view === 'create') && (
         <div className="flex-shrink-0 flex items-center gap-2 px-3 py-2 border-b border-gray-200 dark:border-gray-700">
           <button
             onClick={handleBack}
@@ -126,8 +187,21 @@ export default function CalendarPanelContent({ isActive }: CalendarPanelContentP
             <ChevronLeft className="w-5 h-5" />
           </button>
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Event Details
+            {view === 'create' ? 'New Event' : 'Event Details'}
           </span>
+        </div>
+      )}
+
+      {/* Create button on events view */}
+      {calendar.isConnected && view === 'events' && (
+        <div className="flex-shrink-0 flex items-center justify-end px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+          <button
+            onClick={() => setView('create')}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            New Event
+          </button>
         </div>
       )}
 
@@ -189,6 +263,98 @@ export default function CalendarPanelContent({ isActive }: CalendarPanelContentP
                   <p className="text-sm">No upcoming events</p>
                 </div>
               )}
+            </div>
+          )}
+
+          {view === 'create' && (
+            <div className="p-4 space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Title</label>
+                <input
+                  type="text"
+                  value={newEvent.summary}
+                  onChange={(e) => setNewEvent({ ...newEvent, summary: e.target.value })}
+                  placeholder="Meeting with team"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Date</label>
+                <input
+                  type="date"
+                  value={newEvent.date}
+                  onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="allDay"
+                  checked={newEvent.allDay}
+                  onChange={(e) => setNewEvent({ ...newEvent, allDay: e.target.checked })}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="allDay" className="text-sm text-gray-600 dark:text-gray-400">All day</label>
+              </div>
+              {!newEvent.allDay && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Start</label>
+                    <input
+                      type="time"
+                      value={newEvent.startTime}
+                      onChange={(e) => setNewEvent({ ...newEvent, startTime: e.target.value })}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">End</label>
+                    <input
+                      type="time"
+                      value={newEvent.endTime}
+                      onChange={(e) => setNewEvent({ ...newEvent, endTime: e.target.value })}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              )}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Location</label>
+                <input
+                  type="text"
+                  value={newEvent.location}
+                  onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
+                  placeholder="Optional"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Description</label>
+                <textarea
+                  value={newEvent.description}
+                  onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
+                  placeholder="Optional"
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={handleCreate}
+                  disabled={!newEvent.summary || !newEvent.date || creating}
+                  className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                >
+                  {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  {creating ? 'Creating...' : 'Create Event'}
+                </button>
+                <button
+                  onClick={handleBack}
+                  className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           )}
 
@@ -262,8 +428,8 @@ export default function CalendarPanelContent({ isActive }: CalendarPanelContentP
                 </div>
               )}
 
-              {calendar.selectedEvent.htmlLink && (
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex gap-2">
+                {calendar.selectedEvent.htmlLink && (
                   <a
                     href={calendar.selectedEvent.htmlLink}
                     target="_blank"
@@ -271,10 +437,18 @@ export default function CalendarPanelContent({ isActive }: CalendarPanelContentP
                     className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
                   >
                     <Calendar className="w-4 h-4" />
-                    Open in Google Calendar
+                    Open in Calendar
                   </a>
-                </div>
-              )}
+                )}
+                <button
+                  onClick={() => handleDelete(calendar.selectedEvent!.id)}
+                  disabled={deleting}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm border border-red-300 text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  Delete
+                </button>
+              </div>
             </div>
           )}
         </div>
