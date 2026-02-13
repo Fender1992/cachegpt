@@ -124,7 +124,7 @@ export default function UnifiedIntegrationPanel({
       />
 
       {/* Panel */}
-      <div className="fixed top-[85px] right-0 h-[calc(100%-85px-4rem)] w-[28rem] max-w-[85vw] bg-white dark:bg-gray-900 border-l border-b border-gray-200 dark:border-gray-700 shadow-2xl z-50 flex flex-col rounded-bl-xl transform transition-transform duration-300 ease-in-out">
+      <div className="fixed inset-0 sm:inset-auto sm:top-[85px] sm:right-0 sm:h-[calc(100%-85px-4rem)] sm:w-[28rem] sm:max-w-[85vw] bg-white dark:bg-gray-900 sm:border-l sm:border-b border-gray-200 dark:border-gray-700 shadow-2xl z-50 flex flex-col sm:rounded-bl-xl transform transition-transform duration-300 ease-in-out" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {/* Header */}
         <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -188,7 +188,7 @@ export default function UnifiedIntegrationPanel({
                         getStatusDot(state.isConnected, state.isConnecting, state.error)
                       )} />
                     </div>
-                    <span className="hidden sm:inline">{config.label}</span>
+                    <span>{config.label}</span>
                     {/* Unread/event count badge */}
                     {state.count > 0 && (
                       <span className={cn(

@@ -46,7 +46,7 @@ export default function IntegrationDockButton({ onClick, isPanelOpen }: Integrat
   else if (hasConnecting && connectedCount === 0) statusDotClass = 'bg-yellow-500';
 
   return (
-    <div className="fixed bottom-4 right-4 z-50">
+    <div className="fixed bottom-20 sm:bottom-4 right-4 z-50">
       <button
         onClick={onClick}
         onMouseEnter={() => setShowTooltip(true)}

@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
-import { Send, Bot, Brain, Sparkles, Zap, Settings, LogOut, LogIn, History, RefreshCw, Loader2, Home, Trash2, ThumbsUp, ThumbsDown, AlertTriangle, Rocket, Gauge } from 'lucide-react'
+import { Send, Bot, Brain, Sparkles, Zap, Settings, LogOut, LogIn, History, RefreshCw, Loader2, Home, Trash2, ThumbsUp, ThumbsDown, AlertTriangle, Rocket, Gauge, Plus } from 'lucide-react'
 import BugReportButton from '@/components/bug-report-button'
 import ProviderSelector from '@/components/provider-selector'
 import Toast from '@/components/toast'
@@ -12,7 +12,6 @@ import CacheToast from '@/components/chat/CacheToast'
 import ShareButton from '@/components/chat/ShareButton'
 import ConversationReferenceButton from '@/components/chat/ConversationReferenceButton'
 import MarkdownMessage from '@/components/chat/MarkdownMessage'
-import MobileChatModal from '@/components/chat/MobileChatModal'
 import FileUpload, { UploadedFile } from '@/components/chat/FileUpload'
 import { error as logError } from '@/lib/logger'
 import { isFeatureEnabled } from '@/lib/featureFlags'
@@ -73,7 +72,6 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
   const [currentMode, setCurrentMode] = useState<any>(null)
   const [shareEnabled, setShareEnabled] = useState(false)
   const [referencedConversationIds, setReferencedConversationIds] = useState<string[]>([])
-  const [mobileModalOpen, setMobileModalOpen] = useState(false)
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -154,21 +152,6 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
       visualViewport.removeEventListener('scroll', handleViewportResize)
     }
   }, [])
-
-  // Restore mobile modal state from sessionStorage on mount (prevents losing modal on navigation)
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const saved = sessionStorage.getItem('mobileModalOpen')
-    if (saved === 'true') {
-      setMobileModalOpen(true)
-    }
-  }, [])
-
-  // Persist mobile modal state to sessionStorage (survives navigation)
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    sessionStorage.setItem('mobileModalOpen', mobileModalOpen.toString())
-  }, [mobileModalOpen])
 
   // Auto-load conversation messages and files when conversation ID from URL is available
   useEffect(() => {
@@ -946,11 +929,12 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
             </button>
             <button
               onClick={startNewConversation}
-              className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors hidden sm:block"
+              className="p-2 sm:px-3 sm:py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-1"
               title="New Chat"
               aria-label="Start new chat"
             >
-              New Chat
+              <Plus className="w-4 h-4 sm:hidden" />
+              <span className="hidden sm:inline">New Chat</span>
             </button>
             <button
               onClick={async () => {
@@ -1029,7 +1013,7 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
 
       {/* Chat History Sidebar */}
       {showHistory && (
-        <div className="fixed top-[85px] right-0 w-80 max-w-[90vw] bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 z-20 overflow-y-auto shadow-xl" style={{ height: 'calc(100dvh - 85px - 80px)' }}>
+        <div className="fixed top-[85px] right-0 w-full sm:w-80 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 z-20 overflow-y-auto shadow-xl" style={{ height: 'calc(100dvh - 85px)' }}>
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Chat History</h2>
@@ -1088,7 +1072,7 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
                   </button>
                   <button
                     onClick={(e) => deleteConversation(conv.conversation_id, e)}
-                    className="absolute top-3 right-3 p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute top-3 right-3 p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                     title="Delete conversation"
                     aria-label="Delete conversation"
                   >
@@ -1101,31 +1085,9 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
         </div>
       )}
 
-      {/* Mobile Landing - Shows on mobile when modal is closed */}
-      <div className="md:hidden flex-1 flex flex-col items-center justify-center p-6 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-slate-900 dark:to-gray-900">
-        <div className="text-center max-w-sm">
-          <div className="w-20 h-20 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-            <Bot className="w-10 h-10 text-white" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
-            Ready to Chat
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
-            Tap the button below to start a conversation with AI
-          </p>
-          <button
-            onClick={() => setMobileModalOpen(true)}
-            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg transition-all flex items-center gap-2 mx-auto"
-          >
-            <Send className="w-5 h-5" />
-            Start Chatting
-          </button>
-        </div>
-      </div>
-
-      {/* Messages - Hidden on mobile, modal is used instead */}
+      {/* Messages */}
       <div
-        className={`hidden md:flex flex-1 flex-col overflow-y-auto p-4 pb-safe transition-all duration-300 bg-gray-50 dark:bg-gray-900/50 ${showHistory ? 'sm:mr-80 mr-0' : ''}`}
+        className={`flex flex-1 flex-col overflow-y-auto p-4 pb-safe transition-all duration-300 bg-gray-50 dark:bg-gray-900/50 ${showHistory ? 'sm:mr-80 mr-0' : ''}`}
         role="log"
         aria-live="polite"
         aria-label="Chat messages"
@@ -1288,8 +1250,8 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input - Hidden on mobile, modal is used instead */}
-      <div className="hidden md:block flex-shrink-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm sticky bottom-0 z-10"
+      {/* Input */}
+      <div className="flex-shrink-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm sticky bottom-0 z-10"
            style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
         <div className="max-w-4xl mx-auto">
           {/* Referenced conversations indicator */}
@@ -1407,135 +1369,6 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
         />
       )}
 
-      {/* Mobile Chat Modal - The primary chat interface on mobile */}
-      <MobileChatModal
-        isOpen={mobileModalOpen}
-        onClose={() => setMobileModalOpen(false)}
-      >
-        {/* Messages */}
-        <div
-          className="flex-1 overflow-y-auto p-4 pb-safe"
-          role="log"
-          aria-live="polite"
-          aria-label="Chat messages"
-        >
-          <div className="space-y-5">
-            {/* Example Prompts - Show when no messages */}
-            {messages.length === 0 && !isLoading && (
-              <ExamplePrompts
-                onPromptClick={handleExamplePromptClick}
-                layout="grid"
-                mode={currentMode}
-              />
-            )}
-
-            {messages.map((msg, idx) => (
-              <div
-                key={idx}
-                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div className={`max-w-[85%] rounded-lg shadow-sm overflow-hidden ${
-                  msg.role === 'user'
-                    ? 'bg-blue-600 text-white ml-auto px-5 py-3.5'
-                    : msg.error
-                      ? 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800 px-5 py-3.5'
-                      : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 px-6 py-4'
-                }`}>
-                  {msg.role === 'user' ? (
-                    <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{msg.content}</p>
-                  ) : (
-                    <MarkdownMessage content={msg.content} />
-                  )}
-                </div>
-              </div>
-            ))}
-
-            {/* Streaming message */}
-            {isStreaming && streamingMessage && (
-              <div className="flex justify-start">
-                <div className="max-w-[85%] rounded-lg shadow-sm overflow-hidden bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 px-6 py-4">
-                  <MarkdownMessage content={streamingMessage} isStreaming={true} />
-                </div>
-              </div>
-            )}
-
-            {/* Loading indicator */}
-            {isLoading && !isStreaming && (
-              <div className="flex justify-start">
-                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse delay-100"></div>
-                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse delay-200"></div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Input */}
-        <div
-          className="flex-shrink-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-3"
-          style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
-        >
-          {/* Uploaded files preview for mobile */}
-          {uploadedFiles.length > 0 && (
-            <div className="mb-2 flex flex-wrap gap-1">
-              {uploadedFiles.map((file) => (
-                <div
-                  key={file.id}
-                  className="flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs text-gray-700 dark:text-gray-300"
-                >
-                  <span className="truncate max-w-[100px]">{file.name}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="flex gap-2">
-            <FileUpload
-              onFilesChange={setUploadedFiles}
-              maxFiles={5}
-              disabled={isLoading}
-            />
-            <ConversationReferenceButton
-              conversations={conversations.filter(c => c.id !== activeConversationId)}
-              onReferenceSelect={handleConversationReference}
-              disabled={isLoading}
-            />
-            <textarea
-              ref={inputRef}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  handleSendMessage()
-                }
-              }}
-              placeholder="Type your message..."
-              className="flex-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-3 text-base text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none min-h-[44px] max-h-[120px] overflow-y-auto"
-              disabled={isLoading}
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="sentences"
-              aria-label="Type your message"
-              role="textbox"
-              rows={1}
-              style={{ fontSize: '16px' }}
-            />
-            <button
-              onClick={handleSendMessage}
-              disabled={!message.trim() || isLoading}
-              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              aria-label="Send message"
-            >
-              <Send className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-      </MobileChatModal>
     </div>
   )
 }
