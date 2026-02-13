@@ -16,6 +16,7 @@ import {
 import { error as logError } from '@/lib/logger'
 import UsageDashboard from '@/components/dashboard/usage-dashboard'
 import Link from 'next/link'
+import CacheGPTLogo from '@/components/CacheGPTLogo'
 
 interface Stat {
   title: string
@@ -260,9 +261,8 @@ export default function Dashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
-                <Cpu className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-              </div>
+              <CacheGPTLogo size={40} className="hidden sm:block" animated={false} />
+              <CacheGPTLogo size={32} className="sm:hidden" animated={false} />
               <div>
                 <h1 className="text-lg sm:text-xl font-bold">CacheGPT Dashboard</h1>
                 <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 hidden sm:block">Welcome back, {user?.email}</p>

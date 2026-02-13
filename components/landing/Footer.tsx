@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import CacheGPTLogo from '@/components/CacheGPTLogo';
 
 const navigation = {
   product: [
@@ -123,7 +124,7 @@ export default function Footer() {
         <div className="border-t border-gray-800 pt-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg"></div>
+              <CacheGPTLogo size={32} animated={false} />
               <span className="text-xl font-bold text-white">CacheGPT</span>
             </div>
 

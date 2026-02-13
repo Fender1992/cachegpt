@@ -12,6 +12,7 @@ import {
   User, LogOut, Settings, CreditCard, Timer, DollarSign, TrendingUp, Bug, Activity
 } from 'lucide-react'
 import BugReportButton from '@/components/bug-report-button'
+import CacheGPTLogo from '@/components/CacheGPTLogo'
 
 export default function Home() {
   const { user, loading } = useAuth()
@@ -191,9 +192,8 @@ export default function Home() {
       <nav className="relative z-50 px-4 sm:px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className={`flex items-center space-x-1 sm:space-x-2 transition-all duration-500 ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-5'}`}>
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
-              <Cpu className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-            </div>
+            <CacheGPTLogo size={40} className="hidden sm:block" />
+            <CacheGPTLogo size={32} className="sm:hidden" />
             <span className="text-lg sm:text-xl font-bold">CacheGPT</span>
             <span className="hidden sm:inline text-xs text-gray-500 ml-2">v11.3.0</span>
           </div>
@@ -749,9 +749,7 @@ export default function Home() {
       <footer className="py-12 px-6 border-t border-gray-200 dark:border-gray-800">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between">
           <div className="flex items-center space-x-2 mb-4 md:mb-0">
-            <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
-              <Cpu className="w-5 h-5 text-white" />
-            </div>
+            <CacheGPTLogo size={32} animated={false} />
             <span className="font-semibold">CacheGPT</span>
             <span className="text-xs ml-1">v11.3.0</span>
           </div>

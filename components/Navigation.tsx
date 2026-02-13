@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Menu, X, Home, MessageSquare, Zap, Settings, User, LogOut } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
+import CacheGPTLogo from '@/components/CacheGPTLogo';
 
 export default function Navigation() {
   const router = useRouter();
@@ -32,7 +33,7 @@ export default function Navigation() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg"></div>
+            <CacheGPTLogo size={32} animated={false} />
             <span className="text-xl font-bold text-gray-900 dark:text-white">CacheGPT</span>
           </Link>
 
