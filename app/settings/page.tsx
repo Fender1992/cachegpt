@@ -13,6 +13,7 @@ import CacheGPTApiKeys from '@/components/settings/cachegpt-api-keys'
 import SubscriptionInfo from '@/components/settings/subscription-info'
 import IntegrationCard from '@/components/settings/IntegrationCard'
 import DiscordIntegrationCard from '@/components/settings/DiscordIntegrationCard'
+import GmailIntegrationCard from '@/components/settings/GmailIntegrationCard'
 
 interface ApiKey {
   provider: string
@@ -398,6 +399,7 @@ export default function SettingsPage() {
             <div className="space-y-4">
               <IntegrationCard provider="github" userId={user.id} />
               <DiscordIntegrationCard userId={user.id} />
+              <GmailIntegrationCard userId={user.id} />
             </div>
           </div>
         )}

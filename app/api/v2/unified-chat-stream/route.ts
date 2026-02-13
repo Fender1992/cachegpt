@@ -339,6 +339,14 @@ export async function POST(request: NextRequest) {
           enrichedMessages.splice(enrichedMessages.length - 1, 0,
             { role: 'system', content: discordContext });
         }
+
+        // Gmail context
+        const { retrieveGmailContext } = await import('@/lib/integrations/gmail-context-retriever');
+        const gmailContext = await retrieveGmailContext(userId, userMessage);
+        if (gmailContext) {
+          enrichedMessages.splice(enrichedMessages.length - 1, 0,
+            { role: 'system', content: gmailContext });
+        }
       } catch (e) {
         // Non-blocking: skip integration context on error
       }
