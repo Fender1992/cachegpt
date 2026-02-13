@@ -41,13 +41,13 @@ export function DiscordProvider({ children, autoConnect = false }: DiscordProvid
     // Subscribe to state changes
     const unsubscribe = discordClient.subscribe(setState);
 
-    // Auto-connect if requested
-    if (autoConnect && !state.isConnected && !state.isConnecting) {
+    // Auto-connect if requested (stop retrying on error)
+    if (autoConnect && !state.isConnected && !state.isConnecting && !state.error) {
       discordClient.connect().catch(console.error);
     }
 
     return unsubscribe;
-  }, [autoConnect, state.isConnected, state.isConnecting]);
+  }, [autoConnect, state.isConnected, state.isConnecting, state.error]);
 
   // Connection methods
   const connect = async (): Promise<void> => {

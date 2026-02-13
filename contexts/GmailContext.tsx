@@ -38,12 +38,12 @@ export function GmailProvider({ children, autoConnect = false }: GmailProviderPr
   useEffect(() => {
     const unsubscribe = gmailClient.subscribe(setState);
 
-    if (autoConnect && !state.isConnected && !state.isConnecting) {
+    if (autoConnect && !state.isConnected && !state.isConnecting && !state.error) {
       gmailClient.connect().catch(console.error);
     }
 
     return unsubscribe;
-  }, [autoConnect, state.isConnected, state.isConnecting]);
+  }, [autoConnect, state.isConnected, state.isConnecting, state.error]);
 
   const connect = async (): Promise<void> => {
     return gmailClient.connect();
