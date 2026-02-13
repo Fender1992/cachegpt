@@ -29,7 +29,7 @@ import { resolveProvider, ProviderResolutionError } from '@/services/llm/provide
 import { createAdapter } from '@/services/llm/adapters';
 import { generateRequestId } from '@/config/llmConfig';
 
-const CACHE_VERSION = 'v4-weather';
+const CACHE_VERSION = 'v5-calendar-fix';
 
 // Lazy load ranking modules
 const getTierCache = async () => {
