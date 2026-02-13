@@ -322,65 +322,100 @@ export async function POST(request: NextRequest) {
     }
 
     // Integration context (GitHub repos, Discord messages, etc.)
+    // Each retriever is wrapped independently so one failure doesn't block others
+    let hasCalendarWriteAction = false;
     if (userId) {
+      // GitHub context
       try {
-        // GitHub context
         const { retrieveRelevantContext: retrieveGitHubContext } = await import('@/lib/integrations/enhanced-context-retriever');
         const githubContext = await retrieveGitHubContext(userId, userMessage);
         if (githubContext) {
           enrichedMessages.splice(enrichedMessages.length - 1, 0,
             { role: 'system', content: githubContext });
         }
-        
-        // Discord context
+      } catch (e) {
+        console.error('[Integration] GitHub context error:', e);
+      }
+
+      // Discord context
+      try {
         const { retrieveDiscordContext } = await import('@/lib/integrations/discord-context-retriever');
         const discordContext = await retrieveDiscordContext(userId, userMessage);
         if (discordContext) {
           enrichedMessages.splice(enrichedMessages.length - 1, 0,
             { role: 'system', content: discordContext });
         }
+      } catch (e) {
+        console.error('[Integration] Discord context error:', e);
+      }
 
-        // Gmail context
+      // Gmail context
+      try {
         const { retrieveGmailContext } = await import('@/lib/integrations/gmail-context-retriever');
         const gmailContext = await retrieveGmailContext(userId, userMessage);
         if (gmailContext) {
           enrichedMessages.splice(enrichedMessages.length - 1, 0,
             { role: 'system', content: gmailContext });
         }
+      } catch (e) {
+        console.error('[Integration] Gmail context error:', e);
+      }
 
-        // Google Calendar context
-        const { retrieveCalendarContext } = await import('@/lib/integrations/calendar-context-retriever');
-        const calendarContext = await retrieveCalendarContext(userId, userMessage);
+      // Google Calendar context
+      try {
+        const { retrieveCalendarContext, analyzeCalendarQuery } = await import('@/lib/integrations/calendar-context-retriever');
+        // Check if this is a calendar write action (create/delete) to bypass cache later
+        const calendarAnalysis = analyzeCalendarQuery(userMessage);
+        if (calendarAnalysis.intent === 'create_event' || calendarAnalysis.intent === 'delete_event') {
+          hasCalendarWriteAction = true;
+        }
+        const calendarContext = await retrieveCalendarContext(userId, userMessage, userTimezone.timezone);
         if (calendarContext) {
           enrichedMessages.splice(enrichedMessages.length - 1, 0,
             { role: 'system', content: calendarContext });
         }
+      } catch (e) {
+        console.error('[Integration] Calendar context error:', e);
+      }
 
-        // Slack context
+      // Slack context
+      try {
         const { retrieveSlackContext } = await import('@/lib/integrations/slack-context-retriever');
         const slackContext = await retrieveSlackContext(userId, userMessage);
         if (slackContext) {
           enrichedMessages.splice(enrichedMessages.length - 1, 0,
             { role: 'system', content: slackContext });
         }
+      } catch (e) {
+        console.error('[Integration] Slack context error:', e);
+      }
 
-        // Notion context
+      // Notion context
+      try {
         const { retrieveNotionContext } = await import('@/lib/integrations/notion-context-retriever');
         const notionContext = await retrieveNotionContext(userId, userMessage);
         if (notionContext) {
           enrichedMessages.splice(enrichedMessages.length - 1, 0,
             { role: 'system', content: notionContext });
         }
+      } catch (e) {
+        console.error('[Integration] Notion context error:', e);
+      }
 
-        // Google Drive context
+      // Google Drive context
+      try {
         const { retrieveDriveContext } = await import('@/lib/integrations/drive-context-retriever');
         const driveContext = await retrieveDriveContext(userId, userMessage);
         if (driveContext) {
           enrichedMessages.splice(enrichedMessages.length - 1, 0,
             { role: 'system', content: driveContext });
         }
+      } catch (e) {
+        console.error('[Integration] Drive context error:', e);
+      }
 
-        // Jira context
+      // Jira context
+      try {
         const { retrieveJiraContext } = await import('@/lib/integrations/jira-context-retriever');
         const jiraContext = await retrieveJiraContext(userId, userMessage);
         if (jiraContext) {
@@ -388,7 +423,7 @@ export async function POST(request: NextRequest) {
             { role: 'system', content: jiraContext });
         }
       } catch (e) {
-        // Non-blocking: skip integration context on error
+        console.error('[Integration] Jira context error:', e);
       }
     }
 
@@ -504,8 +539,9 @@ export async function POST(request: NextRequest) {
     });
 
     // === Cache Check ===
+    // Bypass cache for calendar write actions (create/delete) since they perform side effects
     let cached: any = null;
-    if (!freshnessAnalysis.bypassCache) {
+    if (!freshnessAnalysis.bypassCache && !hasCalendarWriteAction) {
       cached = await findCachedResponse(userMessage, versionedCacheModel, cacheProvider);
     }
 

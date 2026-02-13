@@ -327,11 +327,29 @@ export function formatCalendarContext(events: CalendarEventResult[], analysis: Q
  */
 async function createCalendarEvent(
   token: string,
-  parsedEvent: NonNullable<QueryAnalysis['parsedEvent']>
+  parsedEvent: NonNullable<QueryAnalysis['parsedEvent']>,
+  userTimezone?: string
 ): Promise<string> {
   const eventBody: Record<string, any> = {
     summary: parsedEvent.summary,
   };
+
+  // Resolve timezone: use user's timezone, or fetch from calendar settings
+  let timeZone = userTimezone;
+  if (!timeZone) {
+    try {
+      const calRes = await fetch(`${CALENDAR_API}/calendars/primary`, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(5000),
+      });
+      if (calRes.ok) {
+        const calData = await calRes.json();
+        timeZone = calData.timeZone;
+      }
+    } catch {
+      // Fall back to no explicit timezone (calendar default)
+    }
+  }
 
   if (parsedEvent.isAllDay) {
     eventBody.start = { date: parsedEvent.date };
@@ -340,8 +358,14 @@ async function createCalendarEvent(
     endDate.setDate(endDate.getDate() + 1);
     eventBody.end = { date: endDate.toISOString().split('T')[0] };
   } else {
-    eventBody.start = { dateTime: `${parsedEvent.date}T${parsedEvent.startTime}:00` };
-    eventBody.end = { dateTime: `${parsedEvent.date}T${parsedEvent.endTime}:00` };
+    const startObj: Record<string, string> = { dateTime: `${parsedEvent.date}T${parsedEvent.startTime}:00` };
+    const endObj: Record<string, string> = { dateTime: `${parsedEvent.date}T${parsedEvent.endTime}:00` };
+    if (timeZone) {
+      startObj.timeZone = timeZone;
+      endObj.timeZone = timeZone;
+    }
+    eventBody.start = startObj;
+    eventBody.end = endObj;
   }
 
   if (parsedEvent.location) {
@@ -444,7 +468,8 @@ async function deleteCalendarEvent(
  */
 export async function retrieveCalendarContext(
   userId: string,
-  queryText: string
+  queryText: string,
+  userTimezone?: string
 ): Promise<string | null> {
   const supabase = getSupabaseAdmin();
 
@@ -481,7 +506,7 @@ export async function retrieveCalendarContext(
 
     // Handle write intents (create/delete events)
     if (analysis.intent === 'create_event' && analysis.parsedEvent) {
-      return await createCalendarEvent(token, analysis.parsedEvent);
+      return await createCalendarEvent(token, analysis.parsedEvent, userTimezone);
     }
 
     if (analysis.intent === 'delete_event') {
