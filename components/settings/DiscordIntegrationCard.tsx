@@ -325,7 +325,7 @@ export default function DiscordIntegrationCard({ userId }: DiscordIntegrationCar
             
             <button
               onClick={handleDisconnect}
-              disabled={disconnecting || syncing}
+              disabled={disconnecting}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {disconnecting ? (
