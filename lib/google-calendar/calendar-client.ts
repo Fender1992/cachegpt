@@ -1,0 +1,259 @@
+/**
+ * Google Calendar Client Wrapper
+ * Routes all Calendar API calls through our backend proxy.
+ *
+ * Caching strategy:
+ * - Calendars: cached with 5min TTL
+ * - Events: cached per date range, refreshed on demand
+ */
+
+import { supabase } from '@/lib/supabase-client';
+
+export interface CalendarInfo {
+  id: string;
+  summary: string;
+  description: string;
+  primary: boolean;
+  backgroundColor: string;
+  foregroundColor: string;
+  accessRole: string;
+  selected: boolean;
+}
+
+export interface CalendarEvent {
+  id: string;
+  summary: string;
+  description: string;
+  location: string;
+  start: { dateTime?: string; date?: string; timeZone?: string };
+  end: { dateTime?: string; date?: string; timeZone?: string };
+  status: string;
+  htmlLink: string;
+  attendees: {
+    email: string;
+    displayName?: string;
+    responseStatus: string;
+    self?: boolean;
+  }[];
+  organizer: {
+    email: string;
+    displayName?: string;
+    self?: boolean;
+  } | null;
+  isAllDay: boolean;
+  recurringEventId?: string;
+}
+
+export interface CalendarState {
+  isConnected: boolean;
+  isConnecting: boolean;
+  email: string | null;
+  calendars: CalendarInfo[];
+  selectedCalendar: CalendarInfo | null;
+  events: CalendarEvent[];
+  selectedEvent: CalendarEvent | null;
+  todayEventCount: number;
+  error: string | null;
+}
+
+interface CacheEntry<T> {
+  data: T;
+  fetchedAt: number;
+}
+
+const CALENDAR_CACHE_TTL = 5 * 60_000; // 5 minutes
+
+export class CalendarClient {
+  private connected = false;
+  private listeners: Set<(state: CalendarState) => void> = new Set();
+  private state: CalendarState = {
+    isConnected: false,
+    isConnecting: false,
+    email: null,
+    calendars: [],
+    selectedCalendar: null,
+    events: [],
+    selectedEvent: null,
+    todayEventCount: 0,
+    error: null,
+  };
+
+  // Caches
+  private calendarCache: CacheEntry<CalendarInfo[]> | null = null;
+  private eventCache = new Map<string, CalendarEvent[]>(); // "calendarId:dateRange" -> events
+
+  subscribe(listener: (state: CalendarState) => void): () => void {
+    this.listeners.add(listener);
+    listener(this.state);
+    return () => { this.listeners.delete(listener); };
+  }
+
+  private updateState(partial: Partial<CalendarState>): void {
+    this.state = { ...this.state, ...partial };
+    this.listeners.forEach(listener => listener(this.state));
+  }
+
+  getState(): CalendarState {
+    return this.state;
+  }
+
+  private async getAuthHeader(): Promise<Record<string, string>> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return {};
+    return { Authorization: `Bearer ${session.access_token}` };
+  }
+
+  async connect(): Promise<void> {
+    if (this.state.isConnected || this.state.isConnecting) return;
+
+    try {
+      this.updateState({ isConnecting: true, error: null });
+
+      const headers = await this.getAuthHeader();
+      const statusRes = await fetch('/api/integrations/google-calendar', { headers });
+      if (!statusRes.ok) {
+        throw new Error('Failed to check Google Calendar status');
+      }
+      const status = await statusRes.json();
+
+      if (!status.connected) {
+        throw new Error('Google Calendar not connected. Please link your account in Settings.');
+      }
+
+      console.log('[Calendar Client] Connected as', status.email);
+
+      this.connected = true;
+
+      // Fetch calendars
+      const calendarsRes = await fetch('/api/integrations/google-calendar/calendars', { headers });
+      const calendars: CalendarInfo[] = calendarsRes.ok ? await calendarsRes.json() : [];
+
+      // Cache calendars
+      this.calendarCache = { data: calendars, fetchedAt: Date.now() };
+
+      // Fetch today's events to get count
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+      const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+
+      const eventsRes = await fetch(
+        `/api/integrations/google-calendar/events?timeMin=${encodeURIComponent(todayStart)}&timeMax=${encodeURIComponent(todayEnd)}`,
+        { headers }
+      );
+      const eventsData = eventsRes.ok ? await eventsRes.json() : { events: [] };
+      const todayEvents: CalendarEvent[] = eventsData.events || [];
+
+      this.updateState({
+        isConnected: true,
+        isConnecting: false,
+        email: status.email,
+        calendars,
+        todayEventCount: todayEvents.length,
+        events: todayEvents,
+        error: null,
+      });
+    } catch (error) {
+      console.error('[Calendar Client] Connection error:', error);
+      this.connected = false;
+      this.updateState({
+        isConnecting: false,
+        error: error instanceof Error ? error.message : 'Failed to connect to Google Calendar',
+      });
+    }
+  }
+
+  disconnect(): void {
+    this.connected = false;
+    this.calendarCache = null;
+    this.eventCache.clear();
+
+    this.updateState({
+      isConnected: false,
+      isConnecting: false,
+      email: null,
+      calendars: [],
+      selectedCalendar: null,
+      events: [],
+      selectedEvent: null,
+      todayEventCount: 0,
+    });
+  }
+
+  async selectCalendar(calendar: CalendarInfo): Promise<void> {
+    if (!this.connected) return;
+
+    try {
+      this.updateState({
+        selectedCalendar: calendar,
+        selectedEvent: null,
+        events: [],
+        error: null,
+      });
+
+      // Fetch next 7 days of events for selected calendar
+      const now = new Date();
+      const timeMin = now.toISOString();
+      const timeMax = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+      const cacheKey = `${calendar.id}:${timeMin.slice(0, 10)}`;
+      const cached = this.eventCache.get(cacheKey);
+      if (cached) {
+        this.updateState({ events: cached });
+      }
+
+      const headers = await this.getAuthHeader();
+      const res = await fetch(
+        `/api/integrations/google-calendar/events?calendarId=${encodeURIComponent(calendar.id)}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`,
+        { headers }
+      );
+
+      if (!res.ok) {
+        throw new Error(`Failed to load events: ${res.status}`);
+      }
+
+      const data = await res.json();
+      const events: CalendarEvent[] = data.events || [];
+
+      this.eventCache.set(cacheKey, events);
+      this.updateState({ events });
+    } catch (error) {
+      console.error('[Calendar Client] Error selecting calendar:', error);
+      this.updateState({ error: 'Failed to load events' });
+    }
+  }
+
+  async loadEvents(timeMin?: string, timeMax?: string, calendarId?: string): Promise<void> {
+    if (!this.connected) return;
+
+    try {
+      const headers = await this.getAuthHeader();
+      const params = new URLSearchParams();
+      if (calendarId) params.set('calendarId', calendarId);
+      if (timeMin) params.set('timeMin', timeMin);
+      if (timeMax) params.set('timeMax', timeMax);
+
+      const res = await fetch(
+        `/api/integrations/google-calendar/events?${params}`,
+        { headers }
+      );
+
+      if (!res.ok) return;
+
+      const data = await res.json();
+      this.updateState({ events: data.events || [] });
+    } catch (error) {
+      console.error('[Calendar Client] Error loading events:', error);
+    }
+  }
+
+  selectEvent(event: CalendarEvent): void {
+    this.updateState({ selectedEvent: event });
+  }
+
+  clearSelectedEvent(): void {
+    this.updateState({ selectedEvent: null });
+  }
+}
+
+// Global client instance
+export const calendarClient = new CalendarClient();

@@ -14,6 +14,8 @@ import SubscriptionInfo from '@/components/settings/subscription-info'
 import IntegrationCard from '@/components/settings/IntegrationCard'
 import DiscordIntegrationCard from '@/components/settings/DiscordIntegrationCard'
 import GmailIntegrationCard from '@/components/settings/GmailIntegrationCard'
+import YahooIntegrationCard from '@/components/settings/YahooIntegrationCard'
+import CalendarIntegrationCard from '@/components/settings/CalendarIntegrationCard'
 
 interface ApiKey {
   provider: string
@@ -400,6 +402,8 @@ export default function SettingsPage() {
               <IntegrationCard provider="github" userId={user.id} />
               <DiscordIntegrationCard userId={user.id} />
               <GmailIntegrationCard userId={user.id} />
+              <CalendarIntegrationCard userId={user.id} />
+              <YahooIntegrationCard userId={user.id} />
             </div>
           </div>
         )}

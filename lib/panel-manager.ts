@@ -4,7 +4,7 @@
  * Also manages quick-reply notifications from integrations.
  */
 
-type PanelId = 'discord' | 'gmail';
+type PanelId = 'discord' | 'gmail' | 'yahoo' | 'calendar';
 type CloseCallback = () => void;
 
 class PanelManager {
