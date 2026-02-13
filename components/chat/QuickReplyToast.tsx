@@ -16,7 +16,11 @@ interface QuickNotification {
 
 const TOAST_DURATION = 15_000; // 15 seconds before auto-dismiss
 
-export default function QuickReplyToast() {
+interface QuickReplyToastProps {
+  onOpenIntegration?: (type: 'discord' | 'gmail') => void;
+}
+
+export default function QuickReplyToast({ onOpenIntegration }: QuickReplyToastProps) {
   const discord = useDiscord();
   const gmail = useGmail();
   const [notifications, setNotifications] = useState<QuickNotification[]>([]);
@@ -111,12 +115,14 @@ export default function QuickReplyToast() {
 
   const openPanel = useCallback((notification: QuickNotification) => {
     dismiss(notification.id);
-    if (notification.type === 'discord') {
+    if (onOpenIntegration) {
+      onOpenIntegration(notification.type);
+    } else if (notification.type === 'discord') {
       discord.openPanel();
     } else {
       gmail.openPanel();
     }
-  }, [discord, gmail, dismiss]);
+  }, [discord, gmail, dismiss, onOpenIntegration]);
 
   if (notifications.length === 0) return null;
 
