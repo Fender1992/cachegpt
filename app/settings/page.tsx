@@ -16,6 +16,8 @@ import DiscordIntegrationCard from '@/components/settings/DiscordIntegrationCard
 import GmailIntegrationCard from '@/components/settings/GmailIntegrationCard'
 import YahooIntegrationCard from '@/components/settings/YahooIntegrationCard'
 import CalendarIntegrationCard from '@/components/settings/CalendarIntegrationCard'
+import SlackIntegrationCard from '@/components/settings/SlackIntegrationCard'
+import NotionIntegrationCard from '@/components/settings/NotionIntegrationCard'
 
 interface ApiKey {
   provider: string
@@ -403,6 +405,8 @@ export default function SettingsPage() {
               <DiscordIntegrationCard userId={user.id} />
               <GmailIntegrationCard userId={user.id} />
               <CalendarIntegrationCard userId={user.id} />
+              <SlackIntegrationCard userId={user.id} />
+              <NotionIntegrationCard userId={user.id} />
               <YahooIntegrationCard userId={user.id} />
             </div>
           </div>

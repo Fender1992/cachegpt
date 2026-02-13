@@ -363,6 +363,22 @@ export async function POST(request: NextRequest) {
           enrichedMessages.splice(enrichedMessages.length - 1, 0,
             { role: 'system', content: calendarContext });
         }
+
+        // Slack context
+        const { retrieveSlackContext } = await import('@/lib/integrations/slack-context-retriever');
+        const slackContext = await retrieveSlackContext(userId, userMessage);
+        if (slackContext) {
+          enrichedMessages.splice(enrichedMessages.length - 1, 0,
+            { role: 'system', content: slackContext });
+        }
+
+        // Notion context
+        const { retrieveNotionContext } = await import('@/lib/integrations/notion-context-retriever');
+        const notionContext = await retrieveNotionContext(userId, userMessage);
+        if (notionContext) {
+          enrichedMessages.splice(enrichedMessages.length - 1, 0,
+            { role: 'system', content: notionContext });
+        }
       } catch (e) {
         // Non-blocking: skip integration context on error
       }
