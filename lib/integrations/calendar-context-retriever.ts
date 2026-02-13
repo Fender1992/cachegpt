@@ -88,6 +88,33 @@ function parseEventFromQuery(query: string): QueryAnalysis['parsedEvent'] | unde
       eventDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysAhead);
     }
   }
+  // "in X days"
+  if (!eventDate) {
+    const inDaysMatch = query.match(/\bin\s+(\d+)\s+days?\b/i);
+    if (inDaysMatch) {
+      eventDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + parseInt(inDaysMatch[1]));
+    }
+  }
+  // "next week" (defaults to next Monday)
+  if (!eventDate && /\bnext\s+week\b/i.test(query)) {
+    const daysUntilMonday = (1 - now.getDay() + 7) % 7 || 7;
+    eventDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysUntilMonday);
+  }
+  // MM/DD or MM-DD format: "2/19", "02-19"
+  if (!eventDate) {
+    const slashDateMatch = query.match(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/);
+    if (slashDateMatch) {
+      const month = parseInt(slashDateMatch[1]) - 1;
+      const day = parseInt(slashDateMatch[2]);
+      const year = slashDateMatch[3] ? (slashDateMatch[3].length === 2 ? 2000 + parseInt(slashDateMatch[3]) : parseInt(slashDateMatch[3])) : now.getFullYear();
+      if (month >= 0 && month <= 11 && day >= 1 && day <= 31) {
+        eventDate = new Date(year, month, day);
+        if (eventDate < new Date(now.getFullYear(), now.getMonth(), now.getDate())) {
+          eventDate.setFullYear(eventDate.getFullYear() + 1);
+        }
+      }
+    }
+  }
 
   if (!eventDate) return undefined;
 
@@ -126,23 +153,51 @@ function parseEventFromQuery(query: string): QueryAnalysis['parsedEvent'] | unde
       endTime = `${String(h + 1).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
       isAllDay = false;
     }
+    // "at noon"
     if (!startTime && /\bat\s+noon\b/i.test(query)) {
       startTime = '12:00';
       endTime = '13:00';
+      isAllDay = false;
+    }
+    // "at midnight"
+    if (!startTime && /\bat\s+midnight\b/i.test(query)) {
+      startTime = '00:00';
+      endTime = '01:00';
+      isAllDay = false;
+    }
+    // "in the morning" / "in the afternoon" / "in the evening"
+    if (!startTime && /\bin\s+the\s+morning\b/i.test(query)) {
+      startTime = '09:00';
+      endTime = '10:00';
+      isAllDay = false;
+    }
+    if (!startTime && /\bin\s+the\s+afternoon\b/i.test(query)) {
+      startTime = '14:00';
+      endTime = '15:00';
+      isAllDay = false;
+    }
+    if (!startTime && /\bin\s+the\s+evening\b/i.test(query)) {
+      startTime = '18:00';
+      endTime = '19:00';
       isAllDay = false;
     }
   }
 
   // Summary extraction - strip date/time/action words, keep the event name
   let summary = query
-    .replace(/\b(?:add|create|schedule|book|put|set\s*up|make|i\s+have)\b/gi, '')
+    .replace(/\b(?:add|create|schedule|book|put|set\s*up|make|plan|arrange|block\s*(?:off|out)?|remind\s+me\s+(?:to|about)|i\s+have|i\s+need\s+to|i(?:'ve| have)\s+got)\b/gi, '')
     .replace(/\b(?:to\s+)?(?:my\s+)?(?:google\s+)?cal(?:endar|ender)?\b/gi, '')
+    .replace(/\b(?:to\s+)?(?:my\s+)?schedule\b/gi, '')
     .replace(monthDayRegex, '')
     .replace(/\b(?:today|tomorrow)\b/gi, '')
     .replace(/\b(?:next\s+)?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/gi, '')
     .replace(/\bat\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/gi, '')
     .replace(/\bfrom\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?\s*(?:to|-)\s*\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/gi, '')
-    .replace(/\bat\s+noon\b/gi, '')
+    .replace(/\bat\s+(?:noon|midnight)\b/gi, '')
+    .replace(/\bin\s+the\s+(?:morning|afternoon|evening)\b/gi, '')
+    .replace(/\bin\s+\d+\s+days?\b/gi, '')
+    .replace(/\bnext\s+week\b/gi, '')
+    .replace(/\b\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?\b/g, '')
     .replace(/\b(?:it|on|at|in|for|the|a|an|my|is|to)\b/gi, '')
     .replace(/[.,!?]+/g, '')
     .replace(/\s+/g, ' ')
@@ -173,9 +228,19 @@ export function analyzeCalendarQuery(query: string): QueryAnalysis {
 
   // Write intents (check first — most specific)
   if (
-    /(?:add|create|schedule|book|put|set\s*up|make)\b.*(?:calendar|calender|event|appointment|meeting)/i.test(query) ||
+    // Direct action + calendar noun: "add a meeting to my calendar", "create an event", "schedule an appointment"
+    /(?:add|create|schedule|book|put|set\s*up|make|plan|arrange|block\s*(?:off|out)?)\b.*(?:calendar|calender|event|appointment|meeting|reminder)/i.test(query) ||
+    // "I have a [thing]... add/put on calendar"
     /(?:i\s+have\s+(?:a|an)\s+\w).*(?:add|put|calendar|calender)/i.test(query) ||
-    /(?:add|create|schedule|book)\b.+\b(?:on|at|from)\b.+\b(?:tomorrow|today|(?:next\s+)?(?:mon|tue|wed|thu|fri|sat|sun)\w*|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s+\d|noon|\d{1,2}\s*(?:am|pm))/i.test(query)
+    // Action + time reference: "schedule lunch on friday", "book something at 3pm tomorrow"
+    /(?:add|create|schedule|book|put|set\s*up|make|plan|arrange|block)\b.+\b(?:on|at|from|for)\b.+\b(?:tomorrow|today|(?:next\s+)?(?:mon|tue|wed|thu|fri|sat|sun)\w*|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s+\d|noon|\d{1,2}\s*(?:am|pm))/i.test(query) ||
+    // "remind me to..." or "put ... on my calendar"
+    /(?:remind\s+me\s+(?:to|about))\b.+\b(?:on|at|tomorrow|today|(?:next\s+)?(?:mon|tue|wed|thu|fri|sat|sun)\w*)/i.test(query) ||
+    /\bput\b.+\b(?:on|in)\s+(?:my\s+)?(?:calendar|calender|schedule)\b/i.test(query) ||
+    // "I need to [verb] on [date]" pattern
+    /\b(?:i\s+need\s+to|i(?:'ve| have)\s+got)\b.+\b(?:on|at)\b.+\b(?:tomorrow|today|(?:next\s+)?(?:mon|tue|wed|thu|fri|sat|sun)\w*|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s+\d)/i.test(query) ||
+    // "block off/out [time]"
+    /\bblock\s*(?:off|out)\b.+\b(?:tomorrow|today|(?:next\s+)?(?:mon|tue|wed|thu|fri|sat|sun)\w*|\d{1,2}\s*(?:am|pm))/i.test(query)
   ) {
     intent = 'create_event';
   } else if (/(?:delete|remove|cancel|take\s*off)\b.*(?:event|appointment|meeting|calendar|calender)/i.test(query)) {
@@ -372,6 +437,8 @@ async function createCalendarEvent(
     eventBody.location = parsedEvent.location;
   }
 
+  console.log('[Calendar Action] Creating event:', JSON.stringify({ summary: parsedEvent.summary, date: parsedEvent.date, startTime: parsedEvent.startTime, endTime: parsedEvent.endTime, isAllDay: parsedEvent.isAllDay, timeZone }));
+
   const res = await fetch(`${CALENDAR_API}/calendars/primary/events`, {
     method: 'POST',
     headers: {
@@ -384,8 +451,8 @@ async function createCalendarEvent(
 
   if (!res.ok) {
     const errorText = await res.text();
-    console.error('[Calendar Action] Create failed:', res.status, errorText);
-    return `## Calendar Action\n\nFailed to create event "${parsedEvent.summary}". Error: ${res.status}`;
+    console.error('[Calendar Action] Create failed:', res.status, errorText, 'Request body:', JSON.stringify(eventBody));
+    return `## Calendar Action\n\nFailed to create event "${parsedEvent.summary}". Error: ${res.status}. Please ask the user to try again or check their calendar connection.`;
   }
 
   const created = await res.json();
@@ -486,6 +553,7 @@ export async function retrieveCalendarContext(
   }
 
   const analysis = analyzeCalendarQuery(queryText);
+  console.log('[Calendar Context] Query analysis:', { intent: analysis.intent, hasEvent: !!analysis.parsedEvent, searchTerms: analysis.searchTerms });
 
   // Only retrieve context for calendar-related queries
   if (analysis.intent === 'general' && analysis.searchTerms.length === 0) {
@@ -501,12 +569,18 @@ export async function retrieveCalendarContext(
     );
 
     if (!token) {
+      console.error('[Calendar Context] Failed to get valid token for user:', userId);
       return null;
     }
 
     // Handle write intents (create/delete events)
-    if (analysis.intent === 'create_event' && analysis.parsedEvent) {
-      return await createCalendarEvent(token, analysis.parsedEvent, userTimezone);
+    if (analysis.intent === 'create_event') {
+      if (analysis.parsedEvent) {
+        return await createCalendarEvent(token, analysis.parsedEvent, userTimezone);
+      }
+      // Could not parse event details — ask user for clarification
+      console.warn('[Calendar Context] Create intent detected but could not parse event details from query:', queryText);
+      return `## Calendar Action\n\nThe user wants to create a calendar event but the request is missing some details. Ask the user to provide:\n- **Event name/title**\n- **Date** (e.g. "tomorrow", "next Friday", "March 5th")\n- **Time** (optional — e.g. "at 3 PM", "from 2 to 4 PM")\n\nOnce they provide the details, they can say something like: "Schedule [event name] on [date] at [time]"`;
     }
 
     if (analysis.intent === 'delete_event') {

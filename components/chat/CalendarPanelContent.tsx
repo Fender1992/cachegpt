@@ -28,6 +28,8 @@ export default function CalendarPanelContent({ isActive }: CalendarPanelContentP
   const [view, setView] = useState<PanelView>('events');
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [newEvent, setNewEvent] = useState({
     summary: '',
     description: '',
@@ -57,6 +59,7 @@ export default function CalendarPanelContent({ isActive }: CalendarPanelContentP
     if (!newEvent.summary || !newEvent.date || creating) return;
 
     setCreating(true);
+    setCreateError(null);
     try {
       const start = newEvent.allDay
         ? { date: newEvent.date }
@@ -75,10 +78,14 @@ export default function CalendarPanelContent({ isActive }: CalendarPanelContentP
 
       if (result) {
         setNewEvent({ summary: '', description: '', location: '', date: '', startTime: '', endTime: '', allDay: false });
+        setCreateError(null);
         setView('events');
-        // Reload events
         calendar.refreshEvents();
+      } else {
+        setCreateError('Failed to create event. Please check your calendar connection and try again.');
       }
+    } catch {
+      setCreateError('An unexpected error occurred. Please try again.');
     } finally {
       setCreating(false);
     }
@@ -87,11 +94,17 @@ export default function CalendarPanelContent({ isActive }: CalendarPanelContentP
   const handleDelete = useCallback(async (eventId: string) => {
     if (deleting) return;
     setDeleting(true);
+    setDeleteError(null);
     try {
       const success = await calendar.deleteEvent(eventId);
       if (success) {
+        setDeleteError(null);
         setView('events');
+      } else {
+        setDeleteError('Failed to delete event. Please try again.');
       }
+    } catch {
+      setDeleteError('An unexpected error occurred. Please try again.');
     } finally {
       setDeleting(false);
     }
@@ -339,6 +352,11 @@ export default function CalendarPanelContent({ isActive }: CalendarPanelContentP
                   className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 />
               </div>
+              {createError && (
+                <div className="p-2 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                  {createError}
+                </div>
+              )}
               <div className="flex gap-2 pt-1">
                 <button
                   onClick={handleCreate}
@@ -428,6 +446,11 @@ export default function CalendarPanelContent({ isActive }: CalendarPanelContentP
                 </div>
               )}
 
+              {deleteError && (
+                <div className="mt-4 p-2 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                  {deleteError}
+                </div>
+              )}
               <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex gap-2">
                 {calendar.selectedEvent.htmlLink && (
                   <a
