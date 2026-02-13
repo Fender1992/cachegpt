@@ -135,6 +135,8 @@ export function useDiscord(options: UseDiscordOptions = {}) {
 
     // Message state
     messages: discord.messages,
+    hasMoreMessages: discord.hasMoreMessages,
+    loadingMore: discord.loadingMore,
     unreadCount: discord.unreadCount,
 
     // UI state
@@ -150,6 +152,7 @@ export function useDiscord(options: UseDiscordOptions = {}) {
 
     // Message methods
     sendMessage: sendMessageSafely,
+    loadOlderMessages: discord.loadOlderMessages,
     clearUnreadCount: discord.clearUnreadCount,
 
     // Bot invite

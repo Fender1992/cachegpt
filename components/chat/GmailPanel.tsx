@@ -144,11 +144,17 @@ export default function GmailPanel({ className }: GmailPanelProps) {
   if (!gmail.isPanelOpen) return null;
 
   return (
-    <div className={cn(
-      'fixed top-0 left-0 h-[calc(100%-4rem)] w-96 max-w-[90vw] bg-white dark:bg-gray-900 border-r border-b border-gray-200 dark:border-gray-700 shadow-2xl z-50 flex flex-col rounded-br-xl',
-      'transform transition-transform duration-300 ease-in-out',
-      className
-    )}>
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/20 dark:bg-black/40 z-40"
+        onClick={gmail.closePanel}
+      />
+      <div className={cn(
+        'fixed top-0 left-0 h-[calc(100%-4rem)] w-96 max-w-[85vw] bg-white dark:bg-gray-900 border-r border-b border-gray-200 dark:border-gray-700 shadow-2xl z-50 flex flex-col rounded-br-xl',
+        'transform transition-transform duration-300 ease-in-out',
+        className
+      )}>
       {/* Header */}
       <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
         <div className="flex items-center gap-2">
@@ -467,5 +473,6 @@ export default function GmailPanel({ className }: GmailPanelProps) {
         </div>
       )}
     </div>
+    </>
   );
 }

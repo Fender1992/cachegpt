@@ -30,6 +30,8 @@ export interface DiscordState {
   channels: DiscordChannel[];
   selectedChannel: DiscordChannel | null;
   messages: DiscordMessage[];
+  hasMoreMessages: boolean;
+  loadingMore: boolean;
   unreadCount: number;
   error: string | null;
 }
@@ -41,6 +43,8 @@ interface CacheEntry<T> {
 
 const CHANNEL_CACHE_TTL = 5 * 60_000; // 5 minutes
 const POLL_INTERVAL = 30_000; // 30 seconds — only fetches new messages via diff
+const INITIAL_MESSAGE_LIMIT = 10;
+const LOAD_MORE_LIMIT = 20;
 
 export class DiscordClient {
   private connected = false;
@@ -55,6 +59,8 @@ export class DiscordClient {
     channels: [],
     selectedChannel: null,
     messages: [],
+    hasMoreMessages: false,
+    loadingMore: false,
     unreadCount: 0,
     error: null,
   };
@@ -176,6 +182,8 @@ export class DiscordClient {
       channels: [],
       selectedChannel: null,
       messages: [],
+      hasMoreMessages: false,
+      loadingMore: false,
       unreadCount: 0,
     });
   }
@@ -276,7 +284,7 @@ export class DiscordClient {
   private async fetchAllMessages(channelId: string): Promise<void> {
     const headers = await this.getAuthHeader();
     const res = await fetch(
-      `/api/integrations/discord/messages?channelId=${channelId}&limit=50`,
+      `/api/integrations/discord/messages?channelId=${channelId}&limit=${INITIAL_MESSAGE_LIMIT}`,
       { headers }
     );
 
@@ -290,7 +298,7 @@ export class DiscordClient {
     );
 
     this.messageCache.set(channelId, sorted);
-    this.updateState({ messages: sorted });
+    this.updateState({ messages: sorted, hasMoreMessages: messages.length >= INITIAL_MESSAGE_LIMIT });
   }
 
   /**
@@ -303,7 +311,7 @@ export class DiscordClient {
 
       const headers = await this.getAuthHeader();
       const res = await fetch(
-        `/api/integrations/discord/messages?channelId=${channelId}&limit=50&after=${lastMessage.id}`,
+        `/api/integrations/discord/messages?channelId=${channelId}&limit=${LOAD_MORE_LIMIT}&after=${lastMessage.id}`,
         { headers }
       );
 
@@ -325,6 +333,54 @@ export class DiscordClient {
       }
     } catch (error) {
       console.error('[Discord Client] Diff fetch error:', error);
+    }
+  }
+
+  /**
+   * Load older messages (before the oldest cached message)
+   */
+  async loadOlderMessages(): Promise<void> {
+    if (!this.connected || !this.state.selectedChannel || this.state.loadingMore) return;
+
+    const channelId = this.state.selectedChannel.id;
+    const existing = this.messageCache.get(channelId) || [];
+    const oldestMessage = existing[0];
+    if (!oldestMessage) return;
+
+    try {
+      this.updateState({ loadingMore: true });
+
+      const headers = await this.getAuthHeader();
+      const res = await fetch(
+        `/api/integrations/discord/messages?channelId=${channelId}&limit=${LOAD_MORE_LIMIT}&before=${oldestMessage.id}`,
+        { headers }
+      );
+
+      if (!res.ok) return;
+
+      const olderMessages: DiscordMessage[] = await res.json();
+      if (olderMessages.length === 0) {
+        this.updateState({ hasMoreMessages: false, loadingMore: false });
+        return;
+      }
+
+      const sorted = olderMessages.sort((a, b) =>
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+
+      const merged = [...sorted, ...existing];
+      this.messageCache.set(channelId, merged);
+
+      if (this.state.selectedChannel?.id === channelId) {
+        this.updateState({
+          messages: merged,
+          hasMoreMessages: olderMessages.length >= LOAD_MORE_LIMIT,
+          loadingMore: false,
+        });
+      }
+    } catch (error) {
+      console.error('[Discord Client] Load older messages error:', error);
+      this.updateState({ loadingMore: false });
     }
   }
 

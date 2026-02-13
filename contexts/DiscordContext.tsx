@@ -17,6 +17,9 @@ interface DiscordContextValue extends DiscordState {
   sendMessage: (content: string) => Promise<void>;
   clearUnreadCount: () => void;
 
+  // Pagination
+  loadOlderMessages: () => Promise<void>;
+
   // Bot invite
   getInviteUrl: (guildId: string) => string;
 
@@ -77,6 +80,10 @@ export function DiscordProvider({ children, autoConnect = false }: DiscordProvid
     discordClient.clearUnreadCount();
   };
 
+  const loadOlderMessages = async (): Promise<void> => {
+    return discordClient.loadOlderMessages();
+  };
+
   const getInviteUrl = (guildId: string): string => {
     return discordClient.getInviteUrl(guildId);
   };
@@ -99,6 +106,7 @@ export function DiscordProvider({ children, autoConnect = false }: DiscordProvid
     selectChannel,
     sendMessage,
     clearUnreadCount,
+    loadOlderMessages,
     getInviteUrl,
     isPanelOpen,
     openPanel,

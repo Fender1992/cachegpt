@@ -88,8 +88,20 @@ export async function POST(req: NextRequest) {
       .then(result => {
         console.log('[Discord Sync] Completed:', result);
       })
-      .catch(error => {
+      .catch(async (error) => {
         console.error('[Discord Sync] Failed:', error);
+        // Reset status so user isn't stuck in 'syncing' forever
+        try {
+          await supabase
+            .from('user_integrations')
+            .update({
+              status: 'active',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', integrationId);
+        } catch (dbError) {
+          console.error('[Discord Sync] Failed to reset status:', dbError);
+        }
       });
     
     return NextResponse.json({ 
