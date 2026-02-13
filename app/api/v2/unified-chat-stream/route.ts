@@ -373,6 +373,10 @@ export async function POST(request: NextRequest) {
         if (calendarContext) {
           enrichedMessages.splice(enrichedMessages.length - 1, 0,
             { role: 'system', content: calendarContext });
+        } else if (hasCalendarWriteAction) {
+          // Intent detected but no calendar context — integration likely not connected
+          enrichedMessages.splice(enrichedMessages.length - 1, 0,
+            { role: 'system', content: '## Calendar Action\n\nThe user wants to create or modify a calendar event, but their Google Calendar is not connected. Please let them know they need to connect Google Calendar in their Settings page first, then try again.' });
         }
       } catch (e) {
         console.error('[Integration] Calendar context error:', e);
