@@ -1,8 +1,9 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { discordClient, DiscordState } from '@/lib/discord/discord-client';
 import { DiscordGuild, DiscordChannel } from '@/lib/discord/discord-gateway';
+import { panelManager } from '@/lib/panel-manager';
 
 interface DiscordContextValue extends DiscordState {
   // Connection methods
@@ -89,13 +90,19 @@ export function DiscordProvider({ children, autoConnect = false }: DiscordProvid
   };
 
   // UI state methods
-  const openPanel = (): void => {
-    setIsPanelOpen(true);
-    clearUnreadCount(); // Clear unread count when opening panel
-  };
-
-  const closePanel = (): void => {
+  const closePanel = useCallback((): void => {
     setIsPanelOpen(false);
+  }, []);
+
+  // Register with panel manager
+  useEffect(() => {
+    panelManager.register('discord', closePanel);
+  }, [closePanel]);
+
+  const openPanel = (): void => {
+    panelManager.onOpen('discord'); // Close other panels
+    setIsPanelOpen(true);
+    clearUnreadCount();
   };
 
   const contextValue: DiscordContextValue = {

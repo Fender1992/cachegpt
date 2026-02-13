@@ -1,7 +1,8 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { gmailClient, GmailState, GmailLabel, GmailMessageFull } from '@/lib/gmail/gmail-client';
+import { panelManager } from '@/lib/panel-manager';
 
 interface GmailContextValue extends GmailState {
   // Connection methods
@@ -78,13 +79,19 @@ export function GmailProvider({ children, autoConnect = false }: GmailProviderPr
     gmailClient.clearUnreadCount();
   };
 
+  const closePanel = useCallback((): void => {
+    setIsPanelOpen(false);
+  }, []);
+
+  // Register with panel manager
+  useEffect(() => {
+    panelManager.register('gmail', closePanel);
+  }, [closePanel]);
+
   const openPanel = (): void => {
+    panelManager.onOpen('gmail'); // Close other panels
     setIsPanelOpen(true);
     clearUnreadCount();
-  };
-
-  const closePanel = (): void => {
-    setIsPanelOpen(false);
   };
 
   const contextValue: GmailContextValue = {
