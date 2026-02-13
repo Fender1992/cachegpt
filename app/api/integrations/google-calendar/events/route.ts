@@ -174,7 +174,12 @@ export async function POST(req: NextRequest) {
     if (!createRes.ok) {
       const errorText = await createRes.text();
       console.error('[Calendar Events] Create error:', createRes.status, errorText);
-      return NextResponse.json({ error: 'Failed to create event' }, { status: createRes.status });
+      const errorMsg = createRes.status === 403
+        ? 'Permission denied. Please disconnect and reconnect Google Calendar in Settings to grant write permissions.'
+        : createRes.status === 401
+        ? 'Authentication expired. Please disconnect and reconnect Google Calendar in Settings.'
+        : 'Failed to create event';
+      return NextResponse.json({ error: errorMsg }, { status: createRes.status });
     }
 
     const created = await createRes.json();

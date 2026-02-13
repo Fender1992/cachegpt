@@ -84,8 +84,8 @@ export default function CalendarPanelContent({ isActive }: CalendarPanelContentP
       } else {
         setCreateError('Failed to create event. Please check your calendar connection and try again.');
       }
-    } catch {
-      setCreateError('An unexpected error occurred. Please try again.');
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.');
     } finally {
       setCreating(false);
     }

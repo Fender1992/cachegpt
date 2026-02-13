@@ -452,7 +452,13 @@ async function createCalendarEvent(
   if (!res.ok) {
     const errorText = await res.text();
     console.error('[Calendar Action] Create failed:', res.status, errorText, 'Request body:', JSON.stringify(eventBody));
-    return `## Calendar Action\n\nFailed to create event "${parsedEvent.summary}". Error: ${res.status}. Please ask the user to try again or check their calendar connection.`;
+    if (res.status === 403) {
+      return `## Calendar Action\n\nFailed to create event "${parsedEvent.summary}" — permission denied (403). The Google Calendar token does not have write permissions. Tell the user to go to **Settings**, **disconnect** Google Calendar, and **reconnect** it to grant updated permissions. This will fix the issue.`;
+    }
+    if (res.status === 401) {
+      return `## Calendar Action\n\nFailed to create event "${parsedEvent.summary}" — authentication expired (401). Tell the user to go to **Settings**, **disconnect** Google Calendar, and **reconnect** it to refresh their authentication.`;
+    }
+    return `## Calendar Action\n\nFailed to create event "${parsedEvent.summary}". Error: ${res.status}. Ask the user to try again or check their calendar connection in Settings.`;
   }
 
   const created = await res.json();

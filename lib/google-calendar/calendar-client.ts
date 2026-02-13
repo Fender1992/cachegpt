@@ -273,7 +273,10 @@ export class CalendarClient {
         body: JSON.stringify(event),
       });
 
-      if (!res.ok) return null;
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: 'Failed to create event' }));
+        throw new Error(errorData.error || `Failed to create event (${res.status})`);
+      }
 
       const created = await res.json();
       // Clear event cache so next load picks up the new event
@@ -281,7 +284,7 @@ export class CalendarClient {
       return created;
     } catch (error) {
       console.error('[Calendar Client] Error creating event:', error);
-      return null;
+      throw error;
     }
   }
 
