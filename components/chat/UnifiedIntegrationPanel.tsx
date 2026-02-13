@@ -13,20 +13,18 @@ import {
 } from 'lucide-react';
 import { useDiscord } from '@/hooks/useDiscord';
 import { useGmail } from '@/hooks/useGmail';
-import { useYahoo } from '@/hooks/useYahoo';
 import { useCalendar } from '@/hooks/useCalendar';
 import { useSlack } from '@/hooks/useSlack';
 import { useNotion } from '@/hooks/useNotion';
 import DiscordPanelContent from './DiscordPanelContent';
 import GmailPanelContent from './GmailPanelContent';
-import YahooPanelContent from './YahooPanelContent';
 import CalendarPanelContent from './CalendarPanelContent';
 import SlackPanelContent from './SlackPanelContent';
 import NotionPanelContent from './NotionPanelContent';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
-export type IntegrationTab = 'discord' | 'gmail' | 'yahoo' | 'calendar' | 'slack' | 'notion';
+export type IntegrationTab = 'discord' | 'gmail' | 'calendar' | 'slack' | 'notion';
 
 interface UnifiedIntegrationPanelProps {
   isOpen: boolean;
@@ -49,13 +47,6 @@ const TAB_CONFIG = {
     activeText: 'text-red-600 dark:text-red-400',
     activeBorder: 'border-red-600 dark:border-red-400',
     badgeBg: 'bg-red-500',
-  },
-  yahoo: {
-    icon: Mail,
-    label: 'Yahoo',
-    activeText: 'text-purple-600 dark:text-purple-400',
-    activeBorder: 'border-purple-600 dark:border-purple-400',
-    badgeBg: 'bg-purple-500',
   },
   calendar: {
     icon: Calendar,
@@ -80,7 +71,7 @@ const TAB_CONFIG = {
   },
 } as const;
 
-const TAB_ORDER: IntegrationTab[] = ['discord', 'gmail', 'yahoo', 'calendar', 'slack', 'notion'];
+const TAB_ORDER: IntegrationTab[] = ['discord', 'gmail', 'calendar', 'slack', 'notion'];
 
 function getStatusDot(isConnected: boolean, isConnecting: boolean, error: string | null): string {
   if (error) return 'bg-red-500';
@@ -97,7 +88,6 @@ export default function UnifiedIntegrationPanel({
 }: UnifiedIntegrationPanelProps) {
   const discord = useDiscord();
   const gmail = useGmail();
-  const yahoo = useYahoo();
   const calendar = useCalendar();
   const slack = useSlack();
   const notion = useNotion();
@@ -105,7 +95,6 @@ export default function UnifiedIntegrationPanel({
   const integrationState = {
     discord: { isConnected: discord.isConnected, isConnecting: discord.isConnecting, error: discord.error, count: discord.unreadCount },
     gmail: { isConnected: gmail.isConnected, isConnecting: gmail.isConnecting, error: gmail.error, count: gmail.unreadCount },
-    yahoo: { isConnected: yahoo.isConnected, isConnecting: yahoo.isConnecting, error: yahoo.error, count: yahoo.unreadCount },
     calendar: { isConnected: calendar.isConnected, isConnecting: calendar.isConnecting, error: calendar.error, count: calendar.todayEventCount },
     slack: { isConnected: slack.isConnected, isConnecting: slack.isConnecting, error: slack.error, count: slack.unreadCount },
     notion: { isConnected: notion.isConnected, isConnecting: notion.isConnecting, error: notion.error, count: 0 },
@@ -224,11 +213,6 @@ export default function UnifiedIntegrationPanel({
               {visibleTabs.includes('gmail') && (
                 <div className={cn('absolute inset-0', activeTab !== 'gmail' && 'hidden')}>
                   <GmailPanelContent isActive={activeTab === 'gmail'} />
-                </div>
-              )}
-              {visibleTabs.includes('yahoo') && (
-                <div className={cn('absolute inset-0', activeTab !== 'yahoo' && 'hidden')}>
-                  <YahooPanelContent isActive={activeTab === 'yahoo'} />
                 </div>
               )}
               {visibleTabs.includes('calendar') && (

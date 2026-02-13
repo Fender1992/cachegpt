@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import { LayoutGrid } from 'lucide-react';
 import { useDiscord } from '@/hooks/useDiscord';
 import { useGmail } from '@/hooks/useGmail';
-import { useYahoo } from '@/hooks/useYahoo';
 import { useCalendar } from '@/hooks/useCalendar';
 import { useSlack } from '@/hooks/useSlack';
 import { useNotion } from '@/hooks/useNotion';
@@ -20,7 +19,6 @@ export default function IntegrationDockButton({ onClick, isPanelOpen }: Integrat
 
   const discord = useDiscord();
   const gmail = useGmail();
-  const yahoo = useYahoo();
   const calendar = useCalendar();
   const slack = useSlack();
   const notion = useNotion();
@@ -28,7 +26,6 @@ export default function IntegrationDockButton({ onClick, isPanelOpen }: Integrat
   const integrations = [
     { name: 'Discord', isConnected: discord.isConnected, isConnecting: discord.isConnecting, error: discord.error, count: discord.unreadCount },
     { name: 'Gmail', isConnected: gmail.isConnected, isConnecting: gmail.isConnecting, error: gmail.error, count: gmail.unreadCount },
-    { name: 'Yahoo', isConnected: yahoo.isConnected, isConnecting: yahoo.isConnecting, error: yahoo.error, count: yahoo.unreadCount },
     { name: 'Calendar', isConnected: calendar.isConnected, isConnecting: calendar.isConnecting, error: calendar.error, count: calendar.todayEventCount },
     { name: 'Slack', isConnected: slack.isConnected, isConnecting: slack.isConnecting, error: slack.error, count: slack.unreadCount },
     { name: 'Notion', isConnected: notion.isConnected, isConnecting: notion.isConnecting, error: notion.error, count: 0 },

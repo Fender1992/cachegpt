@@ -348,14 +348,6 @@ export async function POST(request: NextRequest) {
             { role: 'system', content: gmailContext });
         }
 
-        // Yahoo context
-        const { retrieveYahooContext } = await import('@/lib/integrations/yahoo-context-retriever');
-        const yahooContext = await retrieveYahooContext(userId, userMessage);
-        if (yahooContext) {
-          enrichedMessages.splice(enrichedMessages.length - 1, 0,
-            { role: 'system', content: yahooContext });
-        }
-
         // Google Calendar context
         const { retrieveCalendarContext } = await import('@/lib/integrations/calendar-context-retriever');
         const calendarContext = await retrieveCalendarContext(userId, userMessage);
