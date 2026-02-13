@@ -8,6 +8,9 @@ import {
   Calendar,
   MessageSquare,
   BookOpen,
+  HardDrive,
+  Bug,
+  FolderOpen,
   Settings,
   Link2,
 } from 'lucide-react';
@@ -16,15 +19,20 @@ import { useGmail } from '@/hooks/useGmail';
 import { useCalendar } from '@/hooks/useCalendar';
 import { useSlack } from '@/hooks/useSlack';
 import { useNotion } from '@/hooks/useNotion';
+import { useDrive } from '@/hooks/useDrive';
+import { useJira } from '@/hooks/useJira';
 import DiscordPanelContent from './DiscordPanelContent';
 import GmailPanelContent from './GmailPanelContent';
 import CalendarPanelContent from './CalendarPanelContent';
 import SlackPanelContent from './SlackPanelContent';
 import NotionPanelContent from './NotionPanelContent';
+import DrivePanelContent from './DrivePanelContent';
+import JiraPanelContent from './JiraPanelContent';
+import FilesPanelContent from './FilesPanelContent';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
-export type IntegrationTab = 'discord' | 'gmail' | 'calendar' | 'slack' | 'notion';
+export type IntegrationTab = 'discord' | 'gmail' | 'calendar' | 'slack' | 'notion' | 'drive' | 'jira' | 'files';
 
 interface UnifiedIntegrationPanelProps {
   isOpen: boolean;
@@ -69,9 +77,30 @@ const TAB_CONFIG = {
     activeBorder: 'border-gray-800 dark:border-gray-400',
     badgeBg: 'bg-gray-700',
   },
+  drive: {
+    icon: HardDrive,
+    label: 'Drive',
+    activeText: 'text-green-600 dark:text-green-400',
+    activeBorder: 'border-green-600 dark:border-green-400',
+    badgeBg: 'bg-green-500',
+  },
+  jira: {
+    icon: Bug,
+    label: 'Jira',
+    activeText: 'text-blue-600 dark:text-blue-400',
+    activeBorder: 'border-blue-600 dark:border-blue-400',
+    badgeBg: 'bg-blue-500',
+  },
+  files: {
+    icon: FolderOpen,
+    label: 'Files',
+    activeText: 'text-orange-600 dark:text-orange-400',
+    activeBorder: 'border-orange-600 dark:border-orange-400',
+    badgeBg: 'bg-orange-500',
+  },
 } as const;
 
-const TAB_ORDER: IntegrationTab[] = ['discord', 'gmail', 'calendar', 'slack', 'notion'];
+const TAB_ORDER: IntegrationTab[] = ['discord', 'gmail', 'calendar', 'slack', 'notion', 'drive', 'jira', 'files'];
 
 function getStatusDot(isConnected: boolean, isConnecting: boolean, error: string | null): string {
   if (error) return 'bg-red-500';
@@ -91,17 +120,23 @@ export default function UnifiedIntegrationPanel({
   const calendar = useCalendar();
   const slack = useSlack();
   const notion = useNotion();
+  const drive = useDrive();
+  const jira = useJira();
 
-  const integrationState = {
+  const integrationState: Record<IntegrationTab, { isConnected: boolean; isConnecting: boolean; error: string | null; count: number }> = {
     discord: { isConnected: discord.isConnected, isConnecting: discord.isConnecting, error: discord.error, count: discord.unreadCount },
     gmail: { isConnected: gmail.isConnected, isConnecting: gmail.isConnecting, error: gmail.error, count: gmail.unreadCount },
     calendar: { isConnected: calendar.isConnected, isConnecting: calendar.isConnecting, error: calendar.error, count: calendar.todayEventCount },
     slack: { isConnected: slack.isConnected, isConnecting: slack.isConnecting, error: slack.error, count: slack.unreadCount },
     notion: { isConnected: notion.isConnected, isConnecting: notion.isConnecting, error: notion.error, count: 0 },
+    drive: { isConnected: drive.isConnected, isConnecting: drive.isConnecting, error: drive.error, count: 0 },
+    jira: { isConnected: jira.isConnected, isConnecting: jira.isConnecting, error: jira.error, count: 0 },
+    files: { isConnected: true, isConnecting: false, error: null, count: 0 }, // Always visible
   };
 
-  // Only show tabs for integrations that are connected or actively connecting
+  // Show tabs for connected/connecting integrations + always show files
   const visibleTabs = TAB_ORDER.filter((tab) => {
+    if (tab === 'files') return true; // Files tab is always visible
     const state = integrationState[tab];
     return state.isConnected || state.isConnecting;
   });
@@ -230,6 +265,19 @@ export default function UnifiedIntegrationPanel({
                   <NotionPanelContent isActive={activeTab === 'notion'} />
                 </div>
               )}
+              {visibleTabs.includes('drive') && (
+                <div className={cn('absolute inset-0', activeTab !== 'drive' && 'hidden')}>
+                  <DrivePanelContent isActive={activeTab === 'drive'} />
+                </div>
+              )}
+              {visibleTabs.includes('jira') && (
+                <div className={cn('absolute inset-0', activeTab !== 'jira' && 'hidden')}>
+                  <JiraPanelContent isActive={activeTab === 'jira'} />
+                </div>
+              )}
+              <div className={cn('absolute inset-0', activeTab !== 'files' && 'hidden')}>
+                <FilesPanelContent isActive={activeTab === 'files'} />
+              </div>
             </div>
           </>
         )}

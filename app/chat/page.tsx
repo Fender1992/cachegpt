@@ -7,6 +7,8 @@ import { GmailProvider } from '@/contexts/GmailContext'
 import { CalendarProvider } from '@/contexts/CalendarContext'
 import { SlackProvider } from '@/contexts/SlackContext'
 import { NotionProvider } from '@/contexts/NotionContext'
+import { DriveProvider } from '@/contexts/DriveContext'
+import { JiraProvider } from '@/contexts/JiraContext'
 import UnifiedIntegrationPanel, { IntegrationTab } from '@/components/chat/UnifiedIntegrationPanel'
 import IntegrationDockButton from '@/components/chat/IntegrationDockButton'
 import QuickReplyToast from '@/components/chat/QuickReplyToast'
@@ -26,20 +28,24 @@ function ChatPageWithDiscord(props: any) {
         <CalendarProvider autoConnect={true}>
           <SlackProvider autoConnect={true}>
             <NotionProvider autoConnect={true}>
-              <div className="relative">
-                <ChatInterface {...props} />
-                <IntegrationDockButton
-                  onClick={() => setIsPanelOpen(prev => !prev)}
-                  isPanelOpen={isPanelOpen}
-                />
-                <UnifiedIntegrationPanel
-                  isOpen={isPanelOpen}
-                  onClose={() => setIsPanelOpen(false)}
-                  activeTab={activeTab}
-                  onTabChange={setActiveTab}
-                />
-                <QuickReplyToast onOpenIntegration={handleOpenIntegration} />
-              </div>
+              <DriveProvider autoConnect={true}>
+                <JiraProvider autoConnect={true}>
+                  <div className="relative">
+                    <ChatInterface {...props} />
+                    <IntegrationDockButton
+                      onClick={() => setIsPanelOpen(prev => !prev)}
+                      isPanelOpen={isPanelOpen}
+                    />
+                    <UnifiedIntegrationPanel
+                      isOpen={isPanelOpen}
+                      onClose={() => setIsPanelOpen(false)}
+                      activeTab={activeTab}
+                      onTabChange={setActiveTab}
+                    />
+                    <QuickReplyToast onOpenIntegration={handleOpenIntegration} />
+                  </div>
+                </JiraProvider>
+              </DriveProvider>
             </NotionProvider>
           </SlackProvider>
         </CalendarProvider>

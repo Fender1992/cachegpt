@@ -371,6 +371,22 @@ export async function POST(request: NextRequest) {
           enrichedMessages.splice(enrichedMessages.length - 1, 0,
             { role: 'system', content: notionContext });
         }
+
+        // Google Drive context
+        const { retrieveDriveContext } = await import('@/lib/integrations/drive-context-retriever');
+        const driveContext = await retrieveDriveContext(userId, userMessage);
+        if (driveContext) {
+          enrichedMessages.splice(enrichedMessages.length - 1, 0,
+            { role: 'system', content: driveContext });
+        }
+
+        // Jira context
+        const { retrieveJiraContext } = await import('@/lib/integrations/jira-context-retriever');
+        const jiraContext = await retrieveJiraContext(userId, userMessage);
+        if (jiraContext) {
+          enrichedMessages.splice(enrichedMessages.length - 1, 0,
+            { role: 'system', content: jiraContext });
+        }
       } catch (e) {
         // Non-blocking: skip integration context on error
       }

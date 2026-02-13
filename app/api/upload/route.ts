@@ -6,6 +6,8 @@ import {
   getUserId
 } from '@/lib/unified-auth-resolver'
 import PDFParser from 'pdf2json'
+import mammoth from 'mammoth'
+import * as XLSX from 'xlsx'
 
 const MAX_FILE_SIZE = 30 * 1024 * 1024 // 30MB
 const MAX_FILES_PER_CONVERSATION = 5
@@ -22,6 +24,10 @@ const ALLOWED_TYPES = {
   'image/png': '.png',
   'image/gif': '.gif',
   'image/webp': '.webp',
+  // Office documents
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+  'application/vnd.ms-excel': '.xls',
   // Code
   'text/javascript': '.js',
   'application/javascript': '.js',
@@ -257,6 +263,45 @@ async function parseFileContent(
       return {
         text: `[Image: ${file.name}]\nData: data:${file.type};base64,${base64.substring(0, 100)}...`,
         preview: `Image: ${file.name} (${(file.size / 1024).toFixed(2)}KB)`
+      }
+    }
+
+    case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': {
+      try {
+        const result = await mammoth.extractRawText({ buffer: Buffer.from(buffer) })
+        const text = result.value
+        const preview = text.substring(0, 200) + (text.length > 200 ? '...' : '')
+        console.log('[DOCX-PARSE] Success:', { file: file.name, textLength: text.length })
+        return { text, preview }
+      } catch (error) {
+        console.error('[DOCX-PARSE] Error:', error)
+        return {
+          text: `[DOCX Document: ${file.name}]\nError parsing DOCX: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          preview: `DOCX: ${file.name} (parse error)`
+        }
+      }
+    }
+
+    case 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
+    case 'application/vnd.ms-excel': {
+      try {
+        const workbook = XLSX.read(Buffer.from(buffer), { type: 'buffer' })
+        const sheets: string[] = []
+        for (const sheetName of workbook.SheetNames) {
+          const sheet = workbook.Sheets[sheetName]
+          const csv = XLSX.utils.sheet_to_csv(sheet)
+          sheets.push(`--- Sheet: ${sheetName} ---\n${csv}`)
+        }
+        const text = sheets.join('\n\n')
+        const preview = text.substring(0, 200) + (text.length > 200 ? '...' : '')
+        console.log('[XLSX-PARSE] Success:', { file: file.name, sheets: workbook.SheetNames.length, textLength: text.length })
+        return { text, preview }
+      } catch (error) {
+        console.error('[XLSX-PARSE] Error:', error)
+        return {
+          text: `[Spreadsheet: ${file.name}]\nError parsing spreadsheet: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          preview: `Spreadsheet: ${file.name} (parse error)`
+        }
       }
     }
 

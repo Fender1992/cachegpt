@@ -73,6 +73,8 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
   const [shareEnabled, setShareEnabled] = useState(false)
   const [referencedConversationIds, setReferencedConversationIds] = useState<string[]>([])
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
+  const [isDragOver, setIsDragOver] = useState(false)
+  const [droppedFiles, setDroppedFiles] = useState<File[]>([])
   const router = useRouter()
   const searchParams = useSearchParams()
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -881,12 +883,46 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
 
   return (
     <div
-      className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-slate-900 dark:to-gray-900 flex flex-col overflow-hidden"
+      className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-slate-900 dark:to-gray-900 flex flex-col overflow-hidden relative"
       style={{
         height: '100dvh',
         minHeight: '-webkit-fill-available'
       }}
+      onDragOver={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        setIsDragOver(true)
+      }}
+      onDragLeave={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        // Only hide if leaving the container entirely
+        if (e.currentTarget === e.target || !e.currentTarget.contains(e.relatedTarget as Node)) {
+          setIsDragOver(false)
+        }
+      }}
+      onDrop={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        setIsDragOver(false)
+        const files = Array.from(e.dataTransfer.files)
+        if (files.length > 0) {
+          setDroppedFiles(files)
+          // Reset after a tick so the effect can fire again for subsequent drops
+          setTimeout(() => setDroppedFiles([]), 100)
+        }
+      }}
     >
+      {/* Drag-and-drop overlay */}
+      {isDragOver && (
+        <div className="absolute inset-0 bg-blue-600/20 dark:bg-blue-400/20 backdrop-blur-sm z-[100] flex items-center justify-center pointer-events-none">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 text-center border-2 border-dashed border-blue-500">
+            <div className="text-4xl mb-3">📎</div>
+            <p className="text-lg font-semibold text-gray-900 dark:text-white">Drop files here</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">PDF, DOCX, XLSX, images, code files</p>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="flex-shrink-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm relative z-50">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
@@ -1279,6 +1315,7 @@ function ChatPageContent({ params }: { params?: Promise<{ id: string }> }) {
               onFilesChange={setUploadedFiles}
               maxFiles={5}
               disabled={isLoading}
+              droppedFiles={droppedFiles}
             />
             <ConversationReferenceButton
               conversations={conversations.filter(c => c.id !== activeConversationId)}

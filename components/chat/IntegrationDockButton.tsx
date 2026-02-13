@@ -7,6 +7,8 @@ import { useGmail } from '@/hooks/useGmail';
 import { useCalendar } from '@/hooks/useCalendar';
 import { useSlack } from '@/hooks/useSlack';
 import { useNotion } from '@/hooks/useNotion';
+import { useDrive } from '@/hooks/useDrive';
+import { useJira } from '@/hooks/useJira';
 import { cn } from '@/lib/utils';
 
 interface IntegrationDockButtonProps {
@@ -22,6 +24,8 @@ export default function IntegrationDockButton({ onClick, isPanelOpen }: Integrat
   const calendar = useCalendar();
   const slack = useSlack();
   const notion = useNotion();
+  const drive = useDrive();
+  const jira = useJira();
 
   const integrations = [
     { name: 'Discord', isConnected: discord.isConnected, isConnecting: discord.isConnecting, error: discord.error, count: discord.unreadCount },
@@ -29,16 +33,16 @@ export default function IntegrationDockButton({ onClick, isPanelOpen }: Integrat
     { name: 'Calendar', isConnected: calendar.isConnected, isConnecting: calendar.isConnecting, error: calendar.error, count: calendar.todayEventCount },
     { name: 'Slack', isConnected: slack.isConnected, isConnecting: slack.isConnecting, error: slack.error, count: slack.unreadCount },
     { name: 'Notion', isConnected: notion.isConnected, isConnecting: notion.isConnecting, error: notion.error, count: 0 },
+    { name: 'Drive', isConnected: drive.isConnected, isConnecting: drive.isConnecting, error: drive.error, count: 0 },
+    { name: 'Jira', isConnected: jira.isConnected, isConnecting: jira.isConnecting, error: jira.error, count: 0 },
   ];
 
   const connectedCount = integrations.filter(i => i.isConnected).length;
   const hasConnecting = integrations.some(i => i.isConnecting);
   const hasError = integrations.some(i => i.error);
-  const hasAnyActive = integrations.some(i => i.isConnected || i.isConnecting);
   const totalNotifications = integrations.reduce((sum, i) => sum + (i.count || 0), 0);
 
-  // Don't render if no integration is connected or connecting
-  if (!hasAnyActive) return null;
+  // Always show the button — Files tab is always available
 
   // Determine overall status dot color
   let statusDotClass = 'bg-green-500';

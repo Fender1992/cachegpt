@@ -3,7 +3,7 @@
  * Generic type system for all data source integrations (GitHub, LinkedIn, etc.)
  */
 
-export type IntegrationProvider = 'github' | 'discord' | 'gmail' | 'linkedin' | 'instagram';
+export type IntegrationProvider = 'github' | 'discord' | 'gmail' | 'linkedin' | 'instagram' | 'google_drive' | 'jira';
 
 export interface UserIntegration {
   id: string;

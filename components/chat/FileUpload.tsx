@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Paperclip, X, File, Image as ImageIcon, Code, FileText } from 'lucide-react'
 import { supabase } from '@/lib/supabase-client'
 
@@ -18,17 +18,28 @@ interface FileUploadProps {
   onFilesChange: (files: UploadedFile[]) => void
   maxFiles?: number
   disabled?: boolean
+  droppedFiles?: File[]
 }
 
 export default function FileUpload({
   onFilesChange,
   maxFiles = 5,
-  disabled = false
+  disabled = false,
+  droppedFiles
 }: FileUploadProps) {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Handle dropped files from drag-and-drop
+  useEffect(() => {
+    if (droppedFiles && droppedFiles.length > 0) {
+      const dt = new DataTransfer()
+      droppedFiles.forEach(f => dt.items.add(f))
+      handleFileSelect(dt.files)
+    }
+  }, [droppedFiles])
 
   const handleFileSelect = async (files: FileList | null) => {
     if (!files || files.length === 0) return
@@ -161,7 +172,7 @@ export default function FileUpload({
         ref={fileInputRef}
         type="file"
         multiple
-        accept=".pdf,.txt,.md,.csv,.json,.jpg,.jpeg,.png,.gif,.webp,.js,.ts,.py"
+        accept=".pdf,.txt,.md,.csv,.json,.jpg,.jpeg,.png,.gif,.webp,.js,.ts,.py,.docx,.xlsx,.xls"
         onChange={(e) => handleFileSelect(e.target.files)}
         className="hidden"
       />

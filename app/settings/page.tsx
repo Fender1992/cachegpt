@@ -17,6 +17,8 @@ import GmailIntegrationCard from '@/components/settings/GmailIntegrationCard'
 import CalendarIntegrationCard from '@/components/settings/CalendarIntegrationCard'
 import SlackIntegrationCard from '@/components/settings/SlackIntegrationCard'
 import NotionIntegrationCard from '@/components/settings/NotionIntegrationCard'
+import DriveIntegrationCard from '@/components/settings/DriveIntegrationCard'
+import JiraIntegrationCard from '@/components/settings/JiraIntegrationCard'
 
 interface ApiKey {
   provider: string
@@ -406,6 +408,8 @@ export default function SettingsPage() {
               <CalendarIntegrationCard userId={user.id} />
               <SlackIntegrationCard userId={user.id} />
               <NotionIntegrationCard userId={user.id} />
+              <DriveIntegrationCard userId={user.id} />
+              <JiraIntegrationCard userId={user.id} />
             </div>
           </div>
         )}
