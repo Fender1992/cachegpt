@@ -131,10 +131,10 @@ export class CalendarClient {
       // Cache calendars
       this.calendarCache = { data: calendars, fetchedAt: Date.now() };
 
-      // Fetch upcoming events (30 days) so panel shows future events too
+      // Fetch upcoming events (12 months) so future events show up
       const now = new Date();
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-      const futureEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 30).toISOString();
+      const futureEnd = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate()).toISOString();
 
       const eventsRes = await fetch(
         `/api/integrations/google-calendar/events?timeMin=${encodeURIComponent(todayStart)}&timeMax=${encodeURIComponent(futureEnd)}`,
@@ -268,8 +268,8 @@ export class CalendarClient {
       const headers = await this.getAuthHeader();
       const now = new Date();
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-      // Fetch 30 days of events so future events show up
-      const futureEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 30).toISOString();
+      // Fetch 12 months of events
+      const futureEnd = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate()).toISOString();
 
       const eventsRes = await fetch(
         `/api/integrations/google-calendar/events?timeMin=${encodeURIComponent(todayStart)}&timeMax=${encodeURIComponent(futureEnd)}`,

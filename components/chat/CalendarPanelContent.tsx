@@ -43,6 +43,8 @@ export default function CalendarPanelContent({ isActive }: CalendarPanelContentP
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const EVENTS_PER_PAGE = 10;
 
   const handleRefresh = useCallback(async () => {
     if (refreshing) return;
@@ -164,7 +166,27 @@ export default function CalendarPanelContent({ isActive }: CalendarPanelContentP
     return date.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
   };
 
-  const groupedEvents = calendar.events.reduce<Map<string, CalendarEvent[]>>((groups, event) => {
+  // Sort events chronologically
+  const sortedEvents = [...calendar.events].sort((a, b) => {
+    const aDate = new Date(a.isAllDay ? a.start.date! : a.start.dateTime!);
+    const bDate = new Date(b.isAllDay ? b.start.date! : b.start.dateTime!);
+    return aDate.getTime() - bDate.getTime();
+  });
+
+  // Pagination
+  const totalPages = Math.ceil(sortedEvents.length / EVENTS_PER_PAGE);
+  const paginatedEvents = sortedEvents.slice(
+    currentPage * EVENTS_PER_PAGE,
+    (currentPage + 1) * EVENTS_PER_PAGE
+  );
+
+  // Reset page when events change
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [calendar.events.length]);
+
+  // Group paginated events by date
+  const groupedEvents = paginatedEvents.reduce<Map<string, CalendarEvent[]>>((groups, event) => {
     const dateStr = event.isAllDay ? event.start.date! : event.start.dateTime!;
     const dateKey = new Date(dateStr).toLocaleDateString();
     if (!groups.has(dateKey)) {
@@ -307,6 +329,29 @@ export default function CalendarPanelContent({ isActive }: CalendarPanelContentP
                 <div className="p-8 text-center text-gray-500 dark:text-gray-400">
                   <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
                   <p className="text-sm">No upcoming events</p>
+                </div>
+              )}
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-3 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+                    disabled={currentPage === 0}
+                    className="px-3 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    {currentPage + 1} / {totalPages} ({sortedEvents.length} events)
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
+                    disabled={currentPage >= totalPages - 1}
+                    className="px-3 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
                 </div>
               )}
             </div>
