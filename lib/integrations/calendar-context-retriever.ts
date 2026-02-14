@@ -585,16 +585,19 @@ export async function retrieveCalendarContext(
   }
 
   // Pre-flight scope check for write operations
+  // Only block if we have stored scopes AND they explicitly show read-only (no write scope)
+  // If scopes are missing/empty, let the request through — the 403 handler will catch it
   const isWriteAction = analysis.intent === 'create_event' || analysis.intent === 'delete_event';
   if (isWriteAction && integration.provider_data?.scope) {
     const scopes: string[] = integration.provider_data.scope;
-    const hasWriteScope = scopes.some((s: string) =>
-      s === 'https://www.googleapis.com/auth/calendar' ||
-      s === 'https://www.googleapis.com/auth/calendar.events'
-    );
-    if (!hasWriteScope) {
-      console.warn('[Calendar Context] Token missing write scope. Stored scopes:', scopes);
-      return `## Calendar Action\n\nYour Google Calendar connection only has read-only permissions. To create or modify events, you need to reconnect with write access.\n\nPlease go to **Settings**, click **Disconnect** on Google Calendar, then click **Connect** again. Google will ask you to approve calendar write access. After reconnecting, try your request again.`;
+    if (scopes.length > 0) {
+      const hasWriteScope = scopes.some((s: string) =>
+        s.includes('/auth/calendar') && !s.includes('readonly')
+      );
+      if (!hasWriteScope) {
+        console.warn('[Calendar Context] Token missing write scope. Stored scopes:', scopes);
+        return `## Calendar Action\n\nYour Google Calendar connection only has read-only permissions. To create or modify events, you need to reconnect with write access.\n\nPlease go to **Settings**, click **Disconnect** on Google Calendar, then click **Connect** again. Google will ask you to approve calendar write access. After reconnecting, try your request again.`;
+      }
     }
   }
 
@@ -613,6 +616,7 @@ export async function retrieveCalendarContext(
 
     // Handle write intents (create/delete events)
     if (analysis.intent === 'create_event') {
+      console.log('[Calendar Context] Create event intent. Stored scopes:', integration.provider_data?.scope, 'Parsed event:', analysis.parsedEvent);
       if (analysis.parsedEvent) {
         return await createCalendarEvent(token, analysis.parsedEvent, userTimezone);
       }
