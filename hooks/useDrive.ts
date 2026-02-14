@@ -73,6 +73,7 @@ export function useDrive(options: UseDriveOptions = {}) {
     searchFiles: drive.searchFiles,
     selectFile: drive.selectFile,
     clearSelectedFile: drive.clearSelectedFile,
+    deleteFile: drive.deleteFile,
 
     // UI methods
     openPanel: drive.openPanel,

@@ -1,6 +1,7 @@
 /**
  * Google Drive Files API
  * GET: List/search files + get file content
+ * DELETE: Trash a file
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -62,6 +63,68 @@ export async function GET(req: NextRequest) {
     console.error('[Drive Files] Error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch Drive files' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const authResult = await resolveAuthentication(req);
+    if (isAuthError(authResult)) {
+      return NextResponse.json({ error: authResult.error }, { status: 401 });
+    }
+
+    const { data: integration } = await supabase
+      .from('user_integrations')
+      .select('id, access_token, refresh_token, token_expires_at')
+      .eq('user_id', authResult.user.id)
+      .eq('provider', 'google_drive')
+      .eq('status', 'active')
+      .single();
+
+    if (!integration) {
+      return NextResponse.json({ error: 'Google Drive not connected' }, { status: 404 });
+    }
+
+    const token = await getValidDriveToken(
+      integration.id,
+      integration.access_token,
+      integration.refresh_token,
+      integration.token_expires_at
+    );
+
+    if (!token) {
+      return NextResponse.json({ error: 'Failed to get valid token' }, { status: 401 });
+    }
+
+    const fileId = req.nextUrl.searchParams.get('fileId');
+    if (!fileId) {
+      return NextResponse.json({ error: 'fileId is required' }, { status: 400 });
+    }
+
+    // Move file to trash (not permanent delete)
+    const res = await fetch(`${DRIVE_API}/files/${fileId}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ trashed: true }),
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => '');
+      console.error('[Drive Files] Delete failed:', res.status, errorText);
+      return NextResponse.json({ error: 'Failed to delete file' }, { status: res.status });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('[Drive Files] Delete error:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete file' },
       { status: 500 }
     );
   }

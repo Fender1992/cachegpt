@@ -160,6 +160,30 @@ export class DriveClient {
   clearSelectedFile(): void {
     this.updateState({ selectedFile: null });
   }
+
+  async deleteFile(fileId: string): Promise<boolean> {
+    if (!this.connected) return false;
+
+    try {
+      const headers = await this.getAuthHeader();
+      const res = await fetch(
+        `/api/integrations/google-drive/files?fileId=${encodeURIComponent(fileId)}`,
+        { method: 'DELETE', headers }
+      );
+
+      if (!res.ok) return false;
+
+      // Remove from current state
+      this.updateState({
+        files: this.state.files.filter(f => f.id !== fileId),
+        selectedFile: this.state.selectedFile?.file.id === fileId ? null : this.state.selectedFile,
+      });
+      return true;
+    } catch (error) {
+      console.error('[Drive Client] Error deleting file:', error);
+      return false;
+    }
+  }
 }
 
 // Global client instance

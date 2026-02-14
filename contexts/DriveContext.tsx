@@ -10,6 +10,7 @@ interface DriveContextValue extends DriveState {
   searchFiles: (query: string) => Promise<void>;
   selectFile: (fileId: string) => Promise<void>;
   clearSelectedFile: () => void;
+  deleteFile: (fileId: string) => Promise<boolean>;
   isPanelOpen: boolean;
   openPanel: () => void;
   closePanel: () => void;
@@ -57,6 +58,10 @@ export function DriveProvider({ children, autoConnect = false }: DriveProviderPr
     driveClient.clearSelectedFile();
   };
 
+  const deleteFile = async (fileId: string): Promise<boolean> => {
+    return driveClient.deleteFile(fileId);
+  };
+
   const closePanel = useCallback((): void => {
     setIsPanelOpen(false);
   }, []);
@@ -77,6 +82,7 @@ export function DriveProvider({ children, autoConnect = false }: DriveProviderPr
     searchFiles,
     selectFile,
     clearSelectedFile,
+    deleteFile,
     isPanelOpen,
     openPanel,
     closePanel,

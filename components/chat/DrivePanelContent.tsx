@@ -13,6 +13,7 @@ import {
   Sheet,
   Presentation,
   Image as ImageIcon,
+  Trash2,
 } from 'lucide-react';
 import { useDrive } from '@/hooks/useDrive';
 import { cn } from '@/lib/utils';
@@ -43,6 +44,8 @@ export default function DrivePanelContent({ isActive }: DrivePanelContentProps) 
   const [view, setView] = useState<PanelView>('files');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const handleFileSelect = useCallback(async (fileId: string) => {
     await drive.selectFile(fileId);
@@ -63,6 +66,24 @@ export default function DrivePanelContent({ isActive }: DrivePanelContentProps) 
       setIsSearching(false);
     }
   }, [searchQuery, drive.searchFiles]);
+
+  const handleDelete = useCallback(async (fileId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (confirmDeleteId !== fileId) {
+      setConfirmDeleteId(fileId);
+      return;
+    }
+    setDeletingFileId(fileId);
+    setConfirmDeleteId(null);
+    try {
+      const success = await drive.deleteFile(fileId);
+      if (success && view === 'file_detail') {
+        setView('files');
+      }
+    } finally {
+      setDeletingFileId(null);
+    }
+  }, [confirmDeleteId, drive.deleteFile, view]);
 
   const formatDate = (dateStr: string): string => {
     const date = new Date(dateStr);
@@ -166,32 +187,59 @@ export default function DrivePanelContent({ isActive }: DrivePanelContentProps) 
 
               <div className="divide-y divide-gray-100 dark:divide-gray-800">
                 {drive.files.map((file) => (
-                  <button
+                  <div
                     key={file.id}
+                    className="group w-full p-3 text-left transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer flex items-start gap-3"
                     onClick={() => handleFileSelect(file.id)}
-                    className="w-full p-3 text-left transition-colors hover:bg-gray-50 dark:hover:bg-gray-800"
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 mt-0.5">
-                        {getMimeIcon(file.mimeType)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                          {file.name}
-                        </div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          {file.size && (
-                            <span className="text-xs text-gray-500 dark:text-gray-400">
-                              {formatSize(file.size)}
-                            </span>
-                          )}
-                          <span className="text-xs text-gray-400">
-                            {formatDate(file.modifiedTime)}
-                          </span>
-                        </div>
-                      </div>
+                    <div className="flex-shrink-0 mt-0.5">
+                      {getMimeIcon(file.mimeType)}
                     </div>
-                  </button>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {file.name}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {file.size && (
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {formatSize(file.size)}
+                          </span>
+                        )}
+                        <span className="text-xs text-gray-400">
+                          {formatDate(file.modifiedTime)}
+                        </span>
+                      </div>
+                      {confirmDeleteId === file.id && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-red-500">Move to trash?</span>
+                          <button
+                            onClick={(e) => handleDelete(file.id, e)}
+                            className="text-xs text-red-600 hover:text-red-700 font-medium"
+                          >
+                            Yes
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null); }}
+                            className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                          >
+                            No
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={(e) => handleDelete(file.id, e)}
+                      disabled={deletingFileId === file.id}
+                      className="flex-shrink-0 p-1 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-all disabled:opacity-50"
+                      title="Move to trash"
+                    >
+                      {deletingFileId === file.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
                 ))}
               </div>
 
@@ -231,8 +279,8 @@ export default function DrivePanelContent({ isActive }: DrivePanelContentProps) 
                 </p>
               )}
 
-              {drive.selectedFile.file.webViewLink && (
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex items-center gap-2 flex-wrap">
+                {drive.selectedFile.file.webViewLink && (
                   <a
                     href={drive.selectedFile.file.webViewLink}
                     target="_blank"
@@ -242,8 +290,37 @@ export default function DrivePanelContent({ isActive }: DrivePanelContentProps) 
                     <ExternalLink className="w-4 h-4" />
                     Open in Drive
                   </a>
-                </div>
-              )}
+                )}
+                {confirmDeleteId === drive.selectedFile.file.id ? (
+                  <div className="inline-flex items-center gap-2">
+                    <span className="text-sm text-red-500">Move to trash?</span>
+                    <button
+                      onClick={() => handleDelete(drive.selectedFile!.file.id)}
+                      disabled={deletingFileId === drive.selectedFile.file.id}
+                      className="px-3 py-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {deletingFileId === drive.selectedFile.file.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : 'Yes, delete'}
+                    </button>
+                    <button
+                      onClick={() => setConfirmDeleteId(null)}
+                      className="px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => handleDelete(drive.selectedFile!.file.id)}
+                    disabled={deletingFileId === drive.selectedFile.file.id}
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:text-red-700 border border-red-300 dark:border-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>
