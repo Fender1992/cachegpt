@@ -4,13 +4,16 @@ import { useEffect, useState, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
 import { Send, Bot, Brain, Sparkles, Zap, Settings, LogOut, LogIn, History, RefreshCw, Loader2, Home, Trash2, ThumbsUp, ThumbsDown, AlertTriangle, Rocket, Gauge, Plus } from 'lucide-react'
+import MessageActionBar from '@/components/chat/MessageActionBar'
 import BugReportButton from '@/components/bug-report-button'
+import FirstTimeTour from '@/components/chat/FirstTimeTour'
 import ProviderSelector from '@/components/provider-selector'
 import Toast from '@/components/toast'
 import ExamplePrompts from '@/components/chat/ExamplePrompts'
 import CacheToast from '@/components/chat/CacheToast'
 import ShareButton from '@/components/chat/ShareButton'
 import ConversationReferenceButton from '@/components/chat/ConversationReferenceButton'
+import ConversationSidebar from '@/components/chat/ConversationSidebar'
 import MarkdownMessage from '@/components/chat/MarkdownMessage'
 import FileUpload, { UploadedFile } from '@/components/chat/FileUpload'
 import { error as logError } from '@/lib/logger'
@@ -85,13 +88,10 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
     if (params) {
       params.then(resolvedParams => {
         const { id } = resolvedParams
-        console.log('[CHAT] URL conversation ID:', id)
         setConversationId(id)
         setCurrentConversationId(id)
         setActiveConversationId(id)
       })
-    } else {
-      console.log('[CHAT] Base route - no conversation ID')
     }
   }, [params])
 
@@ -136,6 +136,49 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
     loadFeatureFlags()
   }, [])
 
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + Shift + O → new chat
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'O') {
+        e.preventDefault()
+        startNewConversation()
+      }
+      // Cmd/Ctrl + / → focus input
+      if ((e.metaKey || e.ctrlKey) && e.key === '/') {
+        e.preventDefault()
+        inputRef.current?.focus()
+      }
+      // Escape → close history panel
+      if (e.key === 'Escape' && showHistory) {
+        setShowHistory(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showHistory])
+
+  // Listen for command palette events from parent
+  useEffect(() => {
+    const handleNewChat = () => startNewConversation()
+    const handleSwitchProvider = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (detail?.provider) setSelectedProvider(detail.provider)
+    }
+    const handleToggleQuality = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (detail?.mode) setQualityMode(detail.mode)
+    }
+    window.addEventListener('cachegpt:new-chat', handleNewChat)
+    window.addEventListener('cachegpt:switch-provider', handleSwitchProvider)
+    window.addEventListener('cachegpt:toggle-quality', handleToggleQuality)
+    return () => {
+      window.removeEventListener('cachegpt:new-chat', handleNewChat)
+      window.removeEventListener('cachegpt:switch-provider', handleSwitchProvider)
+      window.removeEventListener('cachegpt:toggle-quality', handleToggleQuality)
+    }
+  }, [])
+
   // Keyboard visibility detection using Visual Viewport API
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -162,7 +205,6 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
   // Auto-load conversation messages and files when conversation ID from URL is available
   useEffect(() => {
     if (conversationId && userProfile) {
-      console.log('[CHAT] Auto-loading conversation from URL:', conversationId)
       loadConversationMessages(conversationId)
       loadConversationFiles(conversationId)
     }
@@ -171,8 +213,6 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
   // Load files associated with a conversation
   const loadConversationFiles = async (convId: string) => {
     try {
-      console.log('[CHAT] Loading files for conversation:', convId)
-
       const { data: { session } } = await supabase.auth.getSession()
       const headers: HeadersInit = {
         'Content-Type': 'application/json'
@@ -190,7 +230,6 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
       if (response.ok) {
         const data = await response.json()
         const files = data.files || []
-        console.log('[CHAT] Loaded conversation files:', files.length)
         setUploadedFiles(files)
       } else {
         console.warn('[CHAT] Failed to load conversation files:', response.status)
@@ -267,25 +306,13 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
 
   const loadConversations = async () => {
     try {
-      console.log('[CHAT] loadConversations: Starting...')
-
       // Get user ID from current session
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
-      console.log('[CHAT] loadConversations: Session check', {
-        hasSession: !!session,
-        hasUser: !!session?.user,
-        userId: session?.user?.id,
-        error: sessionError?.message
-      })
-
       if (!session?.user?.id) {
-        console.log('[CHAT] No session found, skipping conversations load')
         setConversations([])
         return
       }
-
-      console.log('[CHAT] loadConversations: Making API call for user:', session.user.id)
 
       // Fetch conversations - send Bearer token since cookies aren't working in App Router
       const headers: HeadersInit = {
@@ -295,7 +322,6 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
       // Add Authorization header with session token
       if (session.access_token) {
         headers['Authorization'] = `Bearer ${session.access_token}`
-        console.log('[CHAT] loadConversations: Sending Bearer token')
       } else {
         console.warn('[CHAT] loadConversations: No access token in session!')
       }
@@ -940,17 +966,20 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
             <div>
               <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">CacheGPT</h1>
               <div className="flex items-center gap-2">
-                <ProviderSelector
-                  currentProvider={selectedProvider}
-                  onProviderChange={handleProviderChange}
-                  className="hidden sm:block"
-                />
+                <div data-tour="provider-selector">
+                  <ProviderSelector
+                    currentProvider={selectedProvider}
+                    onProviderChange={handleProviderChange}
+                    className="hidden sm:block"
+                  />
+                </div>
               </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {/* Quality Mode Toggle */}
             <button
+              data-tour="quality-mode"
               onClick={() => setQualityMode(qualityMode === 'fast' ? 'best' : 'fast')}
               className={`px-3 py-1.5 text-sm rounded-lg transition-all flex items-center gap-1.5 ${
                 qualityMode === 'best'
@@ -974,14 +1003,15 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
             </button>
             <button
               onClick={startNewConversation}
-              className="p-2 sm:px-3 sm:py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-1"
-              title="New Chat"
+              className="p-3 sm:p-2 sm:px-3 sm:py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-1 touch-manipulation"
+              title="New Chat (⌘⇧O)"
               aria-label="Start new chat"
             >
               <Plus className="w-4 h-4 sm:hidden" />
               <span className="hidden sm:inline">New Chat</span>
             </button>
             <button
+              data-tour="history"
               onClick={async () => {
                 // Check if user is authenticated before showing history
                 const { data: { session } } = await supabase.auth.getSession()
@@ -996,7 +1026,7 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
                   setShowHistory(!showHistory)
                 }
               }}
-              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors relative"
+              className="p-3 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors relative touch-manipulation"
               title="Chat History"
               aria-label={showHistory ? "Close chat history" : "Open chat history"}
               aria-expanded={showHistory}
@@ -1016,7 +1046,7 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
             </div>
             <button
               onClick={() => router.push('/')}
-              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+              className="p-3 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors touch-manipulation"
               title="Home"
               aria-label="Go to home page"
             >
@@ -1024,8 +1054,9 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
             </button>
             {!isAnonymous && (
               <button
+                data-tour="settings"
                 onClick={handleSettings}
-                className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                className="p-3 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors touch-manipulation"
                 title="Settings"
                 aria-label="Open settings"
               >
@@ -1045,7 +1076,7 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
             ) : (
               <button
                 onClick={handleLogout}
-                className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                className="p-3 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors touch-manipulation"
                 title="Logout"
                 aria-label="Logout"
               >
@@ -1056,83 +1087,29 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
         </div>
       </div>
 
-      {/* Chat History Sidebar */}
-      {showHistory && (
-        <div className="fixed top-[85px] right-0 w-full sm:w-80 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 z-20 overflow-y-auto shadow-xl" style={{ height: 'calc(100dvh - 85px)' }}>
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Chat History</h2>
-              <button
-                onClick={() => setShowHistory(false)}
-                className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-          <div className="p-4 space-y-2">
-            {isAnonymous ? (
-              <div className="text-center py-8">
-                <p className="text-gray-500 dark:text-gray-400 text-sm mb-3">
-                  Sign in to save your chat history
-                </p>
-                <button
-                  onClick={() => router.push('/login')}
-                  className="flex items-center gap-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors mx-auto"
-                >
-                  <LogIn className="w-4 h-4" />
-                  Sign In
-                </button>
-              </div>
-            ) : conversations.length === 0 ? (
-              <p className="text-gray-500 dark:text-gray-400 text-sm text-center py-8">
-                No conversations yet. Start chatting to see your history here.
-              </p>
-            ) : (
-              conversations.map((conv) => (
-                <div
-                  key={conv.conversation_id}
-                  className={`relative w-full p-3 rounded-lg border transition-colors group ${
-                    currentConversationId === conv.conversation_id
-                      ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
-                      : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  <button
-                    onClick={() => {
-                      loadConversationMessages(conv.conversation_id)
-                      loadConversationFiles(conv.conversation_id)
-                    }}
-                    className="w-full text-left pr-8"
-                  >
-                    <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                      {conv.title}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      {conv.message_count} messages • {providerNames[conv.provider as keyof typeof providerNames]}
-                    </div>
-                    <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                      {getRelativeTime(conv.last_message_at)}
-                    </div>
-                  </button>
-                  <button
-                    onClick={(e) => deleteConversation(conv.conversation_id, e)}
-                    className="absolute top-3 right-3 p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
-                    title="Delete conversation"
-                    aria-label="Delete conversation"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
+      {/* Main content area with sidebar */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Conversation Sidebar (left side on desktop, bottom sheet on mobile) */}
+        <ConversationSidebar
+          conversations={conversations}
+          currentConversationId={currentConversationId}
+          isAnonymous={isAnonymous}
+          isOpen={showHistory}
+          onClose={() => setShowHistory(false)}
+          onSelectConversation={(id) => {
+            loadConversationMessages(id)
+            loadConversationFiles(id)
+          }}
+          onDeleteConversation={deleteConversation}
+          onLogin={() => router.push('/login')}
+        />
+
+        {/* Chat content column (messages + input) */}
+        <div className={`flex flex-1 flex-col overflow-hidden ${isPanelPinned ? 'sm:mr-[28rem]' : ''}`}>
 
       {/* Messages */}
       <div
-        className={`flex flex-1 flex-col overflow-y-auto p-4 pb-safe transition-all duration-300 bg-gray-50 dark:bg-gray-900/50 ${showHistory ? 'sm:mr-80 mr-0' : ''} ${isPanelPinned ? 'sm:mr-[28rem]' : ''}`}
+        className="flex flex-1 flex-col overflow-y-auto p-4 pb-safe transition-all duration-300 bg-gray-50 dark:bg-gray-900/50"
         role="log"
         aria-live="polite"
         aria-label="Chat messages"
@@ -1161,6 +1138,15 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
               onPromptClick={handleExamplePromptClick}
               layout="grid"
               mode={currentMode}
+              hasConversations={conversations.length > 0}
+              lastConversationTitle={conversations.length > 0 ? conversations[0]?.title : null}
+              onContinueConversation={conversations.length > 0 ? () => {
+                const lastConv = conversations[0]
+                if (lastConv) {
+                  loadConversationMessages(lastConv.conversation_id)
+                  loadConversationFiles(lastConv.conversation_id)
+                }
+              } : undefined}
             />
           )}
 
@@ -1188,7 +1174,7 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
           {messages.map((msg, idx) => (
             <div
               key={idx}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-message-in group`}
             >
               <div className={`max-w-[85%] rounded-lg shadow-sm overflow-hidden ${
                 msg.role === 'user'
@@ -1201,6 +1187,13 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
                   <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{msg.content}</p>
                 ) : (
                   <MarkdownMessage content={msg.content} />
+                )}
+                {/* Per-message action bar for assistant messages */}
+                {msg.role === 'assistant' && !msg.error && (
+                  <MessageActionBar
+                    content={msg.content}
+                    onRegenerate={idx > 0 && messages[idx - 1]?.role === 'user' ? () => handleRetry(messages[idx - 1].content) : undefined}
+                  />
                 )}
                 {msg.error && msg.retryMessage && (
                   <button
@@ -1280,12 +1273,18 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
           )}
           {/* Loading indicator (before streaming starts) */}
           {isLoading && !isStreaming && (
-            <div className="flex justify-start">
+            <div className="flex justify-start animate-message-in">
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse delay-100"></div>
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse delay-200"></div>
+                <div className="flex items-center gap-3">
+                  <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    {selectedProvider !== 'auto' && providerNames[selectedProvider as keyof typeof providerNames]
+                      ? `${providerNames[selectedProvider as keyof typeof providerNames]} is thinking...`
+                      : 'Thinking...'}
+                  </span>
+                </div>
+                <div className="mt-2 h-1 w-48 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div className="h-full shimmer rounded-full" style={{ width: '100%' }} />
                 </div>
               </div>
             </div>
@@ -1296,7 +1295,7 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
       </div>
 
       {/* Input */}
-      <div className={`flex-shrink-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm sticky bottom-0 z-10 transition-all duration-300 ${isPanelPinned ? 'sm:mr-[28rem]' : ''}`}
+      <div className="flex-shrink-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm sticky bottom-0 z-10 transition-all duration-300"
            style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
         <div className="max-w-4xl mx-auto">
           {/* Referenced conversations indicator */}
@@ -1319,7 +1318,7 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
               })}
             </div>
           )}
-          <div className="flex gap-2">
+          <div className="flex gap-2" data-tour="chat-input">
             <FileUpload
               onFilesChange={setUploadedFiles}
               maxFiles={5}
@@ -1365,8 +1364,12 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
         </div>
       </div>
 
+        </div>{/* end chat content column */}
+      </div>{/* end main content area with sidebar */}
+
       {/* Floating Bug Report Button */}
       <BugReportButton />
+      <FirstTimeTour />
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmId && (

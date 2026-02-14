@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import ChatInterface from '@/components/chat/ChatInterface'
+import CommandPalette from '@/components/chat/CommandPalette'
 import { DiscordProvider } from '@/contexts/DiscordContext'
 import { GmailProvider } from '@/contexts/GmailContext'
 import { CalendarProvider } from '@/contexts/CalendarContext'
@@ -15,10 +17,13 @@ import IntegrationDockButton from '@/components/chat/IntegrationDockButton'
 import QuickReplyToast from '@/components/chat/QuickReplyToast'
 
 function ChatPageWithDiscord(props: any) {
+  const router = useRouter();
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [isPanelPinned, setIsPanelPinned] = useState(false);
   const [activeTab, setActiveTab] = useState<IntegrationTab>('discord');
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState('auto');
+  const [qualityMode, setQualityMode] = useState<'fast' | 'best'>('fast');
 
   // Restore pinned state from localStorage
   useEffect(() => {
@@ -60,6 +65,29 @@ function ChatPageWithDiscord(props: any) {
     setIsPanelOpen(true);
   };
 
+  // Command palette callbacks
+  const handleNewChat = useCallback(() => {
+    // Dispatch a custom event that ChatInterface listens for
+    window.dispatchEvent(new CustomEvent('cachegpt:new-chat'));
+  }, []);
+
+  const handleSwitchProvider = useCallback((provider: string) => {
+    setSelectedProvider(provider);
+    window.dispatchEvent(new CustomEvent('cachegpt:switch-provider', { detail: { provider } }));
+  }, []);
+
+  const handleToggleQuality = useCallback(() => {
+    setQualityMode(prev => {
+      const next = prev === 'fast' ? 'best' : 'fast';
+      window.dispatchEvent(new CustomEvent('cachegpt:toggle-quality', { detail: { mode: next } }));
+      return next;
+    });
+  }, []);
+
+  const handleOpenSettings = useCallback(() => {
+    router.push('/settings');
+  }, [router]);
+
   return (
     <DiscordProvider autoConnect={true}>
       <GmailProvider autoConnect={true}>
@@ -85,6 +113,14 @@ function ChatPageWithDiscord(props: any) {
                         onTogglePin={handleTogglePin}
                       />
                       <QuickReplyToast onOpenIntegration={handleOpenIntegration} />
+                      <CommandPalette
+                        onNewChat={handleNewChat}
+                        onSwitchProvider={handleSwitchProvider}
+                        onToggleQuality={handleToggleQuality}
+                        onOpenSettings={handleOpenSettings}
+                        qualityMode={qualityMode}
+                        selectedProvider={selectedProvider}
+                      />
                     </div>
                   </JiraProvider>
                 </DriveProvider>

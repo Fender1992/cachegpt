@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Sparkles, Code, BookOpen, Lightbulb } from 'lucide-react';
+import { Sparkles, Code, BookOpen, Lightbulb, ArrowRight, MessageSquare } from 'lucide-react';
 import { telemetry } from '@/lib/telemetry';
 
 interface ExamplePrompt {
@@ -42,6 +42,9 @@ interface ExamplePromptsProps {
     title: string;
     example_prompts: string[];
   } | null;
+  lastConversationTitle?: string | null;
+  onContinueConversation?: () => void;
+  hasConversations?: boolean;
 }
 
 export default function ExamplePrompts({
@@ -49,6 +52,9 @@ export default function ExamplePrompts({
   layout = 'grid',
   className = '',
   mode = null,
+  lastConversationTitle = null,
+  onContinueConversation,
+  hasConversations = false,
 }: ExamplePromptsProps) {
   const [isVisible, setIsVisible] = useState(false);
 
@@ -96,12 +102,31 @@ export default function ExamplePrompts({
     >
       <div className="text-center mb-8">
         <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
-          {mode ? `Try ${mode.title}...` : 'Try asking...'}
+          {mode ? `Try ${mode.title}...` : hasConversations ? 'Welcome back' : 'Try asking...'}
         </h2>
         <p className="text-gray-600 dark:text-gray-400">
-          Click any example to get started
+          {hasConversations ? 'Start a new conversation or pick up where you left off' : 'Click any example to get started'}
         </p>
       </div>
+
+      {/* Continue last conversation (returning users) */}
+      {lastConversationTitle && onContinueConversation && (
+        <button
+          onClick={onContinueConversation}
+          className="w-full mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl text-left hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-100 dark:bg-blue-800 rounded-lg">
+              <MessageSquare className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-0.5">Continue where you left off</div>
+              <div className="text-sm text-gray-900 dark:text-white truncate">{lastConversationTitle}</div>
+            </div>
+            <ArrowRight className="w-4 h-4 text-blue-400 group-hover:translate-x-1 transition-transform flex-shrink-0" />
+          </div>
+        </button>
+      )}
 
       <div
         className={
@@ -155,10 +180,14 @@ export default function ExamplePrompts({
         })}
       </div>
 
-      <div className="mt-6 text-center">
-        <p className="text-sm text-gray-500 dark:text-gray-400">
+      {/* Feature discovery row */}
+      <div className="mt-8 flex flex-wrap items-center justify-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+        <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-full text-xs font-medium">
+          <kbd className="text-[10px] font-semibold text-gray-400">&#x2318;K</kbd> Quick actions
+        </span>
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-full text-xs font-medium">
           Or type your own question below
-        </p>
+        </span>
       </div>
     </div>
   );

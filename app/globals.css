@@ -369,21 +369,71 @@
     animation: fadeIn 0.5s ease-out forwards;
   }
 
+  /* Sidebar slide in from left */
+  @keyframes slide-in-left {
+    from { transform: translateX(-100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+
+  .animate-slide-in-left {
+    animation: slide-in-left 0.25s ease-out forwards;
+  }
+
+  /* Bottom sheet / command palette slide up */
+  @keyframes slide-up {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.3s ease-out forwards;
+  }
+
+  /* Modal scale in */
+  @keyframes scale-in {
+    from { opacity: 0; transform: translate(-50%, 0) scale(0.95); }
+    to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.15s ease-out forwards;
+  }
+
+  /* New message entry animation */
+  @keyframes message-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-message-in {
+    animation: message-in 0.3s ease-out forwards;
+  }
+
   /* Custom scrollbar */
   ::-webkit-scrollbar {
-    width: 12px;
-    height: 12px;
+    width: 8px;
+    height: 8px;
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-gray-100 dark:bg-gray-800;
+    @apply bg-transparent;
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-gradient-to-b from-purple-400 to-purple-600 rounded-full;
+    @apply bg-gray-300 dark:bg-gray-600 rounded-full;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply from-purple-500 to-purple-700;
+    @apply bg-gray-400 dark:bg-gray-500;
+  }
+
+  /* Firefox scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(156 163 175) transparent;
+  }
+
+  .dark * {
+    scrollbar-color: rgb(75 85 99) transparent;
   }
 }
