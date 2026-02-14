@@ -131,25 +131,32 @@ export class CalendarClient {
       // Cache calendars
       this.calendarCache = { data: calendars, fetchedAt: Date.now() };
 
-      // Fetch today's events to get count
+      // Fetch upcoming events (30 days) so panel shows future events too
       const now = new Date();
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-      const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+      const futureEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 30).toISOString();
 
       const eventsRes = await fetch(
-        `/api/integrations/google-calendar/events?timeMin=${encodeURIComponent(todayStart)}&timeMax=${encodeURIComponent(todayEnd)}`,
+        `/api/integrations/google-calendar/events?timeMin=${encodeURIComponent(todayStart)}&timeMax=${encodeURIComponent(futureEnd)}`,
         { headers }
       );
       const eventsData = eventsRes.ok ? await eventsRes.json() : { events: [] };
-      const todayEvents: CalendarEvent[] = eventsData.events || [];
+      const allEvents: CalendarEvent[] = eventsData.events || [];
+
+      // Count today's events for the badge
+      const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      const todayEventCount = allEvents.filter(e => {
+        const eventDate = new Date(e.isAllDay ? e.start.date! : e.start.dateTime!);
+        return eventDate >= new Date(todayStart) && eventDate < tomorrow;
+      }).length;
 
       this.updateState({
         isConnected: true,
         isConnecting: false,
         email: status.email,
         calendars,
-        todayEventCount: todayEvents.length,
-        events: todayEvents,
+        todayEventCount,
+        events: allEvents,
         error: null,
       });
     } catch (error) {
@@ -243,6 +250,45 @@ export class CalendarClient {
       this.updateState({ events: data.events || [] });
     } catch (error) {
       console.error('[Calendar Client] Error loading events:', error);
+    }
+  }
+
+  /**
+   * Force refresh events (bypasses connection guard).
+   * Called after events are created/deleted from chat.
+   */
+  async refreshEvents(): Promise<void> {
+    if (!this.connected) return;
+
+    try {
+      const headers = await this.getAuthHeader();
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+      // Fetch 30 days of events so future events show up
+      const futureEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 30).toISOString();
+
+      const eventsRes = await fetch(
+        `/api/integrations/google-calendar/events?timeMin=${encodeURIComponent(todayStart)}&timeMax=${encodeURIComponent(futureEnd)}`,
+        { headers }
+      );
+      const eventsData = eventsRes.ok ? await eventsRes.json() : { events: [] };
+      const events: CalendarEvent[] = eventsData.events || [];
+
+      // Clear cache so panel shows fresh data
+      this.eventCache.clear();
+
+      this.updateState({
+        events,
+        todayEventCount: events.filter(e => {
+          const eventDate = new Date(e.isAllDay ? e.start.date! : e.start.dateTime!);
+          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          const tomorrow = new Date(today);
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          return eventDate >= today && eventDate < tomorrow;
+        }).length,
+      });
+    } catch (error) {
+      console.error('[Calendar Client] Error refreshing events:', error);
     }
   }
 

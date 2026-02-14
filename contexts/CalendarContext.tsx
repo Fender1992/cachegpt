@@ -54,7 +54,7 @@ export function CalendarProvider({ children, autoConnect = false }: CalendarProv
 
     // Listen for calendar events created/deleted from chat
     const handleCalendarChanged = () => {
-      calendarClient.connect().catch(console.error);
+      calendarClient.refreshEvents().catch(console.error);
     };
     window.addEventListener('calendar-event-changed', handleCalendarChanged);
 
@@ -102,7 +102,7 @@ export function CalendarProvider({ children, autoConnect = false }: CalendarProv
   };
 
   const refreshEvents = async (): Promise<void> => {
-    return calendarClient.connect(); // Re-fetches today's events
+    return calendarClient.refreshEvents();
   };
 
   const closePanel = useCallback((): void => {
