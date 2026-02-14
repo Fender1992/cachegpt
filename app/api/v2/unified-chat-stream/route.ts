@@ -29,7 +29,7 @@ import { resolveProvider, ProviderResolutionError } from '@/services/llm/provide
 import { createAdapter } from '@/services/llm/adapters';
 import { generateRequestId } from '@/config/llmConfig';
 
-const CACHE_VERSION = 'v5-calendar-fix';
+const CACHE_VERSION = 'v6-calendar-capability';
 
 // Lazy load ranking modules
 const getTierCache = async () => {
@@ -371,8 +371,10 @@ export async function POST(request: NextRequest) {
         }
         const calendarContext = await retrieveCalendarContext(userId, userMessage, userTimezone.timezone);
         if (calendarContext) {
+          // Inject capability declaration so the AI knows it HAS calendar access
+          // (prevents "I'm an AI, I can't access your calendar" responses)
           enrichedMessages.splice(enrichedMessages.length - 1, 0,
-            { role: 'system', content: calendarContext });
+            { role: 'system', content: `## Connected Integration: Google Calendar\n\nYou have direct access to the user's Google Calendar. You can create, read, and delete events on their behalf. The calendar action has already been executed server-side — use the result below to respond naturally.\n\n${calendarContext}` });
         } else if (hasCalendarWriteAction) {
           // Intent detected but no calendar context — integration likely not connected
           enrichedMessages.splice(enrichedMessages.length - 1, 0,

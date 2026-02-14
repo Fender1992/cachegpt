@@ -183,9 +183,26 @@ function parseEventFromQuery(query: string): QueryAnalysis['parsedEvent'] | unde
     }
   }
 
+  // Location extraction: "at the [location]" before time/date phrases
+  // Match "at the X" or "at X" where X is a multi-word location (not a time like "at 3 pm")
+  let location: string | undefined;
+  const locationMatch = query.match(/\bat\s+(?:the\s+)?([A-Z][A-Za-z\s]+?)(?:\s+(?:at|from|on)\s+\d|\s*$)/);
+  if (locationMatch) {
+    location = locationMatch[1].trim();
+  }
+  // Also try "in [Location]" pattern (e.g., "in Belton VA", "in Dallas")
+  if (!location) {
+    const inLocationMatch = query.match(/\bin\s+([A-Z][A-Za-z\s]+?)(?:\s+(?:at|from|on)\s+\d|\s*$)/);
+    if (inLocationMatch) {
+      location = inLocationMatch[1].trim();
+    }
+  }
+
   // Summary extraction - strip date/time/action words, keep the event name
   let summary = query
     .replace(/\b(?:add|create|schedule|book|put|set\s*up|make|plan|arrange|block\s*(?:off|out)?|remind\s+me\s+(?:to|about)|i\s+have|i\s+need\s+to|i(?:'ve| have)\s+got)\b/gi, '')
+    // Strip extracted location from summary to avoid duplication
+    .replace(location ? new RegExp(`\\b(?:at\\s+(?:the\\s+)?)?${location.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi') : /(?!)/, '')
     .replace(/\b(?:to\s+)?(?:my\s+)?(?:google\s+)?cal(?:endar|ender)?\b/gi, '')
     .replace(/\b(?:to\s+)?(?:my\s+)?schedule\b/gi, '')
     .replace(monthDayRegex, '')
@@ -214,6 +231,7 @@ function parseEventFromQuery(query: string): QueryAnalysis['parsedEvent'] | unde
     date: eventDate.toISOString().split('T')[0],
     startTime,
     endTime,
+    location,
     isAllDay,
   };
 }
