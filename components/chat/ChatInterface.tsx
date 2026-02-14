@@ -46,7 +46,7 @@ interface ChatMessage {
 // Maximum messages to keep in memory (prevents memory leaks in long sessions)
 const MAX_MESSAGES_IN_MEMORY = 50
 
-function ChatPageContent({ params, onShowHistoryChange }: { params?: Promise<{ id: string }>, onShowHistoryChange?: (show: boolean) => void }) {
+function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { params?: Promise<{ id: string }>, onShowHistoryChange?: (show: boolean) => void, isPanelPinned?: boolean }) {
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -1132,7 +1132,7 @@ function ChatPageContent({ params, onShowHistoryChange }: { params?: Promise<{ i
 
       {/* Messages */}
       <div
-        className={`flex flex-1 flex-col overflow-y-auto p-4 pb-safe transition-all duration-300 bg-gray-50 dark:bg-gray-900/50 ${showHistory ? 'sm:mr-80 mr-0' : ''}`}
+        className={`flex flex-1 flex-col overflow-y-auto p-4 pb-safe transition-all duration-300 bg-gray-50 dark:bg-gray-900/50 ${showHistory ? 'sm:mr-80 mr-0' : ''} ${isPanelPinned ? 'sm:mr-[28rem]' : ''}`}
         role="log"
         aria-live="polite"
         aria-label="Chat messages"
@@ -1296,7 +1296,7 @@ function ChatPageContent({ params, onShowHistoryChange }: { params?: Promise<{ i
       </div>
 
       {/* Input */}
-      <div className="flex-shrink-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm sticky bottom-0 z-10"
+      <div className={`flex-shrink-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm sticky bottom-0 z-10 transition-all duration-300 ${isPanelPinned ? 'sm:mr-[28rem]' : ''}`}
            style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
         <div className="max-w-4xl mx-auto">
           {/* Referenced conversations indicator */}
@@ -1419,14 +1419,14 @@ function ChatPageContent({ params, onShowHistoryChange }: { params?: Promise<{ i
   )
 }
 
-export default function ChatPage({ params, onShowHistoryChange }: { params?: Promise<{ id: string }>, onShowHistoryChange?: (show: boolean) => void }) {
+export default function ChatPage({ params, onShowHistoryChange, isPanelPinned }: { params?: Promise<{ id: string }>, onShowHistoryChange?: (show: boolean) => void, isPanelPinned?: boolean }) {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center">
         <div className="w-16 h-16 border-4 border-purple-200 rounded-full animate-spin border-t-purple-600"></div>
       </div>
     }>
-      <ChatPageContent params={params} onShowHistoryChange={onShowHistoryChange} />
+      <ChatPageContent params={params} onShowHistoryChange={onShowHistoryChange} isPanelPinned={isPanelPinned} />
     </Suspense>
   )
 }

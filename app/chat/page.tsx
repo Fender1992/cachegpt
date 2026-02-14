@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ChatInterface from '@/components/chat/ChatInterface'
 import { DiscordProvider } from '@/contexts/DiscordContext'
 import { GmailProvider } from '@/contexts/GmailContext'
@@ -15,8 +15,44 @@ import QuickReplyToast from '@/components/chat/QuickReplyToast'
 
 function ChatPageWithDiscord(props: any) {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [isPanelPinned, setIsPanelPinned] = useState(false);
   const [activeTab, setActiveTab] = useState<IntegrationTab>('discord');
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
+  // Restore pinned state from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('integrationPanelPinned');
+    if (saved === 'true') {
+      setIsPanelPinned(true);
+      setIsPanelOpen(true);
+      const savedTab = localStorage.getItem('integrationPanelTab') as IntegrationTab | null;
+      if (savedTab) setActiveTab(savedTab);
+    }
+  }, []);
+
+  const handleTogglePin = () => {
+    const newPinned = !isPanelPinned;
+    setIsPanelPinned(newPinned);
+    localStorage.setItem('integrationPanelPinned', String(newPinned));
+    if (newPinned) {
+      localStorage.setItem('integrationPanelTab', activeTab);
+    }
+  };
+
+  const handleClose = () => {
+    setIsPanelOpen(false);
+    if (isPanelPinned) {
+      setIsPanelPinned(false);
+      localStorage.removeItem('integrationPanelPinned');
+    }
+  };
+
+  const handleTabChange = (tab: IntegrationTab) => {
+    setActiveTab(tab);
+    if (isPanelPinned) {
+      localStorage.setItem('integrationPanelTab', tab);
+    }
+  };
 
   const handleOpenIntegration = (type: 'discord' | 'gmail') => {
     setActiveTab(type);
@@ -32,7 +68,7 @@ function ChatPageWithDiscord(props: any) {
               <DriveProvider autoConnect={true}>
                 <JiraProvider autoConnect={true}>
                   <div className="relative">
-                    <ChatInterface {...props} onShowHistoryChange={setIsHistoryOpen} />
+                    <ChatInterface {...props} onShowHistoryChange={setIsHistoryOpen} isPanelPinned={isPanelPinned && isPanelOpen} />
                     <IntegrationDockButton
                       onClick={() => setIsPanelOpen(prev => !prev)}
                       isPanelOpen={isPanelOpen}
@@ -40,9 +76,11 @@ function ChatPageWithDiscord(props: any) {
                     />
                     <UnifiedIntegrationPanel
                       isOpen={isPanelOpen}
-                      onClose={() => setIsPanelOpen(false)}
+                      onClose={handleClose}
                       activeTab={activeTab}
-                      onTabChange={setActiveTab}
+                      onTabChange={handleTabChange}
+                      isPinned={isPanelPinned}
+                      onTogglePin={handleTogglePin}
                     />
                     <QuickReplyToast onOpenIntegration={handleOpenIntegration} />
                   </div>

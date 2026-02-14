@@ -3,6 +3,8 @@
 import React, { useEffect } from 'react';
 import {
   X,
+  Pin,
+  PinOff,
   MessageCircle,
   Mail,
   Calendar,
@@ -39,6 +41,8 @@ interface UnifiedIntegrationPanelProps {
   onClose: () => void;
   activeTab: IntegrationTab;
   onTabChange: (tab: IntegrationTab) => void;
+  isPinned?: boolean;
+  onTogglePin?: () => void;
 }
 
 const TAB_CONFIG = {
@@ -114,6 +118,8 @@ export default function UnifiedIntegrationPanel({
   onClose,
   activeTab,
   onTabChange,
+  isPinned = false,
+  onTogglePin,
 }: UnifiedIntegrationPanelProps) {
   const discord = useDiscord();
   const gmail = useGmail();
@@ -152,26 +158,50 @@ export default function UnifiedIntegrationPanel({
 
   return (
     <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/20 dark:bg-black/40 z-40"
-        onClick={onClose}
-      />
+      {/* Backdrop — hidden when pinned */}
+      {!isPinned && (
+        <div
+          className="fixed inset-0 bg-black/20 dark:bg-black/40 z-40"
+          onClick={onClose}
+        />
+      )}
 
       {/* Panel */}
-      <div className="fixed inset-0 sm:inset-auto sm:top-[85px] sm:right-0 sm:h-[calc(100%-85px-4rem)] sm:w-[28rem] sm:max-w-[85vw] bg-white dark:bg-gray-900 sm:border-l sm:border-b border-gray-200 dark:border-gray-700 shadow-2xl z-50 flex flex-col sm:rounded-bl-xl transform transition-transform duration-300 ease-in-out" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <div className={cn(
+        'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 shadow-2xl flex flex-col transform transition-all duration-300 ease-in-out',
+        isPinned
+          ? 'fixed top-[85px] right-0 h-[calc(100%-85px)] w-[28rem] max-w-[40vw] border-l z-30'
+          : 'fixed inset-0 sm:inset-auto sm:top-[85px] sm:right-0 sm:h-[calc(100%-85px-4rem)] sm:w-[28rem] sm:max-w-[85vw] sm:border-l sm:border-b z-50 sm:rounded-bl-xl'
+      )} style={{ paddingTop: isPinned ? undefined : 'env(safe-area-inset-top)', paddingBottom: isPinned ? undefined : 'env(safe-area-inset-bottom)' }}>
         {/* Header */}
         <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             Integrations
           </h2>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-            aria-label="Close integrations panel"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1">
+            {onTogglePin && (
+              <button
+                onClick={onTogglePin}
+                className={cn(
+                  'p-1.5 transition-colors hidden sm:block',
+                  isPinned
+                    ? 'text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300'
+                    : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                )}
+                aria-label={isPinned ? 'Unpin panel' : 'Pin panel open'}
+                title={isPinned ? 'Unpin panel' : 'Pin panel open'}
+              >
+                {isPinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              aria-label="Close integrations panel"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Empty state when no integrations are connected */}
