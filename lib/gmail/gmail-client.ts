@@ -266,6 +266,29 @@ export class GmailClient {
 
       const message: GmailMessageFull = await res.json();
       this.updateState({ selectedMessage: message });
+
+      // Mark as read in Gmail if the message was unread
+      const wasUnread = this.state.messages.some(m => m.id === messageId && m.isUnread);
+      if (wasUnread) {
+        // Update local state immediately for responsiveness
+        const updatedMessages = this.state.messages.map(m =>
+          m.id === messageId ? { ...m, isUnread: false } : m
+        );
+        if (this.state.selectedLabel) {
+          this.messageCache.set(this.state.selectedLabel.id, updatedMessages);
+        }
+        this.updateState({
+          messages: updatedMessages,
+          unreadCount: Math.max(0, this.state.unreadCount - 1),
+        });
+
+        // Fire-and-forget the API call to mark as read in Gmail
+        fetch('/api/integrations/gmail/messages', {
+          method: 'POST',
+          headers: { ...headers, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messageId }),
+        }).catch(err => console.error('[Gmail Client] Failed to mark as read:', err));
+      }
     } catch (error) {
       console.error('[Gmail Client] Error loading message:', error);
       this.updateState({ error: 'Failed to load message' });
@@ -290,6 +313,44 @@ export class GmailClient {
       }
     } catch (error) {
       console.error('[Gmail Client] Error sending email:', error);
+      throw error;
+    }
+  }
+
+  async deleteMessage(messageId: string): Promise<void> {
+    if (!this.connected) {
+      throw new Error('Gmail not connected');
+    }
+
+    try {
+      const headers = await this.getAuthHeader();
+      const res = await fetch(
+        `/api/integrations/gmail/messages?messageId=${messageId}`,
+        {
+          method: 'DELETE',
+          headers,
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error(`Failed to delete message: ${res.status}`);
+      }
+
+      // Remove from local message list
+      const updatedMessages = this.state.messages.filter(m => m.id !== messageId);
+      if (this.state.selectedLabel) {
+        this.messageCache.set(this.state.selectedLabel.id, updatedMessages);
+      }
+
+      // Clear selected message if it was the deleted one
+      const clearSelected = this.state.selectedMessage?.id === messageId;
+
+      this.updateState({
+        messages: updatedMessages,
+        ...(clearSelected ? { selectedMessage: null } : {}),
+      });
+    } catch (error) {
+      console.error('[Gmail Client] Error deleting message:', error);
       throw error;
     }
   }

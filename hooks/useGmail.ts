@@ -74,6 +74,16 @@ export function useGmail(options: UseGmailOptions = {}) {
     }
   }, [gmail.selectMessage]);
 
+  const deleteMessageSafely = useCallback(async (messageId: string): Promise<boolean> => {
+    try {
+      await gmail.deleteMessage(messageId);
+      return true;
+    } catch (error) {
+      console.error('[useGmail] Delete message failed:', error);
+      return false;
+    }
+  }, [gmail.deleteMessage]);
+
   const sendEmailSafely = useCallback(async (
     to: string, subject: string, body: string, threadId?: string, inReplyTo?: string
   ): Promise<boolean> => {
@@ -128,6 +138,7 @@ export function useGmail(options: UseGmailOptions = {}) {
 
     // Email methods
     sendEmail: sendEmailSafely,
+    deleteMessage: deleteMessageSafely,
     clearUnreadCount: gmail.clearUnreadCount,
 
     // UI methods

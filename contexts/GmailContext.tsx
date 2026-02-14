@@ -17,6 +17,7 @@ interface GmailContextValue extends GmailState {
 
   // Interaction methods
   sendEmail: (to: string, subject: string, body: string, threadId?: string, inReplyTo?: string) => Promise<void>;
+  deleteMessage: (messageId: string) => Promise<void>;
   clearUnreadCount: () => void;
 
   // UI state
@@ -75,6 +76,10 @@ export function GmailProvider({ children, autoConnect = false }: GmailProviderPr
     return gmailClient.sendEmail(to, subject, body, threadId, inReplyTo);
   };
 
+  const deleteMessage = async (messageId: string): Promise<void> => {
+    return gmailClient.deleteMessage(messageId);
+  };
+
   const clearUnreadCount = (): void => {
     gmailClient.clearUnreadCount();
   };
@@ -103,6 +108,7 @@ export function GmailProvider({ children, autoConnect = false }: GmailProviderPr
     clearSelectedMessage,
     loadMoreMessages,
     sendEmail,
+    deleteMessage,
     clearUnreadCount,
     isPanelOpen,
     openPanel,

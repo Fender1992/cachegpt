@@ -2,6 +2,8 @@
  * Gmail Messages API
  * GET ?labelId=INBOX&limit=20&pageToken=... — List messages in a label
  * GET ?messageId=... — Get full message details
+ * POST { messageId, action } — Mark as read or trash a message
+ * DELETE ?messageId=... — Trash a message
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -84,6 +86,94 @@ async function getToken(userId: string): Promise<{ token: string; integration: a
 
   if (!token) return null;
   return { token, integration };
+}
+
+/**
+ * POST — Mark a message as read (remove UNREAD label)
+ * Body: { messageId: string }
+ */
+export async function POST(req: NextRequest) {
+  try {
+    const authResult = await resolveAuthentication(req);
+    if (isAuthError(authResult)) {
+      return NextResponse.json({ error: authResult.error }, { status: 401 });
+    }
+
+    const auth = await getToken(authResult.user.id);
+    if (!auth) {
+      return NextResponse.json({ error: 'Gmail not connected' }, { status: 404 });
+    }
+
+    const { messageId } = await req.json();
+    if (!messageId) {
+      return NextResponse.json({ error: 'messageId is required' }, { status: 400 });
+    }
+
+    const res = await fetch(
+      `${GMAIL_API}/messages/${messageId}/modify`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${auth.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ removeLabelIds: ['UNREAD'] }),
+      }
+    );
+
+    if (!res.ok) {
+      const error = await res.text();
+      console.error('[Gmail Messages] Mark as read failed:', res.status, error);
+      return NextResponse.json({ error: 'Failed to mark as read' }, { status: res.status });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('[Gmail Messages] Mark as read error:', error);
+    return NextResponse.json({ error: 'Failed to mark as read' }, { status: 500 });
+  }
+}
+
+/**
+ * DELETE — Trash a message
+ * Query: ?messageId=...
+ */
+export async function DELETE(req: NextRequest) {
+  try {
+    const authResult = await resolveAuthentication(req);
+    if (isAuthError(authResult)) {
+      return NextResponse.json({ error: authResult.error }, { status: 401 });
+    }
+
+    const auth = await getToken(authResult.user.id);
+    if (!auth) {
+      return NextResponse.json({ error: 'Gmail not connected' }, { status: 404 });
+    }
+
+    const messageId = req.nextUrl.searchParams.get('messageId');
+    if (!messageId) {
+      return NextResponse.json({ error: 'messageId is required' }, { status: 400 });
+    }
+
+    const res = await fetch(
+      `${GMAIL_API}/messages/${messageId}/trash`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${auth.token}` },
+      }
+    );
+
+    if (!res.ok) {
+      const error = await res.text();
+      console.error('[Gmail Messages] Trash failed:', res.status, error);
+      return NextResponse.json({ error: 'Failed to delete message' }, { status: res.status });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('[Gmail Messages] Delete error:', error);
+    return NextResponse.json({ error: 'Failed to delete message' }, { status: 500 });
+  }
 }
 
 export async function GET(req: NextRequest) {

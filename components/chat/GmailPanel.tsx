@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   Inbox,
   PenSquare,
+  Trash2,
 } from 'lucide-react';
 import { useGmail } from '@/hooks/useGmail';
 import { GmailLabel } from '@/lib/gmail/gmail-client';
@@ -31,6 +32,8 @@ export default function GmailPanel({ className }: GmailPanelProps) {
   const [isSending, setIsSending] = useState(false);
   const [replyThreadId, setReplyThreadId] = useState<string | undefined>();
   const [replyInReplyTo, setReplyInReplyTo] = useState<string | undefined>();
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Reset view when panel closes
@@ -82,6 +85,30 @@ export default function GmailPanel({ className }: GmailPanelProps) {
     setReplyInReplyTo(gmail.selectedMessage.messageId);
     setView('compose');
   }, [gmail.selectedMessage]);
+
+  const handleDelete = useCallback(async () => {
+    if (!gmail.selectedMessage || isDeleting) return;
+    setIsDeleting(true);
+    try {
+      const success = await gmail.deleteMessage(gmail.selectedMessage.id);
+      if (success) {
+        setView('messages');
+      }
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [gmail.selectedMessage, gmail.deleteMessage, isDeleting]);
+
+  const handleDeleteFromList = useCallback(async (e: React.MouseEvent, messageId: string) => {
+    e.stopPropagation();
+    if (deletingMessageId) return;
+    setDeletingMessageId(messageId);
+    try {
+      await gmail.deleteMessage(messageId);
+    } finally {
+      setDeletingMessageId(null);
+    }
+  }, [gmail.deleteMessage, deletingMessageId]);
 
   const handleSend = useCallback(async () => {
     if (!composeTo.trim() || !composeSubject.trim() || !composeBody.trim() || isSending) return;
@@ -322,39 +349,55 @@ export default function GmailPanel({ className }: GmailPanelProps) {
               </div>
               <div className="divide-y divide-gray-100 dark:divide-gray-800">
                 {gmail.messages.map((msg) => (
-                  <button
+                  <div
                     key={msg.id}
-                    onClick={() => handleMessageSelect(msg.id)}
                     className={cn(
-                      'w-full p-3 text-left transition-colors hover:bg-gray-50 dark:hover:bg-gray-800',
+                      'group flex items-start gap-1 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800',
                       msg.isUnread && 'bg-blue-50/50 dark:bg-blue-900/10'
                     )}
                   >
-                    <div className="flex items-start justify-between gap-2 mb-1">
-                      <span className={cn(
+                    <button
+                      onClick={() => handleMessageSelect(msg.id)}
+                      className="flex-1 min-w-0 p-3 text-left"
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <span className={cn(
+                          'text-sm truncate',
+                          msg.isUnread
+                            ? 'font-semibold text-gray-900 dark:text-white'
+                            : 'text-gray-700 dark:text-gray-300'
+                        )}>
+                          {extractName(msg.from)}
+                        </span>
+                        <span className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">
+                          {formatDate(msg.date)}
+                        </span>
+                      </div>
+                      <div className={cn(
                         'text-sm truncate',
                         msg.isUnread
-                          ? 'font-semibold text-gray-900 dark:text-white'
-                          : 'text-gray-700 dark:text-gray-300'
+                          ? 'font-medium text-gray-800 dark:text-gray-200'
+                          : 'text-gray-600 dark:text-gray-400'
                       )}>
-                        {extractName(msg.from)}
-                      </span>
-                      <span className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">
-                        {formatDate(msg.date)}
-                      </span>
-                    </div>
-                    <div className={cn(
-                      'text-sm truncate',
-                      msg.isUnread
-                        ? 'font-medium text-gray-800 dark:text-gray-200'
-                        : 'text-gray-600 dark:text-gray-400'
-                    )}>
-                      {msg.subject || '(no subject)'}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-500 truncate mt-0.5">
-                      {msg.snippet}
-                    </div>
-                  </button>
+                        {msg.subject || '(no subject)'}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-500 truncate mt-0.5">
+                        {msg.snippet}
+                      </div>
+                    </button>
+                    <button
+                      onClick={(e) => handleDeleteFromList(e, msg.id)}
+                      disabled={deletingMessageId === msg.id}
+                      className="flex-shrink-0 p-2 mt-2 mr-1 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600 dark:hover:text-red-400 disabled:opacity-50 transition-all"
+                      aria-label="Delete message"
+                    >
+                      {deletingMessageId === msg.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
                 ))}
               </div>
               {gmail.nextPageToken && (
@@ -403,13 +446,25 @@ export default function GmailPanel({ className }: GmailPanelProps) {
                   {gmail.selectedMessage.body}
                 </div>
               </div>
-              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex items-center gap-2">
                 <button
                   onClick={handleReply}
                   className="flex items-center gap-2 px-4 py-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
                 >
                   <Send className="w-4 h-4" />
                   Reply
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 disabled:opacity-50 rounded-lg transition-colors"
+                >
+                  {isDeleting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
+                  {isDeleting ? 'Deleting...' : 'Delete'}
                 </button>
               </div>
             </div>
