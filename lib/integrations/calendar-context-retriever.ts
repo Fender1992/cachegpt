@@ -162,6 +162,19 @@ function parseEventFromQuery(query: string): QueryAnalysis['parsedEvent'] | unde
       endTime = `${String(h + 1).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
       isAllDay = false;
     }
+    // Standalone time: "02:45 pm", "3:30 PM" (no "at" prefix needed) — try instruction part first
+    if (!startTime) {
+      const standaloneMatch = instructionPart.match(/\b(\d{1,2}):(\d{2})\s*(am|pm)\b/i) || query.match(/\b(\d{1,2}):(\d{2})\s*(am|pm)\b/i);
+      if (standaloneMatch) {
+        let h = parseInt(standaloneMatch[1]);
+        const m = parseInt(standaloneMatch[2]);
+        if (standaloneMatch[3].toLowerCase() === 'pm' && h < 12) h += 12;
+        if (standaloneMatch[3].toLowerCase() === 'am' && h === 12) h = 0;
+        startTime = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+        endTime = `${String(h + 1).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+        isAllDay = false;
+      }
+    }
     // "at noon"
     if (!startTime && /\bat\s+noon\b/i.test(query)) {
       startTime = '12:00';
