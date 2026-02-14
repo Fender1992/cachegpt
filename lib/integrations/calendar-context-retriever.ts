@@ -471,7 +471,7 @@ async function createCalendarEvent(
     const errorText = await res.text();
     console.error('[Calendar Action] Create failed:', res.status, errorText, 'Request body:', JSON.stringify(eventBody));
     if (res.status === 403) {
-      return `## Calendar Action\n\nFailed to create event "${parsedEvent.summary}" — permission denied (403). The Google Calendar token does not have write permissions. Tell the user to go to **Settings**, **disconnect** Google Calendar, and **reconnect** it to grant updated permissions. This will fix the issue.`;
+      return `## Calendar Action\n\nFailed to create event "${parsedEvent.summary}" — permission denied (403). The Google Calendar token does not have write permissions.\n\nTell the user: "Your Google Calendar is connected with **read-only** permissions. To fix this, go to **Settings**, **disconnect** Google Calendar, then **reconnect** it. Google will prompt you to grant write access. After that, try again and I'll create the event for you."`;
     }
     if (res.status === 401) {
       return `## Calendar Action\n\nFailed to create event "${parsedEvent.summary}" — authentication expired (401). Tell the user to go to **Settings**, **disconnect** Google Calendar, and **reconnect** it to refresh their authentication.`;
@@ -566,7 +566,7 @@ export async function retrieveCalendarContext(
 
   const { data: integration } = await supabase
     .from('user_integrations')
-    .select('id, provider_user_id, access_token, refresh_token, token_expires_at')
+    .select('id, provider_user_id, access_token, refresh_token, token_expires_at, provider_data')
     .eq('user_id', userId)
     .eq('provider', 'google_calendar')
     .eq('status', 'active')
@@ -582,6 +582,20 @@ export async function retrieveCalendarContext(
   // Only retrieve context for calendar-related queries
   if (analysis.intent === 'general' && analysis.searchTerms.length === 0) {
     return null;
+  }
+
+  // Pre-flight scope check for write operations
+  const isWriteAction = analysis.intent === 'create_event' || analysis.intent === 'delete_event';
+  if (isWriteAction && integration.provider_data?.scope) {
+    const scopes: string[] = integration.provider_data.scope;
+    const hasWriteScope = scopes.some((s: string) =>
+      s === 'https://www.googleapis.com/auth/calendar' ||
+      s === 'https://www.googleapis.com/auth/calendar.events'
+    );
+    if (!hasWriteScope) {
+      console.warn('[Calendar Context] Token missing write scope. Stored scopes:', scopes);
+      return `## Calendar Action\n\nYour Google Calendar connection only has read-only permissions. To create or modify events, you need to reconnect with write access.\n\nPlease go to **Settings**, click **Disconnect** on Google Calendar, then click **Connect** again. Google will ask you to approve calendar write access. After reconnecting, try your request again.`;
+    }
   }
 
   try {
