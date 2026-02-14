@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveAuthentication, isAuthError } from '@/lib/unified-auth-resolver';
 import { createClient } from '@supabase/supabase-js';
+import { getValidDiscordToken } from '@/lib/discord/discord-token';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -57,8 +58,19 @@ export async function GET(req: NextRequest) {
       .select('id', { count: 'exact', head: true })
       .eq('integration_id', integration.id);
 
+    // Proactively refresh the token if it's expired so subsequent API calls don't fail
+    const isConnected = integration.status !== 'disconnected';
+    if (isConnected && integration.refresh_token) {
+      await getValidDiscordToken(
+        integration.id,
+        integration.access_token,
+        integration.refresh_token,
+        integration.token_expires_at
+      ).catch(err => console.error('[Discord Status] Token refresh failed:', err));
+    }
+
     return NextResponse.json({
-      connected: integration.status !== 'disconnected',
+      connected: isConnected,
       syncing: integration.status === 'syncing',
       documentCount: documentCount || 0,
       guildCount: guildCount || 0,

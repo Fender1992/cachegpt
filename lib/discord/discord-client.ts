@@ -49,6 +49,9 @@ const LOAD_MORE_LIMIT = 20;
 export class DiscordClient {
   private connected = false;
   private pollInterval: ReturnType<typeof setInterval> | null = null;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 5;
   private listeners: Set<(state: DiscordState) => void> = new Set();
   private state: DiscordState = {
     isConnected: false,
@@ -157,11 +160,55 @@ export class DiscordClient {
     } catch (error) {
       console.error('[Discord Client] Connection error:', error);
       this.connected = false;
+      const errorMsg = error instanceof Error ? error.message : 'Failed to connect to Discord';
       this.updateState({
         isConnecting: false,
-        error: error instanceof Error ? error.message : 'Failed to connect to Discord'
+        error: errorMsg,
       });
+
+      // Auto-retry on transient failures (not on "not connected" which means user hasn't linked Discord)
+      const isPermanentError = errorMsg.includes('not connected') || errorMsg.includes('Please link');
+      if (!isPermanentError) {
+        this.scheduleReconnect();
+      }
     }
+  }
+
+  /**
+   * Reconnect — clears error state and retries connection.
+   * Called automatically on transient failures or manually via UI.
+   */
+  async reconnect(): Promise<void> {
+    this.connected = false;
+    this.updateState({ isConnected: false, isConnecting: false, error: null });
+    this.reconnectAttempts = 0;
+    return this.connect();
+  }
+
+  /**
+   * Schedule an automatic reconnect with exponential backoff
+   */
+  private scheduleReconnect(): void {
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.log('[Discord Client] Max reconnect attempts reached, giving up');
+      return;
+    }
+
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+    }
+
+    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
+    this.reconnectAttempts++;
+    console.log(`[Discord Client] Scheduling reconnect attempt ${this.reconnectAttempts} in ${delay}ms`);
+
+    this.reconnectTimer = setTimeout(async () => {
+      this.reconnectTimer = null;
+      if (!this.connected && !this.state.isConnecting) {
+        this.updateState({ error: null });
+        await this.connect().catch(() => {});
+      }
+    }, delay);
   }
 
   /**
@@ -169,6 +216,11 @@ export class DiscordClient {
    */
   disconnect(): void {
     this.stopPolling();
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    this.reconnectAttempts = 0;
     this.connected = false;
     this.channelCache.clear();
     this.messageCache.clear();

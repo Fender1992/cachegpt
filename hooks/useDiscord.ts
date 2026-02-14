@@ -144,6 +144,7 @@ export function useDiscord(options: UseDiscordOptions = {}) {
 
     // Connection methods
     connect: connectSafely,
+    reconnect: discord.reconnect,
     disconnect: discord.disconnect,
 
     // Navigation methods

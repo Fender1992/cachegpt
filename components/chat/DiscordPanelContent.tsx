@@ -142,7 +142,7 @@ export default function DiscordPanelContent({ isActive }: DiscordPanelContentPro
             <span className="text-sm">{discord.error}</span>
           </div>
           <button
-            onClick={discord.connect}
+            onClick={discord.reconnect}
             className="mt-2 px-3 py-1 text-sm bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
           >
             Retry Connection

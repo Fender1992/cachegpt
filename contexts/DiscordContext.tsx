@@ -8,6 +8,7 @@ import { panelManager } from '@/lib/panel-manager';
 interface DiscordContextValue extends DiscordState {
   // Connection methods
   connect: () => Promise<void>;
+  reconnect: () => Promise<void>;
   disconnect: () => void;
 
   // Navigation methods
@@ -45,17 +46,41 @@ export function DiscordProvider({ children, autoConnect = false }: DiscordProvid
     // Subscribe to state changes
     const unsubscribe = discordClient.subscribe(setState);
 
-    // Auto-connect if requested (stop retrying on error)
-    if (autoConnect && !state.isConnected && !state.isConnecting && !state.error) {
-      discordClient.connect().catch(console.error);
+    // Auto-connect if requested
+    if (autoConnect && !state.isConnected && !state.isConnecting) {
+      // If there's an error, the client's internal reconnect timer handles retries.
+      // Only trigger connect on initial mount (no error yet).
+      if (!state.error) {
+        discordClient.connect().catch(console.error);
+      }
     }
 
     return unsubscribe;
-  }, [autoConnect, state.isConnected, state.isConnecting, state.error]);
+  }, [autoConnect]);
+
+  // Reconnect when tab becomes visible again (handles sleep/background scenarios)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && autoConnect) {
+        const currentState = discordClient.getState();
+        if (currentState.error && !currentState.isConnecting) {
+          console.log('[Discord Context] Tab visible, retrying connection');
+          discordClient.reconnect().catch(console.error);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [autoConnect]);
 
   // Connection methods
   const connect = async (): Promise<void> => {
     return discordClient.connect();
+  };
+
+  const reconnect = async (): Promise<void> => {
+    return discordClient.reconnect();
   };
 
   const disconnect = (): void => {
@@ -108,6 +133,7 @@ export function DiscordProvider({ children, autoConnect = false }: DiscordProvid
   const contextValue: DiscordContextValue = {
     ...state,
     connect,
+    reconnect,
     disconnect,
     selectGuild,
     selectChannel,
