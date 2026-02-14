@@ -75,7 +75,7 @@ export default function GmailIntegrationCard({ userId }: GmailIntegrationCardPro
   const handleConnect = () => {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     const redirectUri = `${window.location.origin}/api/integrations/gmail/callback`;
-    const scope = 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.labels https://www.googleapis.com/auth/userinfo.email';
+    const scope = 'https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/userinfo.email';
 
     // Store user ID in cookie for callback
     document.cookie = `gmail_oauth_uid=${userId}; path=/; max-age=600; SameSite=Lax; Secure`;
