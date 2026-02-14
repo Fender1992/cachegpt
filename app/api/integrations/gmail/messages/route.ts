@@ -135,8 +135,8 @@ export async function POST(req: NextRequest) {
 }
 
 /**
- * DELETE — Trash a message
- * Query: ?messageId=...
+ * DELETE — Trash one or more messages
+ * Query: ?messageId=id1 (single) or ?messageIds=id1,id2,id3 (batch)
  */
 export async function DELETE(req: NextRequest) {
   try {
@@ -150,29 +150,35 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Gmail not connected' }, { status: 404 });
     }
 
-    const messageId = req.nextUrl.searchParams.get('messageId');
-    if (!messageId) {
-      return NextResponse.json({ error: 'messageId is required' }, { status: 400 });
+    // Support both single and batch
+    const singleId = req.nextUrl.searchParams.get('messageId');
+    const batchIds = req.nextUrl.searchParams.get('messageIds');
+    const ids = batchIds ? batchIds.split(',').filter(Boolean) : singleId ? [singleId] : [];
+
+    if (ids.length === 0) {
+      return NextResponse.json({ error: 'messageId or messageIds is required' }, { status: 400 });
     }
 
-    const res = await fetch(
-      `${GMAIL_API}/messages/${messageId}/trash`,
-      {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${auth.token}` },
-      }
+    // Trash all messages in parallel
+    const results = await Promise.allSettled(
+      ids.map(id =>
+        fetch(`${GMAIL_API}/messages/${id}/trash`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${auth.token}` },
+        })
+      )
     );
 
-    if (!res.ok) {
-      const error = await res.text();
-      console.error('[Gmail Messages] Trash failed:', res.status, error);
-      return NextResponse.json({ error: 'Failed to delete message' }, { status: res.status });
+    const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.ok));
+    if (failed.length > 0) {
+      console.error(`[Gmail Messages] Trash failed for ${failed.length}/${ids.length} messages`);
     }
 
-    return NextResponse.json({ success: true });
+    const succeeded = ids.length - failed.length;
+    return NextResponse.json({ success: true, deleted: succeeded, failed: failed.length });
   } catch (error) {
     console.error('[Gmail Messages] Delete error:', error);
-    return NextResponse.json({ error: 'Failed to delete message' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to delete messages' }, { status: 500 });
   }
 }
 

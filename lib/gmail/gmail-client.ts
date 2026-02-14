@@ -355,6 +355,42 @@ export class GmailClient {
     }
   }
 
+  async deleteMessages(messageIds: string[]): Promise<void> {
+    if (!this.connected) {
+      throw new Error('Gmail not connected');
+    }
+    if (messageIds.length === 0) return;
+
+    try {
+      const headers = await this.getAuthHeader();
+      const res = await fetch(
+        `/api/integrations/gmail/messages?messageIds=${messageIds.join(',')}`,
+        { method: 'DELETE', headers }
+      );
+
+      if (!res.ok) {
+        throw new Error(`Failed to delete messages: ${res.status}`);
+      }
+
+      // Remove from local state
+      const idSet = new Set(messageIds);
+      const updatedMessages = this.state.messages.filter(m => !idSet.has(m.id));
+      if (this.state.selectedLabel) {
+        this.messageCache.set(this.state.selectedLabel.id, updatedMessages);
+      }
+
+      const clearSelected = this.state.selectedMessage && idSet.has(this.state.selectedMessage.id);
+
+      this.updateState({
+        messages: updatedMessages,
+        ...(clearSelected ? { selectedMessage: null } : {}),
+      });
+    } catch (error) {
+      console.error('[Gmail Client] Error deleting messages:', error);
+      throw error;
+    }
+  }
+
   clearSelectedMessage(): void {
     this.updateState({ selectedMessage: null });
   }

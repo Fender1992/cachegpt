@@ -84,6 +84,16 @@ export function useGmail(options: UseGmailOptions = {}) {
     }
   }, [gmail.deleteMessage]);
 
+  const deleteMessagesSafely = useCallback(async (messageIds: string[]): Promise<boolean> => {
+    try {
+      await gmail.deleteMessages(messageIds);
+      return true;
+    } catch (error) {
+      console.error('[useGmail] Batch delete failed:', error);
+      return false;
+    }
+  }, [gmail.deleteMessages]);
+
   const sendEmailSafely = useCallback(async (
     to: string, subject: string, body: string, threadId?: string, inReplyTo?: string
   ): Promise<boolean> => {
@@ -139,6 +149,7 @@ export function useGmail(options: UseGmailOptions = {}) {
     // Email methods
     sendEmail: sendEmailSafely,
     deleteMessage: deleteMessageSafely,
+    deleteMessages: deleteMessagesSafely,
     clearUnreadCount: gmail.clearUnreadCount,
 
     // UI methods

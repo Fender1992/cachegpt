@@ -10,6 +10,9 @@ import {
   Inbox,
   PenSquare,
   Trash2,
+  CheckSquare,
+  Square,
+  MinusSquare,
 } from 'lucide-react';
 import { useGmail } from '@/hooks/useGmail';
 import { GmailLabel } from '@/lib/gmail/gmail-client';
@@ -32,9 +35,12 @@ export default function GmailPanelContent({ isActive }: GmailPanelContentProps) 
   const [replyInReplyTo, setReplyInReplyTo] = useState<string | undefined>();
   const [isDeleting, setIsDeleting] = useState(false);
   const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isBatchDeleting, setIsBatchDeleting] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const handleLabelSelect = useCallback(async (label: GmailLabel) => {
+    setSelectedIds(new Set());
     await gmail.selectLabel(label);
     setView('messages');
   }, [gmail.selectLabel]);
@@ -89,6 +95,37 @@ export default function GmailPanelContent({ isActive }: GmailPanelContentProps) 
       setIsDeleting(false);
     }
   }, [gmail.selectedMessage, gmail.deleteMessage, isDeleting]);
+
+  const toggleSelect = useCallback((messageId: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(messageId)) {
+        next.delete(messageId);
+      } else {
+        next.add(messageId);
+      }
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    if (selectedIds.size === gmail.messages.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(gmail.messages.map(m => m.id)));
+    }
+  }, [selectedIds.size, gmail.messages]);
+
+  const handleBatchDelete = useCallback(async () => {
+    if (selectedIds.size === 0 || isBatchDeleting) return;
+    setIsBatchDeleting(true);
+    try {
+      await gmail.deleteMessages(Array.from(selectedIds));
+      setSelectedIds(new Set());
+    } finally {
+      setIsBatchDeleting(false);
+    }
+  }, [selectedIds, isBatchDeleting, gmail.deleteMessages]);
 
   const handleDeleteFromList = useCallback(async (e: React.MouseEvent, messageId: string) => {
     e.stopPropagation();
@@ -315,10 +352,41 @@ export default function GmailPanelContent({ isActive }: GmailPanelContentProps) 
 
           {view === 'messages' && (
             <div>
-              <div className="p-3 border-b border-gray-200 dark:border-gray-700">
-                <h3 className="font-medium text-gray-900 dark:text-white">
-                  {gmail.selectedLabel ? (LABEL_DISPLAY[gmail.selectedLabel.id] || gmail.selectedLabel.name) : 'Messages'}
-                </h3>
+              <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={toggleSelectAll}
+                    className="p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                    aria-label={selectedIds.size === gmail.messages.length ? 'Deselect all' : 'Select all'}
+                  >
+                    {selectedIds.size === 0 ? (
+                      <Square className="w-4 h-4" />
+                    ) : selectedIds.size === gmail.messages.length ? (
+                      <CheckSquare className="w-4 h-4 text-red-600 dark:text-red-400" />
+                    ) : (
+                      <MinusSquare className="w-4 h-4 text-red-600 dark:text-red-400" />
+                    )}
+                  </button>
+                  <h3 className="font-medium text-gray-900 dark:text-white">
+                    {selectedIds.size > 0
+                      ? `${selectedIds.size} selected`
+                      : gmail.selectedLabel ? (LABEL_DISPLAY[gmail.selectedLabel.id] || gmail.selectedLabel.name) : 'Messages'}
+                  </h3>
+                </div>
+                {selectedIds.size > 0 && (
+                  <button
+                    onClick={handleBatchDelete}
+                    disabled={isBatchDeleting}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 disabled:opacity-50 rounded-lg transition-colors"
+                  >
+                    {isBatchDeleting ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                    Delete
+                  </button>
+                )}
               </div>
               <div className="divide-y divide-gray-100 dark:divide-gray-800">
                 {gmail.messages.map((msg) => (
@@ -326,12 +394,24 @@ export default function GmailPanelContent({ isActive }: GmailPanelContentProps) 
                     key={msg.id}
                     className={cn(
                       'group flex items-start gap-1 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800',
-                      msg.isUnread && 'bg-blue-50/50 dark:bg-blue-900/10'
+                      msg.isUnread && 'bg-blue-50/50 dark:bg-blue-900/10',
+                      selectedIds.has(msg.id) && 'bg-red-50/50 dark:bg-red-900/10'
                     )}
                   >
                     <button
+                      onClick={() => toggleSelect(msg.id)}
+                      className="flex-shrink-0 p-3 pr-0 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                      aria-label={selectedIds.has(msg.id) ? 'Deselect' : 'Select'}
+                    >
+                      {selectedIds.has(msg.id) ? (
+                        <CheckSquare className="w-4 h-4 text-red-600 dark:text-red-400" />
+                      ) : (
+                        <Square className="w-4 h-4" />
+                      )}
+                    </button>
+                    <button
                       onClick={() => handleMessageSelect(msg.id)}
-                      className="flex-1 min-w-0 p-3 text-left"
+                      className="flex-1 min-w-0 p-3 pl-2 text-left"
                     >
                       <div className="flex items-start justify-between gap-2 mb-1">
                         <span className={cn(
