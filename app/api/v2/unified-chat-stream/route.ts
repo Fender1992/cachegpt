@@ -785,6 +785,7 @@ export async function POST(request: NextRequest) {
             model: streamModel,
             cached: false,
             conversationId: savedConversationId,
+            ...(hasCalendarWriteAction && { calendarEventCreated: true }),
           })}\n\n`));
 
           await writer.close();

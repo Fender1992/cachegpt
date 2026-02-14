@@ -52,7 +52,16 @@ export function CalendarProvider({ children, autoConnect = false }: CalendarProv
       calendarClient.connect().catch(console.error);
     }
 
-    return unsubscribe;
+    // Listen for calendar events created/deleted from chat
+    const handleCalendarChanged = () => {
+      calendarClient.connect().catch(console.error);
+    };
+    window.addEventListener('calendar-event-changed', handleCalendarChanged);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('calendar-event-changed', handleCalendarChanged);
+    };
   }, [autoConnect, state.isConnected, state.isConnecting, state.error]);
 
   const connect = async (): Promise<void> => {

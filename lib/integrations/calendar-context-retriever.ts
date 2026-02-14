@@ -55,17 +55,18 @@ function parseEventFromQuery(query: string): QueryAnalysis['parsedEvent'] | unde
   const now = new Date();
   let eventDate: Date | null = null;
 
-  // Month + day: "feb 19th", "february 19", "march 5"
-  const monthDayRegex = /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?\b/i;
+  // Month + day + optional year: "feb 19th", "february 19", "march 5 2026", "March 12, 2026"
+  const monthDayRegex = /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?(?:\s*,?\s*(\d{4}))?\b/i;
   const monthDayMatch = query.match(monthDayRegex);
 
   if (monthDayMatch) {
     const abbrs = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
     const day = parseInt(monthDayMatch[2]);
     const monthIdx = abbrs.findIndex(a => monthDayMatch[1].toLowerCase().startsWith(a));
+    const year = monthDayMatch[3] ? parseInt(monthDayMatch[3]) : now.getFullYear();
     if (monthIdx >= 0 && day >= 1 && day <= 31) {
-      eventDate = new Date(now.getFullYear(), monthIdx, day);
-      if (eventDate < new Date(now.getFullYear(), now.getMonth(), now.getDate())) {
+      eventDate = new Date(year, monthIdx, day);
+      if (!monthDayMatch[3] && eventDate < new Date(now.getFullYear(), now.getMonth(), now.getDate())) {
         eventDate.setFullYear(eventDate.getFullYear() + 1);
       }
     }
@@ -183,16 +184,17 @@ function parseEventFromQuery(query: string): QueryAnalysis['parsedEvent'] | unde
     }
   }
 
-  // Location extraction: "at the [location]" before time/date phrases
-  // Match "at the X" or "at X" where X is a multi-word location (not a time like "at 3 pm")
+  // Location extraction: "at the [location]" — match capitalized multi-word locations
+  // Must not match time phrases like "at 3 pm"
   let location: string | undefined;
-  const locationMatch = query.match(/\bat\s+(?:the\s+)?([A-Z][A-Za-z\s]+?)(?:\s+(?:at|from|on)\s+\d|\s*$)/);
-  if (locationMatch) {
+  // Pattern: "at the Belton DMV", "at Kansas City VA Clinic" — stops at punctuation, sentence break, or time/date phrases
+  const locationMatch = query.match(/\bat\s+(?:the\s+)?([A-Z][A-Za-z0-9\s]+?)(?:\s*[.,!?]|\s+(?:at|from|on|and|then)\s+\d|\s+(?:add|put|create|schedule)\b|\s*$)/i);
+  if (locationMatch && !/^\d+\s*(am|pm)/i.test(locationMatch[1])) {
     location = locationMatch[1].trim();
   }
   // Also try "in [Location]" pattern (e.g., "in Belton VA", "in Dallas")
   if (!location) {
-    const inLocationMatch = query.match(/\bin\s+([A-Z][A-Za-z\s]+?)(?:\s+(?:at|from|on)\s+\d|\s*$)/);
+    const inLocationMatch = query.match(/\bin\s+([A-Z][A-Za-z0-9\s]+?)(?:\s*[.,!?]|\s+(?:at|from|on|and|then)\s+\d|\s+(?:add|put|create|schedule)\b|\s*$)/);
     if (inLocationMatch) {
       location = inLocationMatch[1].trim();
     }
@@ -203,6 +205,7 @@ function parseEventFromQuery(query: string): QueryAnalysis['parsedEvent'] | unde
     .replace(/\b(?:add|create|schedule|book|put|set\s*up|make|plan|arrange|block\s*(?:off|out)?|remind\s+me\s+(?:to|about)|i\s+have|i\s+need\s+to|i(?:'ve| have)\s+got)\b/gi, '')
     // Strip extracted location from summary to avoid duplication
     .replace(location ? new RegExp(`\\b(?:at\\s+(?:the\\s+)?)?${location.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi') : /(?!)/, '')
+    .replace(/\b(?:add|put)\s+(?:it\s+)?(?:to\s+)?(?:my\s+)?(?:google\s+)?cal(?:endar|ender)?\b/gi, '')
     .replace(/\b(?:to\s+)?(?:my\s+)?(?:google\s+)?cal(?:endar|ender)?\b/gi, '')
     .replace(/\b(?:to\s+)?(?:my\s+)?schedule\b/gi, '')
     .replace(monthDayRegex, '')
@@ -215,6 +218,7 @@ function parseEventFromQuery(query: string): QueryAnalysis['parsedEvent'] | unde
     .replace(/\bin\s+\d+\s+days?\b/gi, '')
     .replace(/\bnext\s+week\b/gi, '')
     .replace(/\b\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?\b/g, '')
+    .replace(/\b20\d{2}\b/g, '') // Strip standalone years like "2026"
     .replace(/\b(?:it|on|at|in|for|the|a|an|my|is|to)\b/gi, '')
     .replace(/[.,!?]+/g, '')
     .replace(/\s+/g, ' ')

@@ -765,6 +765,11 @@ function ChatPageContent({ params, onShowHistoryChange }: { params?: Promise<{ i
         setShowCacheToast(true)
       }
 
+      // Refresh calendar panel if an event was created/deleted from chat
+      if (finalData.calendarEventCreated) {
+        window.dispatchEvent(new CustomEvent('calendar-event-changed'))
+      }
+
       // Add assistant message with final content and metadata
       const assistantMessage: ChatMessage = {
         role: 'assistant',
