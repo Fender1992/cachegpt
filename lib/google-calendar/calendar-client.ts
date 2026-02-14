@@ -140,8 +140,12 @@ export class CalendarClient {
         `/api/integrations/google-calendar/events?timeMin=${encodeURIComponent(todayStart)}&timeMax=${encodeURIComponent(futureEnd)}`,
         { headers }
       );
+      if (!eventsRes.ok) {
+        console.error('[Calendar Client] Events fetch failed:', eventsRes.status, await eventsRes.text().catch(() => ''));
+      }
       const eventsData = eventsRes.ok ? await eventsRes.json() : { events: [] };
       const allEvents: CalendarEvent[] = eventsData.events || [];
+      console.log('[Calendar Client] Fetched', allEvents.length, 'events for next 30 days');
 
       // Count today's events for the badge
       const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);

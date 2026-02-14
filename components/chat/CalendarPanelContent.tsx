@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   Calendar,
   Loader2,
@@ -12,6 +12,7 @@ import {
   Plus,
   Trash2,
   Send,
+  RefreshCw,
 } from 'lucide-react';
 import { useCalendar } from '@/hooks/useCalendar';
 import { CalendarEvent } from '@/lib/google-calendar/calendar-client';
@@ -25,9 +26,33 @@ type PanelView = 'events' | 'event_detail' | 'create';
 
 export default function CalendarPanelContent({ isActive }: CalendarPanelContentProps) {
   const calendar = useCalendar();
+  const lastRefresh = useRef(0);
+
+  // Refresh events when panel becomes active (tab clicked)
+  useEffect(() => {
+    if (isActive && calendar.isConnected) {
+      const now = Date.now();
+      // Debounce: only refresh if >30s since last refresh
+      if (now - lastRefresh.current > 30_000) {
+        lastRefresh.current = now;
+        calendar.refreshEvents();
+      }
+    }
+  }, [isActive, calendar.isConnected, calendar.refreshEvents]);
   const [view, setView] = useState<PanelView>('events');
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      await calendar.refreshEvents();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshing, calendar.refreshEvents]);
   const [createError, setCreateError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [newEvent, setNewEvent] = useState({
@@ -205,9 +230,17 @@ export default function CalendarPanelContent({ isActive }: CalendarPanelContentP
         </div>
       )}
 
-      {/* Create button on events view */}
+      {/* Action buttons on events view */}
       {calendar.isConnected && view === 'events' && (
-        <div className="flex-shrink-0 flex items-center justify-end px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex-shrink-0 flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-1.5 px-2 py-1.5 text-sm text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50"
+            title="Refresh events"
+          >
+            <RefreshCw className={cn('w-4 h-4', refreshing && 'animate-spin')} />
+          </button>
           <button
             onClick={() => setView('create')}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
