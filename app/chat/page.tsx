@@ -6,6 +6,7 @@ import { DiscordProvider } from '@/contexts/DiscordContext'
 import { GmailProvider } from '@/contexts/GmailContext'
 import { CalendarProvider } from '@/contexts/CalendarContext'
 import { SlackProvider } from '@/contexts/SlackContext'
+import { TeamsProvider } from '@/contexts/TeamsContext'
 import { NotionProvider } from '@/contexts/NotionContext'
 import { DriveProvider } from '@/contexts/DriveContext'
 import { JiraProvider } from '@/contexts/JiraContext'
@@ -64,29 +65,31 @@ function ChatPageWithDiscord(props: any) {
       <GmailProvider autoConnect={true}>
         <CalendarProvider autoConnect={true}>
           <SlackProvider autoConnect={true}>
-            <NotionProvider autoConnect={true}>
-              <DriveProvider autoConnect={true}>
-                <JiraProvider autoConnect={true}>
-                  <div className="relative">
-                    <ChatInterface {...props} onShowHistoryChange={setIsHistoryOpen} isPanelPinned={isPanelPinned && isPanelOpen} />
-                    <IntegrationDockButton
-                      onClick={() => setIsPanelOpen(prev => !prev)}
-                      isPanelOpen={isPanelOpen}
-                      isHistoryOpen={isHistoryOpen}
-                    />
-                    <UnifiedIntegrationPanel
-                      isOpen={isPanelOpen}
-                      onClose={handleClose}
-                      activeTab={activeTab}
-                      onTabChange={handleTabChange}
-                      isPinned={isPanelPinned}
-                      onTogglePin={handleTogglePin}
-                    />
-                    <QuickReplyToast onOpenIntegration={handleOpenIntegration} />
-                  </div>
-                </JiraProvider>
-              </DriveProvider>
-            </NotionProvider>
+            <TeamsProvider autoConnect={true}>
+              <NotionProvider autoConnect={true}>
+                <DriveProvider autoConnect={true}>
+                  <JiraProvider autoConnect={true}>
+                    <div className="relative">
+                      <ChatInterface {...props} onShowHistoryChange={setIsHistoryOpen} isPanelPinned={isPanelPinned && isPanelOpen} />
+                      <IntegrationDockButton
+                        onClick={() => setIsPanelOpen(prev => !prev)}
+                        isPanelOpen={isPanelOpen}
+                        isHistoryOpen={isHistoryOpen}
+                      />
+                      <UnifiedIntegrationPanel
+                        isOpen={isPanelOpen}
+                        onClose={handleClose}
+                        activeTab={activeTab}
+                        onTabChange={handleTabChange}
+                        isPinned={isPanelPinned}
+                        onTogglePin={handleTogglePin}
+                      />
+                      <QuickReplyToast onOpenIntegration={handleOpenIntegration} />
+                    </div>
+                  </JiraProvider>
+                </DriveProvider>
+              </NotionProvider>
+            </TeamsProvider>
           </SlackProvider>
         </CalendarProvider>
       </GmailProvider>

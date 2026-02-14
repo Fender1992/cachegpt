@@ -396,6 +396,18 @@ export async function POST(request: NextRequest) {
         console.error('[Integration] Slack context error:', e);
       }
 
+      // Teams context
+      try {
+        const { retrieveTeamsContext } = await import('@/lib/integrations/teams-context-retriever');
+        const teamsContext = await retrieveTeamsContext(userId, userMessage);
+        if (teamsContext) {
+          enrichedMessages.splice(enrichedMessages.length - 1, 0,
+            { role: 'system', content: teamsContext });
+        }
+      } catch (e) {
+        console.error('[Integration] Teams context error:', e);
+      }
+
       // Notion context
       try {
         const { retrieveNotionContext } = await import('@/lib/integrations/notion-context-retriever');

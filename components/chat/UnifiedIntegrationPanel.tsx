@@ -9,6 +9,7 @@ import {
   Mail,
   Calendar,
   MessageSquare,
+  Users,
   BookOpen,
   HardDrive,
   Bug,
@@ -20,6 +21,7 @@ import { useDiscord } from '@/hooks/useDiscord';
 import { useGmail } from '@/hooks/useGmail';
 import { useCalendar } from '@/hooks/useCalendar';
 import { useSlack } from '@/hooks/useSlack';
+import { useTeams } from '@/hooks/useTeams';
 import { useNotion } from '@/hooks/useNotion';
 import { useDrive } from '@/hooks/useDrive';
 import { useJira } from '@/hooks/useJira';
@@ -27,6 +29,7 @@ import DiscordPanelContent from './DiscordPanelContent';
 import GmailPanelContent from './GmailPanelContent';
 import CalendarPanelContent from './CalendarPanelContent';
 import SlackPanelContent from './SlackPanelContent';
+import TeamsPanelContent from './TeamsPanelContent';
 import NotionPanelContent from './NotionPanelContent';
 import DrivePanelContent from './DrivePanelContent';
 import JiraPanelContent from './JiraPanelContent';
@@ -34,7 +37,7 @@ import FilesPanelContent from './FilesPanelContent';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
-export type IntegrationTab = 'discord' | 'gmail' | 'calendar' | 'slack' | 'notion' | 'drive' | 'jira' | 'files';
+export type IntegrationTab = 'discord' | 'gmail' | 'calendar' | 'slack' | 'teams' | 'notion' | 'drive' | 'jira' | 'files';
 
 interface UnifiedIntegrationPanelProps {
   isOpen: boolean;
@@ -74,6 +77,13 @@ const TAB_CONFIG = {
     activeBorder: 'border-pink-600 dark:border-pink-400',
     badgeBg: 'bg-pink-500',
   },
+  teams: {
+    icon: Users,
+    label: 'Teams',
+    activeText: 'text-purple-600 dark:text-purple-400',
+    activeBorder: 'border-purple-600 dark:border-purple-400',
+    badgeBg: 'bg-purple-500',
+  },
   notion: {
     icon: BookOpen,
     label: 'Notion',
@@ -104,7 +114,7 @@ const TAB_CONFIG = {
   },
 } as const;
 
-const TAB_ORDER: IntegrationTab[] = ['discord', 'gmail', 'calendar', 'slack', 'notion', 'drive', 'jira', 'files'];
+const TAB_ORDER: IntegrationTab[] = ['discord', 'gmail', 'calendar', 'slack', 'teams', 'notion', 'drive', 'jira', 'files'];
 
 function getStatusDot(isConnected: boolean, isConnecting: boolean, error: string | null): string {
   if (error) return 'bg-red-500';
@@ -125,6 +135,7 @@ export default function UnifiedIntegrationPanel({
   const gmail = useGmail();
   const calendar = useCalendar();
   const slack = useSlack();
+  const teams = useTeams();
   const notion = useNotion();
   const drive = useDrive();
   const jira = useJira();
@@ -134,6 +145,7 @@ export default function UnifiedIntegrationPanel({
     gmail: { isConnected: gmail.isConnected, isConnecting: gmail.isConnecting, error: gmail.error, count: gmail.unreadCount },
     calendar: { isConnected: calendar.isConnected, isConnecting: calendar.isConnecting, error: calendar.error, count: calendar.todayEventCount },
     slack: { isConnected: slack.isConnected, isConnecting: slack.isConnecting, error: slack.error, count: slack.unreadCount },
+    teams: { isConnected: teams.isConnected, isConnecting: teams.isConnecting, error: teams.error, count: teams.unreadCount },
     notion: { isConnected: notion.isConnected, isConnecting: notion.isConnecting, error: notion.error, count: 0 },
     drive: { isConnected: drive.isConnected, isConnecting: drive.isConnecting, error: drive.error, count: 0 },
     jira: { isConnected: jira.isConnected, isConnecting: jira.isConnecting, error: jira.error, count: 0 },
@@ -288,6 +300,11 @@ export default function UnifiedIntegrationPanel({
               {visibleTabs.includes('slack') && (
                 <div className={cn('absolute inset-0', activeTab !== 'slack' && 'hidden')}>
                   <SlackPanelContent isActive={activeTab === 'slack'} />
+                </div>
+              )}
+              {visibleTabs.includes('teams') && (
+                <div className={cn('absolute inset-0', activeTab !== 'teams' && 'hidden')}>
+                  <TeamsPanelContent isActive={activeTab === 'teams'} />
                 </div>
               )}
               {visibleTabs.includes('notion') && (

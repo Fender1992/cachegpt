@@ -6,6 +6,7 @@ import { useDiscord } from '@/hooks/useDiscord';
 import { useGmail } from '@/hooks/useGmail';
 import { useCalendar } from '@/hooks/useCalendar';
 import { useSlack } from '@/hooks/useSlack';
+import { useTeams } from '@/hooks/useTeams';
 import { useNotion } from '@/hooks/useNotion';
 import { useDrive } from '@/hooks/useDrive';
 import { useJira } from '@/hooks/useJira';
@@ -24,6 +25,7 @@ export default function IntegrationDockButton({ onClick, isPanelOpen, isHistoryO
   const gmail = useGmail();
   const calendar = useCalendar();
   const slack = useSlack();
+  const teams = useTeams();
   const notion = useNotion();
   const drive = useDrive();
   const jira = useJira();
@@ -33,6 +35,7 @@ export default function IntegrationDockButton({ onClick, isPanelOpen, isHistoryO
     { name: 'Gmail', isConnected: gmail.isConnected, isConnecting: gmail.isConnecting, error: gmail.error, count: gmail.unreadCount },
     { name: 'Calendar', isConnected: calendar.isConnected, isConnecting: calendar.isConnecting, error: calendar.error, count: calendar.todayEventCount },
     { name: 'Slack', isConnected: slack.isConnected, isConnecting: slack.isConnecting, error: slack.error, count: slack.unreadCount },
+    { name: 'Teams', isConnected: teams.isConnected, isConnecting: teams.isConnecting, error: teams.error, count: teams.unreadCount },
     { name: 'Notion', isConnected: notion.isConnected, isConnecting: notion.isConnecting, error: notion.error, count: 0 },
     { name: 'Drive', isConnected: drive.isConnected, isConnecting: drive.isConnecting, error: drive.error, count: 0 },
     { name: 'Jira', isConnected: jira.isConnected, isConnecting: jira.isConnecting, error: jira.error, count: 0 },

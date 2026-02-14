@@ -16,6 +16,7 @@ import DiscordIntegrationCard from '@/components/settings/DiscordIntegrationCard
 import GmailIntegrationCard from '@/components/settings/GmailIntegrationCard'
 import CalendarIntegrationCard from '@/components/settings/CalendarIntegrationCard'
 import SlackIntegrationCard from '@/components/settings/SlackIntegrationCard'
+import TeamsIntegrationCard from '@/components/settings/TeamsIntegrationCard'
 import NotionIntegrationCard from '@/components/settings/NotionIntegrationCard'
 import DriveIntegrationCard from '@/components/settings/DriveIntegrationCard'
 import JiraIntegrationCard from '@/components/settings/JiraIntegrationCard'
@@ -407,6 +408,7 @@ export default function SettingsPage() {
               <GmailIntegrationCard userId={user.id} />
               <CalendarIntegrationCard userId={user.id} />
               <SlackIntegrationCard userId={user.id} />
+              <TeamsIntegrationCard userId={user.id} />
               <NotionIntegrationCard userId={user.id} />
               <DriveIntegrationCard userId={user.id} />
               <JiraIntegrationCard userId={user.id} />

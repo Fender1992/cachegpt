@@ -4,7 +4,7 @@
  * Also manages quick-reply notifications from integrations.
  */
 
-type PanelId = 'discord' | 'gmail' | 'calendar' | 'slack' | 'notion' | 'drive' | 'jira' | 'files';
+type PanelId = 'discord' | 'gmail' | 'calendar' | 'slack' | 'teams' | 'notion' | 'drive' | 'jira' | 'files';
 type CloseCallback = () => void;
 
 class PanelManager {
