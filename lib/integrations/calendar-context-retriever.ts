@@ -55,9 +55,17 @@ function parseEventFromQuery(query: string): QueryAnalysis['parsedEvent'] | unde
   const now = new Date();
   let eventDate: Date | null = null;
 
+  // When query contains pasted content + an instruction (e.g., "...email text... Add this to my calendar"),
+  // prioritize dates from the instruction portion to avoid picking dates from the pasted content.
+  const actionSplitMatch = query.match(/\b(add|create|schedule|book|put)\s+(?:this\s+)?(?:appointment|event|meeting)?.*?\b(?:to\s+(?:my\s+)?(?:google\s+)?cal(?:endar|ender)?|on\s+)/i);
+  const instructionPart = actionSplitMatch
+    ? query.slice(actionSplitMatch.index!)
+    : query;
+
   // Month + day + optional year: "feb 19th", "february 19", "march 5 2026", "March 12, 2026"
   const monthDayRegex = /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?(?:\s*,?\s*(\d{4}))?\b/i;
-  const monthDayMatch = query.match(monthDayRegex);
+  // Try instruction portion first, fall back to full query
+  const monthDayMatch = instructionPart.match(monthDayRegex) || query.match(monthDayRegex);
 
   if (monthDayMatch) {
     const abbrs = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
@@ -72,14 +80,14 @@ function parseEventFromQuery(query: string): QueryAnalysis['parsedEvent'] | unde
     }
   }
 
-  if (!eventDate && /\btomorrow\b/i.test(query)) {
+  if (!eventDate && /\btomorrow\b/i.test(instructionPart)) {
     eventDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
   }
-  if (!eventDate && /\btoday\b/i.test(query)) {
+  if (!eventDate && /\btoday\b/i.test(instructionPart)) {
     eventDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   }
   if (!eventDate) {
-    const dayMatch = query.match(/\b(?:next\s+)?(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i);
+    const dayMatch = instructionPart.match(/\b(?:next\s+)?(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i) || query.match(/\b(?:next\s+)?(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i);
     if (dayMatch) {
       const days = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
       const targetDay = days.indexOf(dayMatch[1].toLowerCase());
@@ -101,9 +109,9 @@ function parseEventFromQuery(query: string): QueryAnalysis['parsedEvent'] | unde
     const daysUntilMonday = (1 - now.getDay() + 7) % 7 || 7;
     eventDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysUntilMonday);
   }
-  // MM/DD or MM-DD format: "2/19", "02-19"
+  // MM/DD or MM-DD format: "2/19", "02-19" — try instruction part first
   if (!eventDate) {
-    const slashDateMatch = query.match(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/);
+    const slashDateMatch = instructionPart.match(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/) || query.match(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/);
     if (slashDateMatch) {
       const month = parseInt(slashDateMatch[1]) - 1;
       const day = parseInt(slashDateMatch[2]);
@@ -124,8 +132,8 @@ function parseEventFromQuery(query: string): QueryAnalysis['parsedEvent'] | unde
   let endTime: string | undefined;
   let isAllDay = true;
 
-  // "from X to Y" pattern (more specific, check first)
-  const fromToMatch = query.match(/\bfrom\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:to|-)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i);
+  // "from X to Y" pattern (more specific, check first) — try instruction part first
+  const fromToMatch = instructionPart.match(/\bfrom\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:to|-)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i) || query.match(/\bfrom\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:to|-)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i);
   if (fromToMatch) {
     let sH = parseInt(fromToMatch[1]);
     const sM = fromToMatch[2] ? parseInt(fromToMatch[2]) : 0;
@@ -143,8 +151,8 @@ function parseEventFromQuery(query: string): QueryAnalysis['parsedEvent'] | unde
   }
 
   if (!startTime) {
-    // "at 3 pm", "at 3:30 pm"
-    const atMatch = query.match(/\bat\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i);
+    // "at 3 pm", "at 3:30 pm" — try instruction part first
+    const atMatch = instructionPart.match(/\bat\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i) || query.match(/\bat\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i);
     if (atMatch) {
       let h = parseInt(atMatch[1]);
       const m = atMatch[2] ? parseInt(atMatch[2]) : 0;
