@@ -128,7 +128,11 @@ export class TeamsClient {
         error: null,
       });
     } catch (error) {
-      console.error('[Teams Client] Connection error:', error);
+      // Silently handle "not connected" - this is expected when Teams isn't linked
+      const msg = error instanceof Error ? error.message : '';
+      if (!msg.includes('not connected')) {
+        console.error('[Teams Client] Connection error:', error);
+      }
       this.connected = false;
       this.updateState({
         isConnecting: false,

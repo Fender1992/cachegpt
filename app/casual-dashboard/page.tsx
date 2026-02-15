@@ -79,7 +79,9 @@ export default function CasualDashboardPage() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('/api/dashboard-stats');
+      const response = await fetch('/api/dashboard-stats', {
+        credentials: 'include',
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch dashboard stats');
       }
