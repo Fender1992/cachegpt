@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { createClient as createBrowserClient } from '@supabase/supabase-js';
 
 export const runtime = 'edge';
 
@@ -9,19 +10,37 @@ export const runtime = 'edge';
  */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    let userId: string | null = null;
 
-    // Get authenticated user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    // Try Bearer token first (used by client-side fetches)
+    const authHeader = request.headers.get('authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const supabaseClient = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      const { data: { user }, error } = await supabaseClient.auth.getUser(token);
+      if (!error && user) {
+        userId = user.id;
+      }
+    }
 
-    if (authError || !user) {
+    // Fall back to cookie-based auth
+    if (!userId) {
+      const supabase = await createClient();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (!authError && user) {
+        userId = user.id;
+      }
+    }
+
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = user.id;
+    // Use service-level client for data queries
+    const supabase = await createClient();
 
     // Get total chats (conversations)
     const { count: totalChats, error: chatsError } = await supabase

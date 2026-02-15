@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/lib/supabase-client';
 import { MessageSquare, Zap, Cpu, Award, TrendingUp } from 'lucide-react';
 import { telemetry } from '@/lib/telemetry';
 import Navigation from '@/components/Navigation';
@@ -79,7 +80,13 @@ export default function CasualDashboardPage() {
       setLoading(true);
       setError(null);
 
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: HeadersInit = {};
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
       const response = await fetch('/api/dashboard-stats', {
+        headers,
         credentials: 'include',
       });
       if (!response.ok) {
