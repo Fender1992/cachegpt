@@ -47,7 +47,7 @@ const INTEGRATIONS = [
   { key: 'notion', label: 'Notion', icon: '📝' },
   { key: 'drive', label: 'Google Drive', icon: '📁' },
   { key: 'jira', label: 'Jira', icon: '🎯' },
-] as const;
+] as { key: string; label: string; icon: string; comingSoon?: boolean }[];
 
 function IntegrationsAccordion({ userId }: { userId: string }) {
   const [openItems, setOpenItems] = useState<Set<string>>(new Set());
