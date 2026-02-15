@@ -13,18 +13,18 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  title: 'CacheGPT - Reduce LLM API Costs by 80% | Smart Caching for AI',
-  description: 'Cut your AI API costs by 80% and speed up responses to <10ms with intelligent caching. Works with OpenAI, Anthropic, Google Gemini, and all major LLM providers. Free to start.',
+  title: 'CacheGPT - Free AI Chat | GPT-4, Claude, Gemini - Instant Responses',
+  description: 'Free AI chat with GPT-4, Claude, and Gemini. 500 requests/day, no credit card required. Semantic caching delivers instant responses. Free forever.',
   keywords: [
-    'AI caching',
-    'LLM cache',
-    'OpenAI cache',
-    'reduce AI costs',
-    'ChatGPT cache',
-    'Claude cache',
-    'GPT-4 cost reduction',
-    'AI cost optimization',
+    'free AI chat',
+    'GPT-4 free',
+    'Claude free',
+    'Gemini free',
+    'AI chat no paywall',
+    'free ChatGPT alternative',
     'semantic cache',
+    'AI cost optimization',
+    'LLM cache',
     'vector cache'
   ],
   authors: [{ name: 'CacheGPT' }],
@@ -35,17 +35,22 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_US',
     url: 'https://cachegpt.app',
-    title: 'CacheGPT - Reduce LLM API Costs by 80%',
-    description: 'Intelligent caching for AI APIs. Cut costs by 80% and speed up responses to <10ms. Works with OpenAI, Anthropic, Google, and all major LLM providers.',
+    title: 'CacheGPT - Free AI Chat | GPT-4, Claude, Gemini',
+    description: 'Free AI chat with GPT-4, Claude, and Gemini. 500 requests/day, no credit card required. Semantic caching delivers instant responses. Free forever.',
     siteName: 'CacheGPT',
     images: [
       {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'CacheGPT - Smart Caching for AI APIs',
+        alt: 'CacheGPT - Free AI Chat with GPT-4, Claude, and Gemini',
       },
     ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'CacheGPT - Free AI Chat | GPT-4, Claude, Gemini',
+    description: 'Free AI chat with GPT-4, Claude, and Gemini. 500 requests/day, no credit card. Free forever.',
   },
   robots: {
     index: true,

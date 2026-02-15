@@ -15,7 +15,8 @@ import {
   CheckCircle,
   Clock,
   BarChart3,
-  Settings
+  Settings,
+  Share2
 } from 'lucide-react';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
@@ -65,6 +66,7 @@ export default function UsageDashboard() {
   const [subscriptionDetails, setSubscriptionDetails] = useState<SubscriptionDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -177,19 +179,21 @@ export default function UsageDashboard() {
     <div className="space-y-6">
       {/* Alert Banner */}
       {usageStats.is_over_limit && (
-        <Card className="border-red-200 bg-red-50">
+        <Card className="border-amber-200 bg-amber-50">
           <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="h-5 w-5 text-red-500" />
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0" />
               <div className="flex-1">
-                <h4 className="font-medium text-red-800">Usage Limit Exceeded</h4>
-                <p className="text-sm text-red-600">
-                  You've exceeded your monthly request limit. Consider upgrading your plan.
+                <h4 className="font-medium text-amber-800">Daily Limit Reached</h4>
+                <p className="text-sm text-amber-600">
+                  You've reached your daily limit. Try again tomorrow! CacheGPT is free forever.
                 </p>
               </div>
-              <Button size="sm" className="bg-red-600 hover:bg-red-700">
-                Upgrade Plan
-              </Button>
+              <a href="/donate">
+                <Button size="sm" className="bg-pink-600 hover:bg-pink-700 min-h-[44px]">
+                  Support CacheGPT
+                </Button>
+              </a>
             </div>
           </CardContent>
         </Card>
@@ -291,6 +295,69 @@ export default function UsageDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Share Stats Button */}
+      <div className="flex justify-end">
+        <Button
+          onClick={() => setShowShareModal(true)}
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-2"
+        >
+          <Share2 className="h-4 w-4" />
+          Share My Stats
+        </Button>
+      </div>
+
+      {/* Share Stats Modal */}
+      {showShareModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center z-[90]">
+          <div className="bg-white dark:bg-gray-900 w-full md:max-w-md md:rounded-2xl rounded-t-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Share Your Stats</h3>
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 mb-4">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  I&apos;ve saved {formatCurrency(usageStats.current_month.cost_saved)} with @CacheGPT! Free AI chat with semantic caching. Try it: https://cachegpt.app
+                </p>
+              </div>
+              <div className="flex flex-col gap-3 mb-6">
+                <a
+                  href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`I've saved ${formatCurrency(usageStats.current_month.cost_saved)} with @CacheGPT! Free AI chat with semantic caching. Try it: https://cachegpt.app`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 px-4 py-3 bg-black dark:bg-white dark:text-black text-white rounded-xl font-medium transition-colors hover:opacity-90 min-h-[44px]"
+                >
+                  Share on X
+                </a>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(
+                      `I've saved ${formatCurrency(usageStats.current_month.cost_saved)} with @CacheGPT! Free AI chat with semantic caching. Try it: https://cachegpt.app`
+                    );
+                  }}
+                  className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl font-medium transition-colors hover:bg-gray-200 dark:hover:bg-gray-700 min-h-[44px]"
+                >
+                  Copy to clipboard
+                </button>
+              </div>
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mb-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  You&apos;ve saved {formatCurrency(usageStats.current_month.cost_saved)}. Help keep it free &rarr;{' '}
+                  <a href="/donate" className="text-green-600 dark:text-green-400 font-medium hover:underline">
+                    Support CacheGPT
+                  </a>
+                </p>
+              </div>
+              <button
+                onClick={() => setShowShareModal(false)}
+                className="w-full py-3 px-4 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white rounded-xl font-medium transition-colors min-h-[44px]"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Charts */}
       <div className="grid gap-6 lg:grid-cols-2">
@@ -451,8 +518,8 @@ export default function UsageDashboard() {
               <div className="flex items-start gap-3">
                 <AlertTriangle className="h-5 w-5 text-yellow-500 mt-0.5" />
                 <div>
-                  <p className="font-medium text-sm">Consider upgrading</p>
-                  <p className="text-xs text-gray-600">You're using {usageStats.usage_percentage.toFixed(1)}% of your monthly limit.</p>
+                  <p className="font-medium text-sm">Approaching limit</p>
+                  <p className="text-xs text-gray-600">You're using {usageStats.usage_percentage.toFixed(1)}% of your monthly limit. Limits reset automatically.</p>
                 </div>
               </div>
             )}
@@ -475,10 +542,12 @@ export default function UsageDashboard() {
               <BarChart3 className="h-4 w-4 mr-2" />
               View Detailed Analytics
             </Button>
-            <Button variant="outline" size="sm" className="w-full justify-start">
-              <TrendingUp className="h-4 w-4 mr-2" />
-              Upgrade Plan
-            </Button>
+            <a href="/donate" className="block">
+              <Button variant="outline" size="sm" className="w-full justify-start">
+                <TrendingUp className="h-4 w-4 mr-2" />
+                Support CacheGPT
+              </Button>
+            </a>
           </CardContent>
         </Card>
       </div>

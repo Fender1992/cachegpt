@@ -656,9 +656,11 @@ System power commands (shutdown, reboot) show warnings but can execute.
       // Save conversation after each exchange
       conversationId = saveConversation(messages, conversationId);
 
-      // Show metadata if cached
+      // Show cache hit/miss indicator
       if (responseMeta.cached) {
-        console.log(chalk.dim('  ⚡ cached'));
+        console.log(chalk.green('  ⚡ Cache HIT (saved ~$0.03, <10ms)'));
+      } else {
+        console.log(chalk.yellow('  🔄 Cache MISS (fresh response)'));
       }
       console.log();
 

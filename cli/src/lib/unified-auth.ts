@@ -124,11 +124,11 @@ export class UnifiedAuthManager {
       message: 'How would you like to authenticate?',
       choices: [
         {
-          name: `🌐 Web Login (Use your ${config.name} subscription - Recommended)`,
+          name: `🌐 Web Login (Use your ${config.name} account - Recommended)`,
           value: 'web'
         },
         {
-          name: '🔑 API Key (Requires paid API access)',
+          name: '🔑 API Key (Direct provider API access)',
           value: 'api'
         }
       ]

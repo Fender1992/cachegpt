@@ -6,12 +6,23 @@ import { createApiClient } from '../lib/api';
 import { logError, logSuccess, formatNumber, formatPercent, formatCost, formatTime } from '../lib/utils';
 import { ApiError } from '../types';
 import { LocalCache } from '../lib/cache';
+import { TokenManager } from '../lib/token-manager';
 
 interface StatsOptions {
   days: string;
 }
 
 export async function statsCommand(options: StatsOptions): Promise<void> {
+  // Try OAuth-based dashboard stats first
+  try {
+    const tokenManager = new TokenManager();
+    const auth = await tokenManager.refreshIfNeeded();
+    await showDashboardStats(auth.value);
+    return;
+  } catch {
+    // No OAuth token, fall back to config-based stats
+  }
+
   const config = loadConfig();
 
   // Show local cache stats if in browser mode
@@ -98,7 +109,7 @@ export async function statsCommand(options: StatsOptions): Promise<void> {
   // Validate configuration for API mode
   const validationErrors = validateConfig(config);
   if (validationErrors.length > 0) {
-    logError('Configuration is invalid. Run `cachegpt init` first.');
+    logError('Configuration is invalid. Run `cachegpt login` first.');
     validationErrors.forEach(error => console.log(chalk.red('  - ' + error)));
     return;
   }
@@ -206,26 +217,6 @@ export async function statsCommand(options: StatsOptions): Promise<void> {
       console.log(table(dailyData));
     }
 
-    // Show recommendations
-    if (stats.totalRequests > 100) {
-      console.log('\n' + chalk.bold('📝 Recommendations:'));
-
-      if (stats.cacheHitRate < 0.3) {
-        console.log(`   ${chalk.yellow('•')} Consider lowering similarity threshold to increase cache hits`);
-        console.log(`   ${chalk.yellow('•')} Review query patterns - similar queries should benefit from caching`);
-      }
-
-      if (stats.totalRequests < 1000 && days >= 7) {
-        console.log(`   ${chalk.blue('•')} Usage is still low - cache benefits will increase with more traffic`);
-      }
-
-      if (stats.costSaved < 1 && stats.totalRequests > 500) {
-        console.log(`   ${chalk.yellow('•')} Cost savings are low - verify model pricing configuration`);
-      }
-    } else {
-      console.log(`\n${chalk.blue('ℹ️ ')} Not enough data for detailed analysis. Make more requests to see trends.`);
-    }
-
     logSuccess('Statistics display completed');
 
   } catch (error: any) {
@@ -238,10 +229,63 @@ export async function statsCommand(options: StatsOptions): Promise<void> {
       logError('Network or unexpected error:', error.message || error);
     }
 
-    // Suggest troubleshooting
     console.log(chalk.blue('\n🔧 Troubleshooting:'));
-    console.log('   1. Verify your API key has admin permissions');
-    console.log('   2. Check that the stats endpoint is enabled on your server');
-    console.log('   3. Ensure you have made some requests to generate statistics');
+    console.log('   1. Run `cachegpt login` to authenticate');
+    console.log('   2. Ensure you have made some requests to generate statistics');
   }
+}
+
+async function showDashboardStats(bearerToken: string): Promise<void> {
+  const apiUrl = process.env.CACHEGPT_API_URL || 'https://cachegpt.app';
+  const spinner = ora('Fetching dashboard statistics...').start();
+
+  const response = await fetch(`${apiUrl}/api/dashboard-stats`, {
+    headers: {
+      'Authorization': `Bearer ${bearerToken}`,
+      'Content-Type': 'application/json',
+      'User-Agent': 'cachegpt-cli/1.0.0'
+    }
+  });
+
+  if (!response.ok) {
+    spinner.fail('Failed to fetch dashboard stats');
+    throw new Error(`Dashboard stats request failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  spinner.succeed('Dashboard statistics retrieved');
+
+  console.log('\n' + chalk.bold('📊 CacheGPT Dashboard'));
+  console.log('═'.repeat(60));
+
+  const statsData = [
+    [chalk.bold('Metric'), chalk.bold('Value')],
+    ['Total Requests', String(data.totalRequests ?? data.total_requests ?? 0)],
+    ['Daily Limit', String(data.dailyLimit ?? data.daily_limit ?? 'Unlimited')],
+    ['Cache Hit Rate', ((data.cacheHitRate ?? data.cache_hit_rate ?? 0) * 100).toFixed(1) + '%'],
+    ['Total Saved', chalk.green('$' + (data.totalSaved ?? data.total_saved ?? 0).toFixed(2))],
+    ['Current Streak', (data.currentStreak ?? data.current_streak ?? 0) + ' days']
+  ];
+
+  console.log('\n' + table(statsData, {
+    border: {
+      topBody: '─',
+      topJoin: '┬',
+      topLeft: '┌',
+      topRight: '┐',
+      bottomBody: '─',
+      bottomJoin: '┴',
+      bottomLeft: '└',
+      bottomRight: '┘',
+      bodyLeft: '│',
+      bodyRight: '│',
+      bodyJoin: '│',
+      joinBody: '─',
+      joinLeft: '├',
+      joinRight: '┤',
+      joinJoin: '┼'
+    }
+  }));
+
+  logSuccess('Statistics display completed');
 }

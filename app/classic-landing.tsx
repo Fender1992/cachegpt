@@ -295,14 +295,20 @@ export default function Home() {
       <section className="relative pt-16 pb-20 px-6">
         <div className="max-w-7xl mx-auto">
           <div className={`text-center max-w-5xl mx-auto transition-all duration-700 delay-200 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}>
-            {/* Problem Statement */}
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-4 text-gray-900 dark:text-white px-4 sm:px-0">
-              Your LLM APIs cost too much and respond too slowly
+            {/* Free Forever Badge */}
+            <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-800 mb-6">
+              <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+              <span className="text-sm font-semibold text-green-700 dark:text-green-400">Free Forever</span>
+            </div>
+
+            {/* Headline */}
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 text-gray-900 dark:text-white px-4 sm:px-0">
+              Free AI Chat — GPT-4, Claude & Gemini, Instantly
             </h1>
 
-            {/* Solution */}
+            {/* Subtitle */}
             <p className="text-lg sm:text-xl md:text-2xl text-gray-700 dark:text-gray-300 mb-8 px-4 sm:px-0">
-              CacheGPT cuts costs by <span className="text-purple-600 font-bold">80%</span> and speeds up responses to <span className="text-purple-600 font-bold">&lt;10ms</span>
+              500 requests/day. No credit card. No paywall. <span className="text-purple-600 font-bold">Forever.</span>
             </p>
 
             {/* One-line install */}

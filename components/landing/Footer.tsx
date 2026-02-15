@@ -21,6 +21,7 @@ const navigation = {
     { name: 'Blog', href: '/blog' },
     { name: 'GitHub', href: 'https://github.com/Fender1992/cachegpt', external: true },
     { name: 'Support', href: '/support' },
+    { name: 'Donate', href: '/donate' },
   ],
   legal: [
     { name: 'Privacy', href: '/privacy' },
@@ -127,6 +128,13 @@ export default function Footer() {
               <CacheGPTLogo size={32} animated={false} />
               <span className="text-xl font-bold text-white">CacheGPT</span>
             </div>
+
+            <Link
+              href="/donate"
+              className="text-sm text-gray-400 hover:text-purple-400 transition-colors"
+            >
+              Help keep CacheGPT free &mdash; <span className="underline">Donate</span>
+            </Link>
 
             <p className="text-gray-400 text-sm">
               © {new Date().getFullYear()} CacheGPT. All rights reserved.

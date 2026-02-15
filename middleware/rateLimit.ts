@@ -104,15 +104,15 @@ export async function rateLimit(request: NextRequest) {
 export class UserRateLimiter {
   private limits = {
     free: {
-      requests: 1000,
+      requests: 500,
       duration: 86400, // 24 hours
     },
     premium: {
-      requests: 10000,
+      requests: 500,
       duration: 86400,
     },
     enterprise: {
-      requests: 100000,
+      requests: 500,
       duration: 86400,
     },
   };

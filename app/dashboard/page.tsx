@@ -65,6 +65,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [showShareModal, setShowShareModal] = useState(false)
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -181,6 +182,103 @@ export default function Dashboard() {
               <RefreshCw className="w-5 h-5 text-gray-600 dark:text-gray-400" />
             </button>
           </div>
+
+          {/* Hero Savings Card */}
+          {stats && (() => {
+            const totalSaved = (stats.costSaved ?? 0) > 0
+              ? (stats.costSaved ?? 0)
+              : (stats.cacheHitPercentage / 100) * stats.totalChats * 0.03;
+            return (
+            <div className="bg-gradient-to-r from-green-500 to-emerald-600 dark:from-green-600 dark:to-emerald-700 rounded-2xl p-6 sm:p-8 shadow-xl shadow-green-500/20 mb-8 text-white">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+                <div className="flex-1">
+                  <p className="text-green-100 text-sm font-medium uppercase tracking-wide mb-1">Total Saved</p>
+                  <div className="text-4xl sm:text-5xl font-bold mb-2">
+                    ${totalSaved.toFixed(2)}
+                  </div>
+                  <p className="text-green-100 text-sm">
+                    from {stats.totalChats} chats with {stats.cacheHitPercentage}% cache hit rate
+                  </p>
+                </div>
+                <div className="flex flex-col items-center gap-3">
+                  {/* Cache hit rate ring */}
+                  <div className="relative w-24 h-24">
+                    <svg className="w-24 h-24 -rotate-90" viewBox="0 0 100 100">
+                      <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="8" />
+                      <circle
+                        cx="50" cy="50" r="42" fill="none" stroke="white" strokeWidth="8"
+                        strokeDasharray={`${(stats.cacheHitPercentage / 100) * 263.9} 263.9`}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-lg font-bold">{stats.cacheHitPercentage}%</span>
+                    </div>
+                  </div>
+                  <span className="text-green-100 text-xs font-medium">Cache Hit Rate</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowShareModal(true)}
+                className="mt-4 px-5 py-2.5 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-semibold transition-colors min-h-[44px]"
+              >
+                Share My Stats
+              </button>
+            </div>
+            );
+          })()}
+
+          {/* Share Stats Modal */}
+          {showShareModal && stats && (() => {
+            const savedAmount = (stats.costSaved ?? 0) > 0
+              ? (stats.costSaved ?? 0)
+              : (stats.cacheHitPercentage / 100) * stats.totalChats * 0.03;
+            const shareText = `I've saved $${savedAmount.toFixed(2)} with @CacheGPT! Free AI chat with semantic caching. Try it: https://cachegpt.app`;
+            return (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center z-[90]">
+              <div className="bg-white dark:bg-gray-900 w-full md:max-w-md md:rounded-2xl rounded-t-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+                <div className="p-6">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Share Your Stats</h3>
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 mb-4">
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                      {shareText}
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-3 mb-6">
+                    <a
+                      href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 px-4 py-3 bg-black dark:bg-white dark:text-black text-white rounded-xl font-medium transition-colors hover:opacity-90 min-h-[44px]"
+                    >
+                      Share on X
+                    </a>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(shareText)}
+                      className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl font-medium transition-colors hover:bg-gray-200 dark:hover:bg-gray-700 min-h-[44px]"
+                    >
+                      Copy to clipboard
+                    </button>
+                  </div>
+                  <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mb-4">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      You&apos;ve saved ${savedAmount.toFixed(2)}. Help keep it free &rarr;{' '}
+                      <a href="/donate" className="text-green-600 dark:text-green-400 font-medium hover:underline">
+                        Support CacheGPT
+                      </a>
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowShareModal(false)}
+                    className="w-full py-3 px-4 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white rounded-xl font-medium transition-colors min-h-[44px]"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+            );
+          })()}
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

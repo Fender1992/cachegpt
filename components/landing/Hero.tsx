@@ -10,14 +10,14 @@ interface HeroProps {
 
 const headlines = {
   A: {
-    main: 'Your AI, instantly.',
-    sub: 'No setup. No API keys.',
-    description: 'Chat, create, and learn — powered by multiple AI models and smart caching.',
+    main: 'Free AI Chat',
+    sub: 'GPT-4, Claude & Gemini, Instantly',
+    description: '500 requests/day. No credit card. No paywall. Forever.',
   },
   B: {
-    main: 'Chat with AI.',
-    sub: 'Write, code, learn - all for free.',
-    description: 'Get instant answers, creative ideas, and coding help. No setup required.',
+    main: 'Free AI Chat',
+    sub: 'No Paywall. No Limits.',
+    description: 'Chat with GPT-4, Claude, and Gemini — 500 requests/day, free forever.',
   },
 };
 
@@ -89,8 +89,14 @@ export default function Hero({ variant = 'A' }: HeroProps) {
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 sm:py-32">
         <div className="text-center">
+          {/* Free Forever Badge */}
+          <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-800 mb-6">
+            <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+            <span className="text-sm font-semibold text-green-700 dark:text-green-400">Free Forever</span>
+          </div>
+
           {/* Main headline */}
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-gray-900 dark:text-white mb-6">
+          <h1 className="text-3xl sm:text-5xl lg:text-7xl font-bold tracking-tight text-gray-900 dark:text-white mb-6">
             {copy.main}
             <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-400 dark:to-blue-400">
@@ -99,7 +105,7 @@ export default function Hero({ variant = 'A' }: HeroProps) {
           </h1>
 
           {/* Description */}
-          <p className="mt-6 text-xl sm:text-2xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+          <p className="mt-6 text-lg sm:text-2xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
             {copy.description}
           </p>
 
@@ -113,20 +119,20 @@ export default function Hero({ variant = 'A' }: HeroProps) {
           </div>
 
           {/* CTAs */}
-          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 px-4 sm:px-0">
             <Link
               href="/chat"
               onClick={handleCtaPrimary}
-              className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-lg"
+              className="w-full sm:w-auto text-center px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-lg"
             >
               Start chatting free →
             </Link>
             <Link
-              href="/modes"
+              href="/pricing"
               onClick={handleCtaSecondary}
-              className="w-full sm:w-auto px-8 py-4 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 hover:border-purple-600 dark:hover:border-purple-400 text-gray-900 dark:text-white font-semibold rounded-2xl shadow hover:shadow-lg transition-all duration-200 text-lg"
+              className="w-full sm:w-auto text-center px-8 py-4 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 hover:border-purple-600 dark:hover:border-purple-400 text-gray-900 dark:text-white font-semibold rounded-2xl shadow hover:shadow-lg transition-all duration-200 text-lg"
             >
-              Explore use cases
+              See pricing
             </Link>
           </div>
 

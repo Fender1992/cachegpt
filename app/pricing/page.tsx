@@ -3,101 +3,27 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase-client';
-import { Check } from 'lucide-react';
+import { Check, Heart } from 'lucide-react';
 import Toast from '@/components/toast';
 import Navigation from '@/components/Navigation';
 
-interface PricingTier {
-  id: string;
-  name: string;
-  price: number | null; // null for custom pricing (Enterprise)
-  interval: string;
-  requests: number;
-  features: string[];
-  cta: string;
-  popular?: boolean;
-  stripePriceId?: string;
-}
-
-const pricingTiers: PricingTier[] = [
-  {
-    id: 'free',
-    name: 'Free',
-    price: 0,
-    interval: 'forever',
-    requests: 1000,
-    features: [
-      '1,000 requests per month',
-      'Multi-provider AI chat (OpenAI, Claude, Gemini)',
-      'Basic caching',
-      'File uploads',
-      'Web dashboard',
-      'Community support',
-    ],
-    cta: 'Get Started Free',
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    price: 10,
-    interval: 'month',
-    requests: 10000,
-    features: [
-      '10,000 requests per month',
-      'All Free features',
-      'Self-MoA quality mode',
-      '8 integrations (Discord, Gmail, Slack, Teams, Calendar, Notion, Drive, Jira)',
-      'Conversation sharing',
-      'Priority caching',
-      'Usage analytics',
-    ],
-    cta: 'Upgrade to Pro',
-    popular: true,
-    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID,
-  },
-  {
-    id: 'business',
-    name: 'Business',
-    price: 49,
-    interval: 'month',
-    requests: 100000,
-    features: [
-      '100,000 requests per month',
-      'All Pro features',
-      'API access',
-      'CLI tool',
-      'Custom integrations',
-      'Dedicated support',
-      'SLA guarantee',
-    ],
-    cta: 'Upgrade to Business',
-    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID,
-  },
-  {
-    id: 'enterprise',
-    name: 'Enterprise',
-    price: null, // Custom pricing
-    interval: 'custom',
-    requests: 999999999,
-    features: [
-      'Unlimited requests',
-      'Everything in Pro',
-      'API access',
-      'CLI tool',
-      'Custom integrations',
-      'Dedicated support',
-      'Enterprise security',
-    ],
-    cta: 'Contact Sales',
-  },
+const FEATURES = [
+  '500 requests/day (15,000/month)',
+  'Multi-provider AI chat (OpenAI, Claude, Gemini)',
+  'Semantic caching for instant responses',
+  'File uploads',
+  'Web dashboard & CLI',
+  'All integrations included',
+  'Usage analytics',
+  'Conversation sharing',
 ];
+
+const DONATION_AMOUNTS = [5, 10, 25, 50, 100];
 
 export default function PricingPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
-  const [currentTier, setCurrentTier] = useState<string>('free');
   const [loading, setLoading] = useState(true);
-  const [processingTier, setProcessingTier] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
 
   useEffect(() => {
@@ -105,18 +31,6 @@ export default function PricingPage() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         setUser(user);
-
-        if (user) {
-          const { data: profile } = await supabase
-            .from('user_profiles')
-            .select('subscription_tier')
-            .eq('id', user.id)
-            .single();
-
-          if (profile) {
-            setCurrentTier(profile.subscription_tier || 'free');
-          }
-        }
       } catch (error) {
         // silently handle user data loading failure
       } finally {
@@ -127,238 +41,136 @@ export default function PricingPage() {
     loadUserData();
   }, [supabase]);
 
-  async function handleUpgrade(tier: PricingTier) {
-    if (!user) {
-      router.push('/login?redirect=/pricing');
-      return;
-    }
-
-    if (tier.id === 'enterprise') {
-      window.location.href = 'mailto:sales@cachegpt.app?subject=Enterprise Plan Inquiry';
-      return;
-    }
-
-    if (tier.id === 'free') {
-      router.push('/dashboard');
-      return;
-    }
-
-    try {
-      setProcessingTier(tier.id);
-
-      // Get session token for authentication
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (!session) {
-        router.push('/login?redirect=/pricing');
-        return;
-      }
-
-      const response = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          priceId: tier.stripePriceId,
-          tier: tier.id,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create checkout session');
-      }
-
-      const { url } = await response.json();
-      window.location.href = url;
-    } catch (error) {
-      setToast({
-        message: 'Failed to start checkout. Please try again.',
-        type: 'error'
-      });
-      setProcessingTier(null);
-    }
-  }
-
   return (
     <>
       <Navigation />
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
 
       {/* Hero Section */}
-      <div className="container mx-auto px-6 py-16 text-center">
-        <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-          Simple, Transparent Pricing
+      <div className="container mx-auto px-4 sm:px-6 py-12 sm:py-16 text-center">
+        <h1 className="text-4xl sm:text-5xl font-bold mb-4 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+          Free Forever
         </h1>
-        <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto mb-8">
-          Start free, upgrade as you grow. Cancel anytime, no questions asked.
+        <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto mb-8">
+          Full-featured AI chat with semantic caching. No credit card required. No hidden fees. Ever.
         </p>
-        {user && currentTier !== 'free' && (
-          <div className="inline-block px-4 py-2 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
-            Current Plan: {currentTier.charAt(0).toUpperCase() + currentTier.slice(1)}
-          </div>
-        )}
       </div>
 
-      {/* Link to Manage Subscription */}
-      {user && currentTier !== 'free' && (
-        <div className="container mx-auto px-6 pb-8">
-          <div className="max-w-3xl mx-auto bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                  Manage Your Subscription
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  View usage, change plans, or cancel your subscription
-                </p>
-              </div>
-              <a
-                href="/settings"
-                className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
-              >
-                Go to Settings
-              </a>
+      <div className="container mx-auto px-4 sm:px-6 pb-24">
+        {/* Free Forever Hero Card */}
+        <div className="max-w-2xl mx-auto mb-16">
+          <div className="relative rounded-2xl p-6 sm:p-8 bg-gradient-to-br from-purple-600 to-blue-600 text-white shadow-2xl">
+            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 px-4 py-1 bg-green-400 text-green-900 text-sm font-bold rounded-full">
+              FREE FOREVER
             </div>
+
+            <div className="mb-6 text-center">
+              <div className="flex items-baseline justify-center gap-1">
+                <span className="text-5xl sm:text-6xl font-bold">$0</span>
+                <span className="text-lg text-purple-100">/forever</span>
+              </div>
+              <p className="text-purple-100 mt-2">Everything included. No tiers. No limits on features.</p>
+            </div>
+
+            <div className="mb-8 pb-6 border-b border-purple-400">
+              <p className="text-purple-100 text-center text-sm">
+                500 requests/day &middot; 15,000 requests/month
+              </p>
+            </div>
+
+            <ul className="space-y-3 mb-8">
+              {FEATURES.map((feature, idx) => (
+                <li key={idx} className="flex items-start gap-3">
+                  <Check className="w-5 h-5 flex-shrink-0 mt-0.5 text-purple-200" />
+                  <span className="text-sm text-purple-50">{feature}</span>
+                </li>
+              ))}
+            </ul>
+
+            <button
+              onClick={() => {
+                if (!user) {
+                  router.push('/login?redirect=/chat');
+                } else {
+                  router.push('/chat');
+                }
+              }}
+              className="w-full py-3 px-6 rounded-lg font-semibold transition-all bg-white text-purple-600 hover:bg-purple-50 min-h-[44px]"
+            >
+              {loading ? 'Loading...' : user ? 'Start Chatting' : 'Get Started Free'}
+            </button>
           </div>
         </div>
-      )}
 
-      {/* Pricing Cards */}
-      <div className="container mx-auto px-6 pb-24">
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-7xl mx-auto">
-          {pricingTiers.map((tier) => (
-            <div
-              key={tier.id}
-              className={`relative rounded-2xl p-8 ${
-                tier.popular
-                  ? 'bg-gradient-to-br from-purple-600 to-blue-600 text-white shadow-2xl scale-105'
-                  : 'bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-500 transition-all'
-              }`}
-            >
-              {tier.popular && (
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 px-4 py-1 bg-yellow-400 text-purple-900 text-sm font-bold rounded-full">
-                  MOST POPULAR
-                </div>
-              )}
-
-              <div className="mb-6">
-                <h3 className={`text-2xl font-bold mb-2 ${tier.popular ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
-                  {tier.name}
-                </h3>
-                <div className="flex items-baseline gap-1">
-                  {tier.price === null ? (
-                    <span className={`text-2xl font-bold ${tier.popular ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
-                      Contact Support for Pricing
-                    </span>
-                  ) : (
-                    <>
-                      <span className={`text-5xl font-bold ${tier.popular ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
-                        ${tier.price}
-                      </span>
-                      {tier.interval !== 'custom' && (
-                        <span className={`text-lg ${tier.popular ? 'text-purple-100' : 'text-gray-500 dark:text-gray-400'}`}>
-                          /{tier.interval}
-                        </span>
-                      )}
-                      {tier.interval === 'custom' && (
-                        <span className={`text-lg ${tier.popular ? 'text-purple-100' : 'text-gray-500 dark:text-gray-400'}`}>
-                          custom pricing
-                        </span>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <div className={`mb-6 pb-6 border-b ${tier.popular ? 'border-purple-400' : 'border-gray-200 dark:border-gray-600'}`}>
-                <p className={`text-sm ${tier.popular ? 'text-purple-100' : 'text-gray-600 dark:text-gray-400'}`}>
-                  {tier.requests === 999999999
-                    ? 'Unlimited requests'
-                    : `${tier.requests.toLocaleString()} requests/month`}
-                </p>
-              </div>
-
-              <ul className="space-y-3 mb-8">
-                {tier.features.map((feature, idx) => (
-                  <li key={idx} className="flex items-start gap-3">
-                    <Check className={`w-5 h-5 flex-shrink-0 mt-0.5 ${tier.popular ? 'text-purple-200' : 'text-purple-600'}`} />
-                    <span className={`text-sm ${tier.popular ? 'text-purple-50' : 'text-gray-700 dark:text-gray-300'}`}>
-                      {feature}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-
-              <button
-                onClick={() => handleUpgrade(tier)}
-                disabled={
-                  loading ||
-                  processingTier === tier.id ||
-                  (user && currentTier === tier.id)
-                }
-                className={`w-full py-3 px-6 rounded-lg font-semibold transition-all ${
-                  tier.popular
-                    ? 'bg-white text-purple-600 hover:bg-purple-50'
-                    : 'bg-purple-600 text-white hover:bg-purple-700'
-                } ${
-                  user && currentTier === tier.id
-                    ? 'opacity-50 cursor-not-allowed'
-                    : ''
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
-                {loading
-                  ? 'Loading...'
-                  : processingTier === tier.id
-                  ? 'Processing...'
-                  : user && currentTier === tier.id
-                  ? 'Current Plan'
-                  : tier.cta}
-              </button>
+        {/* Donation Section */}
+        <div className="max-w-2xl mx-auto mb-16">
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <Heart className="w-6 h-6 text-pink-500" />
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Support CacheGPT</h2>
             </div>
-          ))}
+            <p className="text-gray-600 dark:text-gray-300 max-w-lg mx-auto">
+              Love CacheGPT? Help keep it free for everyone. Your donations cover server costs and development.
+            </p>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 sm:p-8 border-2 border-gray-200 dark:border-gray-700">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-4">
+              {DONATION_AMOUNTS.map((amount) => (
+                <a
+                  key={amount}
+                  href={`/donate?amount=${amount}`}
+                  className="flex items-center justify-center py-3 px-4 rounded-lg font-semibold text-purple-600 bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/50 border border-purple-200 dark:border-purple-700 transition-all min-h-[44px]"
+                >
+                  ${amount}
+                </a>
+              ))}
+            </div>
+            <p className="text-xs text-center text-gray-500 dark:text-gray-400">
+              One-time donation. No account required.
+            </p>
+          </div>
         </div>
 
         {/* FAQ Section */}
         <div className="max-w-3xl mx-auto mt-24">
-          <h2 className="text-3xl font-bold text-center mb-12 text-gray-900 dark:text-white">
+          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-12 text-gray-900 dark:text-white">
             Frequently Asked Questions
           </h2>
           <div className="space-y-6">
             <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
-                Can I change plans anytime?
+                Why is it free?
               </h3>
               <p className="text-gray-600 dark:text-gray-300">
-                Yes! You can upgrade, downgrade, or cancel your subscription at any time. Changes take effect immediately, and we'll prorate any charges.
+                CacheGPT uses semantic caching to dramatically reduce API costs. When similar questions are asked, cached responses are served instantly -- saving money and giving you faster answers. This efficiency lets us offer the service for free.
               </p>
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
-                What happens if I exceed my request limit?
+                How is this sustainable?
               </h3>
               <p className="text-gray-600 dark:text-gray-300">
-                Your requests will be paused until the next billing cycle or you can upgrade to a higher tier. We'll send you email notifications at 80% and 100% usage.
+                Our caching technology reduces costs by up to 90% compared to standard AI APIs. Combined with community donations and efficient infrastructure, we can keep CacheGPT free for everyone.
               </p>
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
-                Do you offer refunds?
+                What are the limits?
               </h3>
               <p className="text-gray-600 dark:text-gray-300">
-                We offer a 30-day money-back guarantee on all paid plans. If you're not satisfied, contact us for a full refund.
+                You get 500 requests per day (15,000 per month). Your daily limit resets every 24 hours. If you hit the limit, just try again tomorrow -- all features remain fully available.
               </p>
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
-                Is there a setup fee?
+                Do I need to provide API keys?
               </h3>
               <p className="text-gray-600 dark:text-gray-300">
-                No setup fees, ever. You only pay the monthly subscription price for your chosen tier.
+                No! CacheGPT works out of the box with our built-in AI providers. You can optionally add your own API keys for specific providers if you prefer, but it's never required.
               </p>
             </div>
           </div>

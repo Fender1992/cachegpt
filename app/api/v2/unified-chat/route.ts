@@ -744,11 +744,11 @@ export async function POST(request: NextRequest) {
         if (limitError) {
           console.error('[USAGE-LIMIT] Error checking limit:', limitError);
         } else if (!usageLimitCheck) {
-          // User has exceeded their monthly limit
+          // User has exceeded their daily limit
           return NextResponse.json({
-            error: 'Monthly request limit exceeded',
-            message: 'You have reached your monthly request limit. Please upgrade your plan or wait until next month.',
-            upgradeUrl: '/pricing'
+            error: 'Daily request limit reached',
+            message: "You've reached your daily limit of 500 requests. Try again tomorrow! CacheGPT is free forever.",
+            donateUrl: '/donate'
           }, {
             status: 429,
             headers: {

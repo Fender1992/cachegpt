@@ -326,4 +326,20 @@ async function saveSession(session: any, email: string, tokenManager: TokenManag
   console.log('  • ' + chalk.yellow('cachegpt chat') + ' to start chatting in the terminal');
   console.log('  • ' + chalk.blue('https://cachegpt.app/chat') + ' to use the web interface');
   console.log('  • ' + chalk.yellow('cachegpt auth-status') + ' to check your login status');
+
+  // First-run donation message (show only once)
+  const configDir = path.join(os.homedir(), '.cachegpt');
+  const firstRunFlag = path.join(configDir, '.first_run_shown');
+  if (!fs.existsSync(firstRunFlag)) {
+    console.log();
+    console.log(chalk.cyan('  CacheGPT is free and community-supported. Love it? → https://cachegpt.app/donate'));
+    try {
+      if (!fs.existsSync(configDir)) {
+        fs.mkdirSync(configDir, { recursive: true });
+      }
+      fs.writeFileSync(firstRunFlag, new Date().toISOString());
+    } catch {
+      // Ignore write errors for the flag file
+    }
+  }
 }

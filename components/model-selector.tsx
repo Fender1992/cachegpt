@@ -203,21 +203,21 @@ export default function ModelSelector({
       {isOpen && (
         <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
           {!userHasApiKeys ? (
-            // Show only upgrade message for users without API keys
+            // Informational message for users without API keys
             <div className="p-4 text-center">
-              <Crown className="w-8 h-8 text-purple-600 dark:text-purple-400 mx-auto mb-3" />
+              <ArrowUpRight className="w-8 h-8 text-blue-600 dark:text-blue-400 mx-auto mb-3" />
               <div className="text-sm font-medium text-gray-900 dark:text-white mb-1">
-                Unlock Premium Models
+                Use Your Own API Keys (Optional)
               </div>
               <div className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                Add your API keys to access Claude, GPT-4, Gemini Pro and more
+                Optionally add your own API keys to access Claude, GPT-4, Gemini Pro and more
               </div>
               <button
                 onClick={handleUpgradeRedirect}
-                className="w-full px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2"
+                className="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2 min-h-[44px]"
               >
-                <Crown className="w-4 h-4" />
-                Add API Keys
+                <ArrowUpRight className="w-4 h-4" />
+                Configure API Keys
               </button>
             </div>
           ) : (
@@ -248,7 +248,7 @@ export default function ModelSelector({
                     key={model.model_id}
                     onClick={() => !isDisabled && handleModelSelection(provider, model)}
                     disabled={isDisabled}
-                    className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
+                    className={`w-full px-3 py-3 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors min-h-[44px] ${
                       isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : ''
                     } ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                   >

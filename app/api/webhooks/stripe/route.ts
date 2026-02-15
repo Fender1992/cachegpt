@@ -90,6 +90,12 @@ export async function POST(req: NextRequest) {
 }
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+  // Handle donations separately
+  if (session.metadata?.type === 'donation') {
+    await handleDonationCompleted(session);
+    return;
+  }
+
   const userId = session.metadata?.supabase_user_id;
   const tier = session.metadata?.tier;
 
@@ -110,6 +116,32 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   });
 
   console.log('Checkout completed');
+}
+
+async function handleDonationCompleted(session: Stripe.Checkout.Session) {
+  const userId = session.metadata?.user_id || null;
+  const message = session.metadata?.message || null;
+  const isAnonymous = session.metadata?.is_anonymous === 'true';
+
+  const { error } = await supabase
+    .from('donations')
+    .insert({
+      user_id: userId || null,
+      stripe_checkout_session_id: session.id,
+      stripe_payment_intent_id: session.payment_intent as string,
+      amount_cents: session.amount_total || 0,
+      currency: session.currency || 'usd',
+      status: 'completed',
+      message,
+      is_anonymous: isAnonymous,
+    });
+
+  if (error) {
+    console.error('Error inserting donation:', error);
+    return;
+  }
+
+  console.log('Donation recorded successfully');
 }
 
 async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {

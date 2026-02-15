@@ -6,9 +6,9 @@ import ClassicLanding from './classic-landing';
  * SEO Metadata for landing page
  */
 export const metadata: Metadata = {
-  title: 'CacheGPT - Your AI, Instantly | Save 80% on LLM Costs',
-  description: 'Chat with AI for free. CacheGPT cuts API costs by 80% and speeds up responses to <10ms with smart caching. No credit card required. Start chatting now!',
-  keywords: ['AI chat', 'LLM caching', 'OpenAI', 'Claude', 'Gemini', 'Perplexity', 'API cost reduction', 'fast AI responses'],
+  title: 'CacheGPT - Free AI Chat | GPT-4, Claude, Gemini - Instant Responses',
+  description: 'Free AI chat with GPT-4, Claude, and Gemini. 500 requests/day, no credit card required. Semantic caching delivers instant responses. Free forever.',
+  keywords: ['free AI chat', 'GPT-4 free', 'Claude free', 'Gemini free', 'AI chat no paywall', 'semantic caching', 'free ChatGPT alternative', 'AI cost reduction'],
   authors: [{ name: 'CacheGPT Team' }],
   creator: 'CacheGPT',
   publisher: 'CacheGPT',
@@ -28,16 +28,21 @@ export const metadata: Metadata = {
     locale: 'en_US',
     url: 'https://cachegpt.app',
     siteName: 'CacheGPT',
-    title: 'CacheGPT - Your AI, Instantly',
-    description: 'Chat with AI for free. Save 80% on costs with smart caching. No credit card required.',
+    title: 'CacheGPT - Free AI Chat | GPT-4, Claude, Gemini',
+    description: 'Free AI chat with GPT-4, Claude, and Gemini. 500 requests/day, no credit card required. Semantic caching delivers instant responses. Free forever.',
     images: [
       {
         url: 'https://cachegpt.app/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'CacheGPT - Your AI, Instantly',
+        alt: 'CacheGPT - Free AI Chat with GPT-4, Claude, and Gemini',
       },
     ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'CacheGPT - Free AI Chat | GPT-4, Claude, Gemini',
+    description: 'Free AI chat with GPT-4, Claude, and Gemini. 500 requests/day, no credit card. Free forever.',
   },
   alternates: {
     canonical: 'https://cachegpt.app',

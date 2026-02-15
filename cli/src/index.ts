@@ -177,7 +177,7 @@ program
 
 program
   .command('api-keys [action]')
-  .description('Manage your API keys for premium providers (add, view, remove, test)')
+  .description('Manage your API keys for providers (add, view, remove, test)')
   .action(apiKeysCommand);
 
 // Parse CLI arguments

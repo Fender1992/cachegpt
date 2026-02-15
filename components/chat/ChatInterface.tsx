@@ -78,6 +78,7 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const [isDragOver, setIsDragOver] = useState(false)
   const [droppedFiles, setDroppedFiles] = useState<File[]>([])
+  const [showCacheTutorial, setShowCacheTutorial] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -134,6 +135,11 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
     loadConversations()
     loadModeFromQueryParam()
     loadFeatureFlags()
+
+    // Show cache tutorial on first visit
+    if (typeof window !== 'undefined' && !localStorage.getItem('cachegpt_tutorial_seen')) {
+      setShowCacheTutorial(true)
+    }
   }, [])
 
   // Global keyboard shortcuts
@@ -1398,6 +1404,80 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
           onClose={() => setShowCacheToast(false)}
           duration={4000}
         />
+      )}
+
+      {/* First-time Cache Tutorial Modal */}
+      {showCacheTutorial && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center z-[90]">
+          <div className="bg-white dark:bg-gray-900 w-full md:max-w-lg md:rounded-2xl rounded-t-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 sm:p-8">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                How CacheGPT Saves You Money
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400 text-sm mb-6">
+                Smart semantic caching means common questions get answered instantly and for free.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                {/* Cache Miss Column */}
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
+                  <div className="text-sm font-semibold text-red-700 dark:text-red-400 mb-3 uppercase tracking-wide">
+                    Cache Miss
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600 dark:text-gray-400 text-sm">Response:</span>
+                      <span className="font-medium text-gray-900 dark:text-white text-sm">Fresh AI response</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600 dark:text-gray-400 text-sm">Speed:</span>
+                      <span className="font-medium text-gray-900 dark:text-white text-sm">~2-5 seconds</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600 dark:text-gray-400 text-sm">Cost:</span>
+                      <span className="font-medium text-gray-900 dark:text-white text-sm">~2-5 cents</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Cache Hit Column */}
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4">
+                  <div className="text-sm font-semibold text-green-700 dark:text-green-400 mb-3 uppercase tracking-wide">
+                    Cache Hit
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600 dark:text-gray-400 text-sm">Response:</span>
+                      <span className="font-medium text-gray-900 dark:text-white text-sm">Instant cached response</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600 dark:text-gray-400 text-sm">Speed:</span>
+                      <span className="font-medium text-green-700 dark:text-green-400 text-sm">&lt;10ms</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600 dark:text-gray-400 text-sm">Cost:</span>
+                      <span className="font-bold text-green-700 dark:text-green-400 text-sm">Completely free</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                As more people ask similar questions, everyone benefits from faster, free responses!
+              </p>
+
+              <button
+                onClick={() => {
+                  localStorage.setItem('cachegpt_tutorial_seen', 'true')
+                  setShowCacheTutorial(false)
+                }}
+                className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl transition-all text-base min-h-[44px]"
+              >
+                Got it!
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>
