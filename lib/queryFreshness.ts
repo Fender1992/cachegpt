@@ -74,6 +74,18 @@ const TIME_SENSITIVE_PATTERNS = {
     category: 'current' as const
   },
 
+  // Events / situation queries
+  events: {
+    patterns: [
+      /\b(situation|outbreak|epidemic|pandemic|crisis|emergency)\b/i,
+      /\b(infection|disease|cases|spread|death toll|casualties)\b/i,
+      /\b(happening in|going on in|situation in|conflict in|war in)\b/i,
+      /\b(protests? in|elections? in)\b/i,
+    ],
+    ttl: 3600, // 1 hour
+    category: 'breaking' as const
+  },
+
   // Temporal references that need context
   temporal: {
     patterns: [

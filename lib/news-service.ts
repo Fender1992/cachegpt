@@ -36,7 +36,10 @@ export class NewsService {
       'today', 'latest', 'current', 'news', 'recent', 'now',
       'happening', 'breaking', 'update', 'this week', 'this month',
       'yesterday', 'currently', 'right now', 'at the moment',
-      'what\'s going on', 'what happened', 'tell me about'
+      'what\'s going on', 'what happened', 'tell me about',
+      'situation', 'outbreak', 'epidemic', 'crisis', 'infection',
+      'disease', 'spread', 'cases', 'health', 'authorities',
+      'death toll', 'casualties', 'pandemic'
     ];
 
     const lowerMessage = message.toLowerCase();

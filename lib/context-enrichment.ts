@@ -97,7 +97,7 @@ NOTE: This is server time in UTC. The user's local time may be different.
 ## Current Technology Landscape
 ${worldContext.majorEvents.map(event => `- ${event}`).join('\n')}
 
-**Important**: When asked about current events, news, stock prices, weather, or other real-time information you don't have, clearly state that you need up-to-date information and suggest the user verify through current sources.`;
+**Important**: If real-time context was provided above, use it confidently to answer the user's question and cite sources. Only suggest checking external sources if no context was retrieved for a real-time query.`;
 
   return contextStr;
 }
@@ -138,7 +138,15 @@ export function needsRealTimeInfo(query: string): {
     },
     news: {
       keywords: ['latest news', 'current events', 'breaking news', 'happening now', 'recent news', 'today\'s news', 'what happened', 'what\'s happening', 'any news about', 'tell me about'],
-      confidence: 0.85 // Lower confidence for broader patterns
+      confidence: 0.85
+    },
+    situation: {
+      keywords: ['situation', 'status of', 'outbreak', 'epidemic', 'pandemic', 'crisis', 'infection', 'disease', 'cases', 'spread', 'death toll', 'casualties', 'emergency'],
+      confidence: 0.85
+    },
+    geopolitical: {
+      keywords: ['happening in', 'going on in', 'situation in', 'conflict in', 'war in', 'protests in', 'elections in'],
+      confidence: 0.85
     },
     weather: {
       keywords: ['weather', 'temperature', 'forecast', 'rain', 'snow', 'climate today'],
@@ -172,6 +180,17 @@ export function needsRealTimeInfo(query: string): {
           confidence
         }
       }
+    }
+  }
+
+  // Contextual fallback: question word + location pattern suggests real-time info need
+  const questionPattern = /^(what|how|why|where|who|is there|are there|tell me|describe)\b/i;
+  const locationPattern = /\bin\s+(the\s+)?([\w\s]+)(country|region|city|state|province)?$/i;
+  if (questionPattern.test(lowerQuery) && locationPattern.test(lowerQuery)) {
+    return {
+      needsInfo: true,
+      category: 'situation',
+      confidence: 0.75
     }
   }
 
@@ -209,6 +228,8 @@ export function enrichQueryWithContext(query: string): string {
     case 'weather':
     case 'stocks':
     case 'sports':
+    case 'situation':
+    case 'geopolitical':
       contextHint = `\n\n[Note: This question requires real-time information. Please provide the best answer based on your knowledge, and suggest the user check current sources for the most up-to-date information.]`
       break
 
@@ -309,6 +330,7 @@ export function enrichContext(userQuery: string, userTimezone?: UserTimezoneInfo
   systemContext: string
   needsRealTime: boolean
   realTimeCategory: string | null
+  confidence: number
   commonAnswer: string | null
   isEncyclopedic: boolean
   shouldUseGrokipedia: boolean
@@ -327,6 +349,7 @@ export function enrichContext(userQuery: string, userTimezone?: UserTimezoneInfo
     systemContext,
     needsRealTime: realTimeAnalysis.needsInfo,
     realTimeCategory: realTimeAnalysis.category,
+    confidence: realTimeAnalysis.confidence,
     commonAnswer,
     isEncyclopedic,
     shouldUseGrokipedia

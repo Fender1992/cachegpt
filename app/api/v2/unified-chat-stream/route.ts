@@ -282,7 +282,7 @@ export async function POST(request: NextRequest) {
         ? getGrokipediaContext(userMessage)
         : Promise.resolve(null),
       contextAnalysis.needsRealTime && contextAnalysis.realTimeCategory
-        ? performContextualSearch(userMessage, contextAnalysis.realTimeCategory, 0.80)
+        ? performContextualSearch(userMessage, contextAnalysis.realTimeCategory, contextAnalysis.confidence || 0.70)
         : Promise.resolve(null),
       getNewsService().getNewsContextIfNeeded(userMessage),
       getWeatherService().getWeatherContextIfNeeded(userMessage),
@@ -310,6 +310,15 @@ export async function POST(request: NextRequest) {
     }
     if (weatherContext) {
       enrichedMessages.splice(enrichedMessages.length - 1, 0, { role: 'system', content: weatherContext });
+    }
+
+    // Add conditional instruction based on whether real-time context was retrieved
+    const hasRealTimeContext = !!(grokipediaContext || searchContext || newsContext || weatherContext);
+    if (contextAnalysis.needsRealTime) {
+      const contextInstruction = hasRealTimeContext
+        ? 'Real-time context has been provided above. Use it confidently to answer the user\'s question. Cite sources where available. Do NOT say you lack real-time information.'
+        : 'This query may need current information but no real-time context was retrieved. Provide your best answer from your knowledge and suggest the user check current sources for the latest details.';
+      enrichedMessages.splice(enrichedMessages.length - 1, 0, { role: 'system', content: contextInstruction });
     }
 
     // External context injection

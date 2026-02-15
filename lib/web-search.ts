@@ -5,6 +5,8 @@
  */
 
 import { grokipediaService, formatGrokipediaForContext, isEncyclopedicQuery } from './grokipedia-service';
+import { searchBrave, isBraveSearchAvailable } from './brave-search-service';
+import { searchDDGHtml } from './duckduckgo-html-search';
 
 interface SearchResult {
   title: string
@@ -166,14 +168,14 @@ export async function searchGrokipedia(query: string): Promise<SearchResponse> {
 }
 
 /**
- * Intelligent search that tries multiple sources
- * Now prioritizes Grokipedia for encyclopedic content
+ * Intelligent search with cascading fallback
+ * Priority: Grokipedia → Brave Search → DDG HTML → DDG Instant Answer
  */
 export async function intelligentSearch(query: string, category: string | null): Promise<SearchResponse> {
   // Check if query is encyclopedic in nature
   const isEncyclopedic = isEncyclopedicQuery(query);
 
-  // For factual/encyclopedia queries, try Grokipedia first (replaces Wikipedia)
+  // 1. For factual/encyclopedia queries, try Grokipedia first
   if (isEncyclopedic || category === 'general' || category === 'science' || category === 'geography') {
     const grokResult = await searchGrokipedia(query);
     if (grokResult.success && grokResult.summary) {
@@ -181,7 +183,49 @@ export async function intelligentSearch(query: string, category: string | null):
     }
   }
 
-  // For time-sensitive or non-encyclopedic queries, use DuckDuckGo
+  // 2. Try Brave Search (real search results, needs API key)
+  if (isBraveSearchAvailable()) {
+    try {
+      const braveResult = await searchBrave(query);
+      if (braveResult.success && braveResult.results.length > 0) {
+        const results: SearchResult[] = braveResult.results.map((r, i) => ({
+          title: r.title,
+          snippet: r.snippet,
+          url: r.url,
+          relevance: 1.0 - (i * 0.1),
+        }));
+        return {
+          success: true,
+          results,
+          summary: generateSearchSummary(results, query),
+        };
+      }
+    } catch (error) {
+      console.error('[INTELLIGENT-SEARCH] Brave fallback error:', error);
+    }
+  }
+
+  // 3. Try DuckDuckGo HTML scraping (free, no API key)
+  try {
+    const ddgResult = await searchDDGHtml(query);
+    if (ddgResult.success && ddgResult.results.length > 0) {
+      const results: SearchResult[] = ddgResult.results.map((r, i) => ({
+        title: r.title,
+        snippet: r.snippet,
+        url: r.url,
+        relevance: 0.9 - (i * 0.1),
+      }));
+      return {
+        success: true,
+        results,
+        summary: generateSearchSummary(results, query),
+      };
+    }
+  } catch (error) {
+    console.error('[INTELLIGENT-SEARCH] DDG HTML fallback error:', error);
+  }
+
+  // 4. Last resort: DuckDuckGo Instant Answer API
   const webResult = await searchWeb(query);
   return webResult;
 }
@@ -223,10 +267,10 @@ export function shouldPerformSearch(
   if (!category) return false
 
   // High-value categories that benefit from search
-  const searchableCategories = ['news', 'weather', 'stocks', 'sports', 'technology']
+  const searchableCategories = ['news', 'weather', 'stocks', 'sports', 'technology', 'situation', 'geopolitical', 'events']
 
-  // Only search if confidence is high enough (lowered from 0.85 to 0.80 for broader matching)
-  return searchableCategories.includes(category) && confidence >= 0.80
+  // Lower threshold to catch broader queries (was 0.80)
+  return searchableCategories.includes(category) && confidence >= 0.70
 }
 
 /**
