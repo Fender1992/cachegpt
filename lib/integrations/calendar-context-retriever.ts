@@ -480,8 +480,6 @@ async function createCalendarEvent(
     eventBody.location = parsedEvent.location;
   }
 
-  console.log('[Calendar Action] Creating event:', JSON.stringify({ summary: parsedEvent.summary, date: parsedEvent.date, startTime: parsedEvent.startTime, endTime: parsedEvent.endTime, isAllDay: parsedEvent.isAllDay, timeZone }));
-
   const res = await fetch(`${CALENDAR_API}/calendars/primary/events`, {
     method: 'POST',
     headers: {
@@ -602,7 +600,6 @@ export async function retrieveCalendarContext(
   }
 
   const analysis = analyzeCalendarQuery(queryText);
-  console.log('[Calendar Context] Query analysis:', { intent: analysis.intent, hasEvent: !!analysis.parsedEvent, searchTerms: analysis.searchTerms });
 
   // Only retrieve context for calendar-related queries
   if (analysis.intent === 'general' && analysis.searchTerms.length === 0) {
@@ -641,7 +638,6 @@ export async function retrieveCalendarContext(
 
     // Handle write intents (create/delete events)
     if (analysis.intent === 'create_event') {
-      console.log('[Calendar Context] Create event intent. Stored scopes:', integration.provider_data?.scope, 'Parsed event:', analysis.parsedEvent);
       if (analysis.parsedEvent) {
         return await createCalendarEvent(token, analysis.parsedEvent, userTimezone);
       }

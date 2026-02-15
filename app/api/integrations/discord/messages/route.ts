@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json(messages);
       }
     } catch (err) {
-      console.log('[Discord Messages] Bot proxy unavailable:', (err as Error).message);
+      // Bot proxy unavailable — fall through to next strategy
     }
 
     // Priority 2: Direct Discord API with user's OAuth token (auto-refreshed)
@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(message);
       }
     } catch (err) {
-      console.log('[Discord Send] Bot proxy unavailable:', (err as Error).message);
+      // Bot proxy unavailable — fall through to next strategy
     }
 
     // Priority 2: Direct Discord API with user's OAuth token

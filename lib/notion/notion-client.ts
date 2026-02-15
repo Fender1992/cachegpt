@@ -116,8 +116,6 @@ export class NotionClient {
         throw new Error('Notion not connected. Please link your Notion workspace in Settings.');
       }
 
-      console.log('[Notion Client] Connected to', status.workspaceName);
-
       this.connected = true;
 
       // Fetch pages

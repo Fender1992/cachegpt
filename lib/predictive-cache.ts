@@ -55,8 +55,6 @@ export class PredictiveCacheManager {
    */
   async analyzeQueryPatterns(): Promise<QueryPattern[]> {
     try {
-      console.log('[PREDICTIVE] Analyzing query patterns...');
-
       const { data: responses, error } = await this.supabase
         .from('cached_responses')
         .select('query, access_count, created_at, last_accessed, user_id')
@@ -103,7 +101,6 @@ export class PredictiveCacheManager {
         .sort((a, b) => b.frequency - a.frequency)
         .slice(0, 50); // Top 50 patterns
 
-      console.log(`[PREDICTIVE] Found ${patternArray.length} query patterns`);
       return patternArray;
 
     } catch (error) {
@@ -180,7 +177,6 @@ export class PredictiveCacheManager {
     const predictiveEnabled = await rankingManager.isFeatureEnabled('predictive_caching');
 
     if (!predictiveEnabled) {
-      console.log('[PREDICTIVE] Predictive caching not enabled');
       return [];
     }
 
@@ -210,7 +206,6 @@ export class PredictiveCacheManager {
         .sort((a, b) => b.probability - a.probability)
         .slice(0, 10);
 
-      console.log(`[PREDICTIVE] Generated ${topPredictions.length} predictions`);
       return topPredictions;
 
     } catch (error) {
@@ -328,8 +323,6 @@ export class PredictiveCacheManager {
 
           if (!existing) {
             // Generate response using free providers (simplified for prewarming)
-            console.log(`[PREDICTIVE] Prewarming: "${prediction.query}" (${Math.round(prediction.probability * 100)}% probability)`);
-
             // Track prediction for accuracy measurement
             this.predictionHistory.set(prediction.query, false);
 
@@ -342,7 +335,6 @@ export class PredictiveCacheManager {
       }
     }
 
-    console.log(`[PREDICTIVE] ✅ Prewarmed ${prewarmedCount} predictions`);
     return prewarmedCount;
   }
 
@@ -357,7 +349,6 @@ export class PredictiveCacheManager {
     for (const [predictedQuery, wasHit] of this.predictionHistory.entries()) {
       if (!wasHit && this.queryMatches(pattern, predictedQuery)) {
         this.predictionHistory.set(predictedQuery, true);
-        console.log(`[PREDICTIVE] ✅ Prediction hit: "${predictedQuery}" matched "${actualQuery}"`);
         break;
       }
     }
@@ -418,7 +409,6 @@ export class PredictiveCacheManager {
         this.predictionHistory.set(query, hit);
       });
 
-      console.log('[PREDICTIVE] Cleaned up prediction history');
     }
   }
 }

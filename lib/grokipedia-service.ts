@@ -58,7 +58,6 @@ class GrokipediaService {
     options: GrokipediaSearchOptions = {}
   ): Promise<GrokipediaResult | null> {
     if (!this.enabled) {
-      console.log('[GROKIPEDIA] Service disabled, returning null');
       return null;
     }
 
@@ -85,8 +84,6 @@ When answering queries:
 - Focus on the most important information
 - Maintain neutrality
 - Provide current, verified information`;
-
-      console.log(`[GROKIPEDIA] Fetching encyclopedic content for: "${query}"`);
 
       const response = await fetch(this.endpoint, {
         method: 'POST',
@@ -134,8 +131,6 @@ When answering queries:
 
       // Extract sources if Grok provides them (often in citations)
       const sources = this.extractSources(content);
-
-      console.log(`[GROKIPEDIA] ✅ Successfully fetched content (${content.length} chars, ${sources.length} sources)`);
 
       return {
         content,
@@ -197,8 +192,6 @@ When answering queries:
     }
 
     try {
-      console.log(`[GROKIPEDIA] Factual search for: "${query}" (category: ${category || 'general'})`);
-
       const systemPrompt = `You are a factual information assistant with access to current information.
 Provide accurate, up-to-date facts with sources when possible. Be concise but comprehensive.`;
 
@@ -244,8 +237,6 @@ Provide accurate, up-to-date facts with sources when possible. Be concise but co
       }
 
       const sources = this.extractSources(content);
-
-      console.log(`[GROKIPEDIA] ✅ Search successful (${content.length} chars)`);
 
       return {
         content,

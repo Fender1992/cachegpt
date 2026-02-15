@@ -40,8 +40,6 @@ export async function getValidDiscordToken(
   }
 
   try {
-    console.log('[Discord Token] Refreshing expired token for integration', integrationId);
-
     const response = await fetch(`${DISCORD_API}/oauth2/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -77,7 +75,6 @@ export async function getValidDiscordToken(
       })
       .eq('id', integrationId);
 
-    console.log('[Discord Token] Successfully refreshed token, expires at', newExpiresAt.toISOString());
     return access_token;
   } catch (error) {
     console.error('[Discord Token] Refresh exception:', error);

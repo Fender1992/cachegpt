@@ -142,8 +142,6 @@ export class DiscordClient {
         avatar: pd.avatar,
       };
 
-      console.log('[Discord Client] Connected as', user.username);
-
       // Fetch guilds through our proxy
       const guildsRes = await fetch('/api/integrations/discord/guilds', { headers });
       const guilds: DiscordGuild[] = guildsRes.ok ? await guildsRes.json() : [];
@@ -190,7 +188,6 @@ export class DiscordClient {
    */
   private scheduleReconnect(): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.log('[Discord Client] Max reconnect attempts reached, giving up');
       return;
     }
 
@@ -200,8 +197,6 @@ export class DiscordClient {
 
     const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
     this.reconnectAttempts++;
-    console.log(`[Discord Client] Scheduling reconnect attempt ${this.reconnectAttempts} in ${delay}ms`);
-
     this.reconnectTimer = setTimeout(async () => {
       this.reconnectTimer = null;
       if (!this.connected && !this.state.isConnecting) {

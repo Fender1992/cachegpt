@@ -140,8 +140,7 @@ async function validateBearerToken(token: string): Promise<UnifiedSession | null
       }
     } catch (e) {
       // If we can't parse the JWT, use default expiry
-      console.log('[AUTH] Could not parse JWT expiry, using default');
-    }
+      }
 
     return {
       user: {
@@ -171,14 +170,6 @@ async function validateCookieSession(): Promise<UnifiedSession | null> {
     const allCookies = cookieStore.getAll()
 
     // Debug logging
-    console.log('[AUTH-RESOLVER] validateCookieSession: Checking cookies...')
-    console.log('[AUTH-RESOLVER] Total cookies found:', allCookies.length)
-    console.log('[AUTH-RESOLVER] Cookie names:', allCookies.map(c => c.name).join(', '))
-
-    // Look for Supabase auth cookies
-    const supabaseCookies = allCookies.filter(c => c.name.includes('supabase') || c.name.includes('sb-'))
-    console.log('[AUTH-RESOLVER] Supabase cookies found:', supabaseCookies.length)
-
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -196,13 +187,6 @@ async function validateCookieSession(): Promise<UnifiedSession | null> {
       }
     );
     const { data: { session }, error } = await supabase.auth.getSession();
-
-    console.log('[AUTH-RESOLVER] Session result:', {
-      hasSession: !!session,
-      hasUser: !!session?.user,
-      userId: session?.user?.id,
-      error: error?.message
-    });
 
     if (error) {
       console.error('Cookie session error:', error.message);
@@ -283,8 +267,6 @@ async function handleSessionExpiry(session: UnifiedSession): Promise<AuthResult>
 
   // Check if session is expired
   if (session.expiresAt && now >= session.expiresAt) {
-    console.log(`[AUTH] Session expired for user ${session.user.id}, attempting refresh`);
-
     // Try to refresh the session
     const refreshedSession = await refreshSession(session);
     if (refreshedSession) {
@@ -301,8 +283,6 @@ async function handleSessionExpiry(session: UnifiedSession): Promise<AuthResult>
   // Check if session expires soon (within 5 minutes) and needs refresh
   const fiveMinutes = 5 * 60;
   if (session.expiresAt && (session.expiresAt - now) < fiveMinutes) {
-    console.log(`[AUTH] Session expires soon for user ${session.user.id}, proactively refreshing`);
-
     // Try proactive refresh, but don't fail if it doesn't work
     const refreshedSession = await refreshSession(session);
     if (refreshedSession) {
@@ -350,7 +330,6 @@ async function refreshSession(session: UnifiedSession): Promise<UnifiedSession |
     }
 
     // For Bearer tokens, we can't refresh them - they need to be re-issued
-    console.log('[AUTH] Cannot refresh Bearer token, requires re-authentication');
     return null;
 
   } catch (error) {
@@ -414,8 +393,6 @@ export function createSessionErrorMessage(session: UnifiedSession, originalError
 /**
  * Debug helper to log auth method usage
  */
-export function logAuthMethodUsage(session: UnifiedSession, endpoint: string): void {
-  const timeToExpiry = getSessionTimeToExpiry(session);
-  const expiryInfo = timeToExpiry !== null ? ` (expires in ${Math.floor(timeToExpiry / 60)}m)` : '';
-  console.log(`[AUTH] ${endpoint}: User ${session.user.id} authenticated via ${session.authMethod}${expiryInfo}`);
+export function logAuthMethodUsage(_session: UnifiedSession, _endpoint: string): void {
+  // No-op in production — removed verbose auth logging
 }

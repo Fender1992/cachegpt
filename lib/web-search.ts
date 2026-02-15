@@ -119,8 +119,6 @@ function generateSearchSummary(results: SearchResult[], query: string): string {
  */
 export async function searchGrokipedia(query: string): Promise<SearchResponse> {
   try {
-    console.log('[GROKIPEDIA-SEARCH] Searching for:', query);
-
     // Use Grokipedia service for encyclopedic content
     const result = await grokipediaService.fetchEncyclopedicContent(query, {
       maxTokens: 1500,
@@ -150,8 +148,6 @@ export async function searchGrokipedia(query: string): Promise<SearchResponse> {
       });
     });
 
-    console.log('[GROKIPEDIA-SEARCH] ✅ Success:', results.length, 'results');
-
     return {
       success: true,
       results,
@@ -179,16 +175,13 @@ export async function intelligentSearch(query: string, category: string | null):
 
   // For factual/encyclopedia queries, try Grokipedia first (replaces Wikipedia)
   if (isEncyclopedic || category === 'general' || category === 'science' || category === 'geography') {
-    console.log('[INTELLIGENT-SEARCH] Using Grokipedia for encyclopedic query');
     const grokResult = await searchGrokipedia(query);
     if (grokResult.success && grokResult.summary) {
       return grokResult;
     }
-    console.log('[INTELLIGENT-SEARCH] Grokipedia failed, falling back to DuckDuckGo');
   }
 
   // For time-sensitive or non-encyclopedic queries, use DuckDuckGo
-  console.log('[INTELLIGENT-SEARCH] Using DuckDuckGo for real-time query');
   const webResult = await searchWeb(query);
   return webResult;
 }
@@ -244,27 +237,20 @@ export async function performContextualSearch(
   category: string | null,
   confidence: number
 ): Promise<string | null> {
-  console.log(`[WEB-SEARCH] performContextualSearch called with category: ${category}, confidence: ${confidence}`)
-
   // Don't search for simple date/time queries (we provide that directly)
   if (category === 'datetime') {
-    console.log('[WEB-SEARCH] ⏭️  Skipping datetime query (context provides this)')
     return null
   }
 
   // Check if we should perform search
   const shouldSearch = shouldPerformSearch(category, confidence)
-  console.log(`[WEB-SEARCH] shouldPerformSearch result: ${shouldSearch}`)
 
   if (!shouldSearch) {
-    console.log(`[WEB-SEARCH] ❌ Not performing search. Category "${category}" not in searchable list or confidence ${confidence} < 0.80`)
     return null
   }
 
   try {
-    console.log(`[WEB-SEARCH] 🔍 Performing search for category: ${category}, confidence: ${confidence}`)
     const searchResult = await intelligentSearch(query, category)
-    console.log(`[WEB-SEARCH] ✅ Search completed, results:`, searchResult.success ? `${searchResult.results.length} results` : 'failed')
     return formatSearchForContext(searchResult, query)
   } catch (error) {
     console.error('[WEB-SEARCH] ❌ Error performing search:', error)

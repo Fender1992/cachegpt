@@ -66,7 +66,7 @@ export function AuthForm({ isFromCLI = false, callbackPort }: AuthFormProps) {
                 user_email: data.user.email
               })
             } catch (rpcError) {
-              console.log('Profile creation fallback also failed, but continuing...')
+              // Profile creation fallback failed, continuing anyway
             }
           }
 

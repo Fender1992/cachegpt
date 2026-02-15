@@ -40,7 +40,6 @@ export function detectUserTimezone(headers: Headers): UserTimezoneInfo {
     // Fallback: Use server timezone (UTC recommended)
     timezone = 'UTC';
     detectionMethod = 'default';
-    console.log('[TIMEZONE-DETECTOR] No client timezone detected, using UTC');
   }
 
   // Generate localized date/time information

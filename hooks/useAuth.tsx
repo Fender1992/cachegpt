@@ -22,7 +22,7 @@ export function useAuth() {
       } catch (error) {
         // Silently fail if Supabase is not configured
         if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-          console.log('Supabase not configured - auth disabled')
+          // Supabase not configured - auth disabled
         }
       } finally {
         setLoading(false)

@@ -100,8 +100,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`[SHARE-API] Created share: ${slug} (user: ${userId || 'guest'}, expires: ${expiresAt || 'never'})`);
-
     return NextResponse.json({
       url: `/a/${data.slug}`,
       slug: data.slug,

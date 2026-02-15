@@ -54,7 +54,7 @@ export default function IntegrationDockButton({ onClick, isPanelOpen, isHistoryO
   else if (hasConnecting && connectedCount === 0) statusDotClass = 'bg-yellow-500';
 
   return (
-    <div className={cn(
+    <div data-tour="integrations" className={cn(
       'fixed bottom-20 sm:bottom-4 z-[55] transition-all duration-300',
       isHistoryOpen ? 'right-4 sm:right-[22rem]' : 'right-4'
     )}>

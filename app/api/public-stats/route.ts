@@ -26,7 +26,7 @@ export async function GET() {
       .select('*', { count: 'exact', head: true });
 
     if (userError) {
-      console.error('Failed to fetch user count:', userError);
+      console.error('[PUBLIC-STATS] Failed to fetch user count:', userError);
     }
 
     // Get cache statistics
@@ -64,5 +64,6 @@ export async function GET() {
   }
 }
 
-// Enable caching for 5 minutes
-export const revalidate = 300;
+// Fully dynamic — never pre-render at build time (avoids build failures when DB is down)
+// Response is still cached at the edge via Cache-Control headers
+export const dynamic = 'force-dynamic';

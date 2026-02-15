@@ -64,7 +64,6 @@ export function DiscordProvider({ children, autoConnect = false }: DiscordProvid
       if (document.visibilityState === 'visible' && autoConnect) {
         const currentState = discordClient.getState();
         if (currentState.error && !currentState.isConnecting) {
-          console.log('[Discord Context] Tab visible, retrying connection');
           discordClient.reconnect().catch(console.error);
         }
       }

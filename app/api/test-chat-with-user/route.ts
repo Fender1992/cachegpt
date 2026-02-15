@@ -49,8 +49,6 @@ async function storeInCache(
 
     const embedding = generateSimpleEmbedding(query);
 
-    console.log(`[TEST-CACHE-STORE] Storing: user=${userId}, query="${query.substring(0, 50)}..."`);
-
     const insertData = {
       query,
       response,
@@ -81,8 +79,6 @@ async function storeInCache(
 
     if (error) {
       console.error('[TEST-CACHE-STORE] Database error:', error);
-    } else {
-      console.log(`[TEST-CACHE-STORE] ✅ Stored response with ID: ${data?.[0]?.id} for user: ${userId}`);
     }
 
   } catch (error) {
@@ -107,8 +103,6 @@ async function callFreeProvider(messages: any[]): Promise<{ response: string; pr
     if (!provider.apiKey) continue;
 
     try {
-      console.log(`[TEST-FREE-PROVIDER] Trying ${provider.name}...`);
-
       const response = await fetch(provider.endpoint, {
         method: 'POST',
         headers: {
@@ -124,15 +118,12 @@ async function callFreeProvider(messages: any[]): Promise<{ response: string; pr
       });
 
       if (!response.ok) {
-        const error = await response.text();
-        console.log(`[TEST-FREE-PROVIDER] ${provider.name} failed: ${error}`);
         continue;
       }
 
       const data = await response.json();
       const responseText = data.choices[0]?.message?.content || 'No response';
 
-      console.log(`[TEST-FREE-PROVIDER] ✅ Success with ${provider.name}`);
       return { response: responseText, provider: provider.name };
 
     } catch (error: any) {
@@ -190,8 +181,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'messages array is required' }, { status: 400 });
     }
 
-    console.log(`[TEST-CHAT] Admin ${user.id} testing for user: ${userId}`);
-
     const userMessage = messages[messages.length - 1]?.content;
     if (!userMessage) {
       return NextResponse.json({ error: 'No message content provided' }, { status: 400 });
@@ -200,7 +189,6 @@ export async function POST(request: NextRequest) {
     const startTime = Date.now();
 
     // Call free providers
-    console.log('[TEST-CHAT] Calling free providers...');
     const result = await callFreeProvider(messages);
     const responseTime = Date.now() - startTime;
 

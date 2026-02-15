@@ -28,7 +28,7 @@ export default function PrivacyPage() {
             <Shield className="w-8 h-8 text-purple-600 mr-3" />
             <h1 className="text-3xl font-bold">Privacy Policy</h1>
           </div>
-          <p className="text-sm text-gray-500 mb-8">Effective Date: January 1, 2024 | Last Updated: January 17, 2025</p>
+          <p className="text-sm text-gray-500 mb-8">Effective Date: January 1, 2024 | Last Updated: February 14, 2026</p>
 
           <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-8">
             <p className="text-purple-800 text-sm">
@@ -61,11 +61,18 @@ export default function PrivacyPage() {
               </ul>
 
               <h3 className="text-lg font-medium mb-2">Technical Information</h3>
-              <ul className="list-disc list-inside text-gray-600 space-y-1 ml-4">
+              <ul className="list-disc list-inside text-gray-600 space-y-1 ml-4 mb-4">
                 <li>IP addresses (for security and rate limiting)</li>
                 <li>Browser type and version</li>
                 <li>Operating system</li>
                 <li>Request headers</li>
+              </ul>
+
+              <h3 className="text-lg font-medium mb-2">Integration Data</h3>
+              <ul className="list-disc list-inside text-gray-600 space-y-1 ml-4">
+                <li>OAuth tokens for connected services (Discord, Gmail, Slack, Microsoft Teams, Google Calendar, Notion, Google Drive, Jira)</li>
+                <li>Integration data (messages, emails, calendar events) is accessed in real-time via OAuth and is NOT bulk stored on our servers</li>
+                <li>Integration connection metadata (provider, connection status, last synced)</li>
               </ul>
             </section>
 
@@ -110,6 +117,8 @@ export default function PrivacyPage() {
                 <li><strong>Cached responses:</strong> 30 days (configurable)</li>
                 <li><strong>Usage logs:</strong> 90 days</li>
                 <li><strong>Security logs:</strong> 1 year</li>
+                <li><strong>Integration tokens:</strong> Until integration is disconnected or revoked</li>
+                <li><strong>Integration data:</strong> Accessed in real-time, not permanently stored</li>
               </ul>
               <p className="text-gray-600 mt-4">
                 You can request data deletion at any time through your account settings or by contacting support.
@@ -137,10 +146,13 @@ export default function PrivacyPage() {
               </h2>
               <p className="text-gray-600 mb-4">We integrate with the following third-party services:</p>
               <ul className="list-disc list-inside text-gray-600 space-y-1 ml-4">
-                <li><strong>LLM Providers:</strong> OpenAI, Anthropic, Google (for API proxying)</li>
-                <li><strong>Hugging Face:</strong> For embedding generation and response adaptation</li>
+                <li><strong>LLM Providers:</strong> OpenAI, Anthropic, Google, Perplexity (for AI chat)</li>
+                <li><strong>Communication:</strong> Discord, Slack, Microsoft Teams (messaging integrations)</li>
+                <li><strong>Google Services:</strong> Gmail, Google Calendar, Google Drive (email, calendar, file integrations)</li>
+                <li><strong>Productivity:</strong> Notion, Jira (workspace integrations)</li>
+                <li><strong>Hugging Face:</strong> For embedding generation</li>
                 <li><strong>Supabase:</strong> Database and authentication</li>
-                <li><strong>Vercel:</strong> Hosting and analytics</li>
+                <li><strong>Vercel:</strong> Hosting</li>
               </ul>
               <p className="text-gray-600 mt-4">
                 Each service has its own privacy policy. We recommend reviewing them.
@@ -164,16 +176,18 @@ export default function PrivacyPage() {
             </section>
 
             <section className="mb-8">
-              <h2 className="text-xl font-semibold mb-4">8. Cookies</h2>
-              <p className="text-gray-600 mb-4">We use cookies for:</p>
+              <h2 className="text-xl font-semibold mb-4">8. Cookies &amp; Local Storage</h2>
+              <p className="text-gray-600 mb-4">We use cookies and browser local storage for:</p>
               <ul className="list-disc list-inside text-gray-600 space-y-1 ml-4">
                 <li>Authentication and session management</li>
                 <li>Security (CSRF protection)</li>
-                <li>User preferences</li>
+                <li>User preferences (e.g., theme, quality mode)</li>
+                <li>Onboarding state (e.g., guided tour completion)</li>
                 <li>Analytics (anonymous usage patterns)</li>
               </ul>
               <p className="text-gray-600 mt-4">
-                You can control cookies through your browser settings. Disabling cookies may limit some features.
+                Local storage data stays on your device and is not transmitted to our servers.
+                You can control cookies and clear local storage through your browser settings. Disabling these may limit some features.
               </p>
             </section>
 

@@ -24,7 +24,6 @@ function verifyCronAuth(request: NextRequest): boolean {
   // Vercel Cron jobs are internal and trusted - they don't send auth headers
   // The CRON_SECRET is only for external cron services
   if (process.env.VERCEL) {
-    console.log('[CRON] Running on Vercel platform - allowing internal cron')
     return true
   }
 
@@ -47,8 +46,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('[CRON] Starting notification processing job...')
-
     // Create Supabase admin client
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -57,8 +54,6 @@ export async function POST(request: NextRequest) {
 
     // Process notifications
     const result = await processPendingNotifications(supabase)
-
-    console.log('[CRON] Notification processing complete:', result)
 
     return NextResponse.json({
       success: true,

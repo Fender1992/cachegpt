@@ -120,8 +120,6 @@ export class CalendarClient {
         throw new Error('Google Calendar not connected. Please link your account in Settings.');
       }
 
-      console.log('[Calendar Client] Connected as', status.email);
-
       this.connected = true;
 
       // Fetch calendars
@@ -145,8 +143,6 @@ export class CalendarClient {
       }
       const eventsData = eventsRes.ok ? await eventsRes.json() : { events: [] };
       const allEvents: CalendarEvent[] = eventsData.events || [];
-      console.log('[Calendar Client] Fetched', allEvents.length, 'events for next 30 days');
-
       // Count today's events for the badge
       const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
       const todayEventCount = allEvents.filter(e => {

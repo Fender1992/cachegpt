@@ -195,6 +195,6 @@ export function createUnifiedSupabaseClient(session: UnifiedSession) {
 /**
  * Debug helper to log auth method usage
  */
-export function logAuthMethodUsage(session: UnifiedSession, endpoint: string): void {
-  console.log(`[AUTH] ${endpoint}: User ${session.user.id} authenticated via ${session.authMethod}`);
+export function logAuthMethodUsage(_session: UnifiedSession, _endpoint: string): void {
+  // No-op in production — removed verbose auth logging
 }

@@ -212,16 +212,7 @@ export function logProviderDecision(params: {
     return;
   }
 
-  console.log('[PROVIDER-SELECTION]', JSON.stringify({
-    rid: params.requestId,
-    path: params.endpoint,
-    intent: params.intent || 'auto',
-    selected: params.selected,
-    reason: params.reason,
-    internalHealthy: params.internalHealthy,
-    fallbackAllowed: params.fallbackAllowed,
-    timestamp: new Date().toISOString(),
-  }));
+  // Provider selection logging disabled (was debug console.log)
 }
 
 /**
@@ -272,19 +263,3 @@ if (!validation.valid) {
   // Don't throw - allow server to start but log errors
 }
 
-// Export for debugging
-if (process.env.NODE_ENV !== 'production') {
-  console.log('[LLM-CONFIG] Loaded configuration:', {
-    defaultProvider: LLM_CONFIG.defaultProvider,
-    internalEnabled: LLM_CONFIG.internal.enabled,
-    freeProviders: Object.entries(LLM_CONFIG.free)
-      .filter(([_, config]) => config.enabled)
-      .map(([name]) => name),
-    premiumProviders: Object.entries(LLM_CONFIG.premium)
-      .filter(([_, config]) => config.enabled)
-      .map(([name]) => name),
-    hardFailOnInternalDown: LLM_CONFIG.hardFailOnInternalDown,
-    allowFallbackToFree: LLM_CONFIG.allowFallbackToFree,
-    allowFallbackToPremium: LLM_CONFIG.allowFallbackToPremium,
-  });
-}

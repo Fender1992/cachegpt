@@ -50,8 +50,6 @@ export async function POST(request: NextRequest) {
     );
 
     if (action === 'store') {
-      console.log('[TEST-CACHE-DB] Storing test response...');
-
       const embedding = generateSimpleEmbedding(query);
       const queryHash = require('crypto').createHash('sha256').update(query + 'free-model' + 'mixed').digest('hex');
 
@@ -92,7 +90,6 @@ export async function POST(request: NextRequest) {
         }, { status: 500 });
       }
 
-      console.log('[TEST-CACHE-DB] ✅ Stored with ID:', data?.[0]?.id);
       return NextResponse.json({
         success: true,
         message: 'Cache entry stored successfully',
@@ -103,8 +100,6 @@ export async function POST(request: NextRequest) {
       });
 
     } else if (action === 'search') {
-      console.log('[TEST-CACHE-DB] Searching for cached response...');
-
       const { data: candidates, error } = await supabase
         .from('cached_responses')
         .select('*')
@@ -133,8 +128,6 @@ export async function POST(request: NextRequest) {
       });
 
     } else if (action === 'recent') {
-      console.log('[TEST-CACHE-DB] Getting recent entries...');
-
       const { data: recent, error } = await supabase
         .from('cached_responses')
         .select('id, query, provider, model, created_at, access_count')

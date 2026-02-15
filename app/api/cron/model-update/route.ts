@@ -23,8 +23,6 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    console.log('[CRON] Running model discovery...');
-
     // Collect API keys for discovery
     const apiKeys: Record<string, string> = {};
     if (LLM_CONFIG.premium.openai.apiKey) apiKeys.openai = LLM_CONFIG.premium.openai.apiKey;
@@ -117,8 +115,6 @@ export async function GET(request: NextRequest) {
     if (registryModels.length > 0) {
       modelRegistry.updateModels(registryModels);
     }
-
-    console.log('[CRON] Model discovery complete:', changes.join(', '));
 
     return NextResponse.json({
       success: true,

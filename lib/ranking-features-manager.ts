@@ -111,7 +111,6 @@ export class RankingFeaturesManager {
       return false;
     }
 
-    console.log(`[RANKING] ✅ Updated feature ${featureName}: enabled=${isEnabled}`);
     return true;
   }
 
@@ -182,14 +181,12 @@ export class RankingFeaturesManager {
   async autoEnableFeatures(): Promise<void> {
     try {
       const metrics = await this.getCacheMetrics();
-      console.log('[RANKING] Cache metrics:', metrics);
 
       // Enable metadata collection if we have any queries
       if (metrics.totalQueries > 0) {
         const metadataEnabled = await this.isFeatureEnabled('collect_metadata');
         if (!metadataEnabled) {
           await this.updateFeature('collect_metadata', true, { sample_rate: 0.1 });
-          console.log('[RANKING] ✅ Auto-enabled metadata collection');
         }
       }
 
@@ -198,7 +195,6 @@ export class RankingFeaturesManager {
         const v2Enabled = await this.isFeatureEnabled('use_v2_scoring');
         if (!v2Enabled) {
           await this.updateFeature('use_v2_scoring', true, { min_queries: 10000 });
-          console.log('[RANKING] ✅ Auto-enabled v2 scoring system');
         }
       }
 
@@ -207,7 +203,6 @@ export class RankingFeaturesManager {
         const archivalEnabled = await this.isFeatureEnabled('use_tier_archival');
         if (!archivalEnabled) {
           await this.updateFeature('use_tier_archival', true, { enabled_after_queries: 50000 });
-          console.log('[RANKING] ✅ Auto-enabled tier archival');
         }
       }
 
@@ -216,7 +211,6 @@ export class RankingFeaturesManager {
         const predictiveEnabled = await this.isFeatureEnabled('predictive_caching');
         if (!predictiveEnabled) {
           await this.updateFeature('predictive_caching', true, { algorithm: 'time_series' });
-          console.log('[RANKING] ✅ Auto-enabled predictive caching');
         }
       }
 
@@ -319,8 +313,6 @@ export class RankingFeaturesManager {
    */
   async updateAllPopularityScores(): Promise<number> {
     try {
-      console.log('[RANKING] Starting popularity score update...');
-
       const { data: responses, error } = await this.supabase
         .from('cached_responses')
         .select('id, access_count, created_at, last_accessed, cost_saved')
@@ -373,12 +365,9 @@ export class RankingFeaturesManager {
         }
 
         // Log progress every 1000 updates
-        if (updatedCount % 1000 === 0) {
-          console.log(`[RANKING] Updated ${updatedCount} popularity scores...`);
-        }
+        // Progress checkpoint every 1000 updates
       }
 
-      console.log(`[RANKING] ✅ Updated ${updatedCount} popularity scores`);
       return updatedCount;
 
     } catch (error) {

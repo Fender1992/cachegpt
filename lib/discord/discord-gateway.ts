@@ -82,7 +82,6 @@ export class DiscordGatewayClient extends EventEmitter {
     this.ws = new WebSocket(DISCORD_GATEWAY_URL);
 
     this.ws.onopen = () => {
-      console.log('[Discord Gateway] Connected');
       this.reconnectAttempts = 0;
       this.emit('connected');
     };
@@ -102,7 +101,6 @@ export class DiscordGatewayClient extends EventEmitter {
     };
 
     this.ws.onclose = (event) => {
-      console.log('[Discord Gateway] Disconnected:', event.code, event.reason);
       this.cleanup();
       
       // Attempt reconnection
@@ -307,8 +305,6 @@ export class DiscordGatewayClient extends EventEmitter {
     this.reconnectAttempts++;
 
     const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
-    console.log(`[Discord Gateway] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
-
     setTimeout(() => {
       this.isReconnecting = false;
       this.connect();

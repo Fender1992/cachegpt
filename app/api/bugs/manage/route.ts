@@ -159,8 +159,6 @@ export async function PUT(request: NextRequest) {
       }, { status: 500 })
     }
 
-    console.log(`🐛 Bug updated: ${bug.title} (Status: ${bug.status}, Priority: ${bug.priority})`)
-
     return NextResponse.json({
       success: true,
       bug
@@ -226,8 +224,6 @@ export async function DELETE(request: NextRequest) {
         details: error.message
       }, { status: 500 })
     }
-
-    console.log(`🗑️ Bug deleted: ${bugId}`)
 
     return NextResponse.json({
       success: true,

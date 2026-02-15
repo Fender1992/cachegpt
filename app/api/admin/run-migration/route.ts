@@ -32,7 +32,6 @@ export async function POST(request: NextRequest) {
     )
 
     // Execute migration
-    console.log(`[MIGRATION] Running ${migrationFile}...`)
     const { data, error } = await supabase.rpc('exec_sql', {
       sql: migrationSQL
     })
@@ -44,8 +43,6 @@ export async function POST(request: NextRequest) {
         details: error.message
       }, { status: 500 })
     }
-
-    console.log(`[MIGRATION] ✅ ${migrationFile} completed successfully`)
 
     return NextResponse.json({
       success: true,

@@ -104,7 +104,6 @@ export function analyzeFreshness(query: string): FreshnessAnalysis {
   for (const [key, config] of Object.entries(TIME_SENSITIVE_PATTERNS)) {
     for (const pattern of config.patterns) {
       if (pattern.test(lowerQuery)) {
-        console.log(`[FRESHNESS] Time-sensitive query detected: "${query}" (${key})`);
         return {
           isTimeSensitive: true,
           reason: `Matched ${key} pattern`,
@@ -172,7 +171,6 @@ export function isCacheStale(
 
   // Check if cache has exceeded TTL
   if (ageSeconds > analysis.ttl) {
-    console.log(`[FRESHNESS] Cache stale: age=${ageSeconds}s, ttl=${analysis.ttl}s`);
     return true;
   }
 
@@ -182,7 +180,6 @@ export function isCacheStale(
     const currentDate = now.toLocaleDateString('en-CA', { timeZone: timezone });
 
     if (cachedDate !== currentDate) {
-      console.log(`[FRESHNESS] Date changed: ${cachedDate} → ${currentDate}`);
       return true;
     }
   }

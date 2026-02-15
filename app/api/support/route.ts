@@ -14,17 +14,6 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // In production, you would send this to your email service
-    // For now, we'll just log it and return success
-    console.log('Support request received:', {
-      name,
-      email,
-      subject,
-      category,
-      message,
-      timestamp: new Date().toISOString()
-    })
-
     // Here you would typically:
     // 1. Send email to support team
     // 2. Create ticket in support system

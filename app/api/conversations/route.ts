@@ -15,22 +15,10 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0')
     const platform = searchParams.get('platform') || null
 
-    // Debug: Check what cookies we're receiving
-    const cookieHeader = request.headers.get('cookie')
-    console.log('[CONVERSATIONS] Cookie header received:', cookieHeader ? 'YES' : 'NO')
-    if (cookieHeader) {
-      const cookieCount = cookieHeader.split(';').length
-      console.log('[CONVERSATIONS] Number of cookies:', cookieCount)
-      // Log cookie names (but not values for security)
-      const cookieNames = cookieHeader.split(';').map(c => c.trim().split('=')[0])
-      console.log('[CONVERSATIONS] Cookie names:', cookieNames.join(', '))
-    }
-
     // Always authenticate - never trust client-supplied user_id
     const authResult = await resolveAuthentication(request)
 
     if (isAuthError(authResult)) {
-      console.log('[CONVERSATIONS API] Unauthenticated request - returning empty list')
       // Return empty list for unauthenticated users instead of 401
       // Frontend can detect this and show login prompt
       return NextResponse.json({
@@ -42,7 +30,6 @@ export async function GET(request: NextRequest) {
     }
 
     const userId = getUserId(authResult)
-    console.log('[CONVERSATIONS API] User authenticated:', userId)
 
     // Create Supabase client with service key for database operations
     const supabase = createClient(
@@ -63,13 +50,6 @@ export async function GET(request: NextRequest) {
     }
 
     const { data: conversations, error } = await query
-
-    console.log('[CONVERSATIONS API] Query result:', {
-      conversationsCount: conversations?.length || 0,
-      error: error?.message,
-      userId,
-      platform
-    })
 
     if (error) {
       console.error('[CONVERSATIONS API] Database error:', error)
@@ -215,8 +195,6 @@ export async function DELETE(request: NextRequest) {
         details: deleteError.message
       }, { status: 500 })
     }
-
-    console.log(`[CONVERSATIONS] Deleted conversation ${conversationId} for user ${userId}`)
 
     return NextResponse.json({
       success: true,

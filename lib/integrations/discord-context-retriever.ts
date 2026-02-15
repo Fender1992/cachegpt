@@ -1,14 +1,18 @@
 /**
  * Discord Context Retriever
- * Retrieves relevant Discord messages based on user queries
- * Supports both semantic search and keyword matching
+ * Fetches relevant Discord messages on demand via bot proxy
+ * No pre-sync or embeddings — queries Discord live at chat time
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { generateEmbedding } from '@/lib/embeddings';
+import { botProxy, BotChannel, BotMessage } from '@/lib/discord/bot-proxy';
+import { getValidDiscordToken } from '@/lib/discord/discord-token';
 
 const MAX_RESULTS = 10;
-const SIMILARITY_THRESHOLD = 0.7;
+const TOP_CHANNELS = 3;
+const MESSAGES_PER_CHANNEL = 50;
+
+const DISCORD_API = 'https://discord.com/api/v10';
 
 interface DiscordSearchResult {
   id: string;
@@ -285,115 +289,299 @@ function getTimeframeFilter(timeframe: QueryAnalysis['timeframe']): string | nul
 }
 
 /**
+ * Score a channel's relevance to the query based on name and topic
+ */
+function scoreChannel(channel: BotChannel, searchTerms: string[]): number {
+  if (searchTerms.length === 0) return 0;
+  const name = channel.name.toLowerCase();
+  const topic = (channel.topic || '').toLowerCase();
+  let score = 0;
+  for (const term of searchTerms) {
+    if (name.includes(term)) score += 3;
+    if (topic.includes(term)) score += 2;
+  }
+  // Boost text channels (type 0) over voice/other
+  if (channel.type === 0) score += 1;
+  return score;
+}
+
+/**
+ * Score a message's relevance to the query
+ */
+function scoreMessage(message: BotMessage, searchTerms: string[], authorName?: string): number {
+  if (searchTerms.length === 0 && !authorName) return 1; // neutral score when no filter
+  const content = message.content.toLowerCase();
+  const username = message.author.username.toLowerCase();
+  let score = 0;
+  for (const term of searchTerms) {
+    if (content.includes(term)) score += 2;
+  }
+  if (authorName && username.includes(authorName.toLowerCase())) score += 3;
+  return score;
+}
+
+/**
+ * Fetch channels via bot proxy, falling back to user OAuth token
+ */
+async function fetchChannels(
+  guildId: string,
+  discordUserId: string | null,
+  userToken: string | null
+): Promise<BotChannel[]> {
+  // Try bot proxy first
+  const botAvailable = await botProxy.isAvailable();
+  if (botAvailable) {
+    try {
+      return await botProxy.getGuildChannels(guildId, discordUserId || undefined);
+    } catch (e) {
+      console.warn('[Discord Context] Bot proxy channel fetch failed, trying OAuth fallback', e);
+    }
+  }
+
+  // Fallback: user's OAuth token via Discord API
+  if (userToken) {
+    try {
+      const res = await fetch(`${DISCORD_API}/guilds/${guildId}/channels`, {
+        headers: { Authorization: `Bot ${userToken}` },
+        signal: AbortSignal.timeout(5000),
+      });
+      if (res.ok) {
+        const channels = await res.json();
+        return channels.map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          type: c.type,
+          parentId: c.parent_id || null,
+          topic: c.topic || null,
+          position: c.position || 0,
+        }));
+      }
+    } catch (e) {
+      console.warn('[Discord Context] OAuth channel fetch failed', e);
+    }
+  }
+
+  return [];
+}
+
+/**
+ * Fetch messages via bot proxy, falling back to user OAuth token
+ */
+async function fetchMessages(
+  channelId: string,
+  limit: number,
+  userToken: string | null
+): Promise<BotMessage[]> {
+  // Try bot proxy first
+  const botAvailable = await botProxy.isAvailable();
+  if (botAvailable) {
+    try {
+      return await botProxy.getMessages(channelId, { limit });
+    } catch (e) {
+      console.warn('[Discord Context] Bot proxy message fetch failed, trying OAuth fallback', e);
+    }
+  }
+
+  // Fallback: user's OAuth token
+  if (userToken) {
+    try {
+      const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages?limit=${limit}`, {
+        headers: { Authorization: `Bearer ${userToken}` },
+        signal: AbortSignal.timeout(5000),
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn('[Discord Context] OAuth message fetch failed', e);
+    }
+  }
+
+  return [];
+}
+
+/**
  * Main Discord context retrieval function
+ * Fetches messages on demand from Discord via bot proxy (no pre-sync)
  */
 export async function retrieveDiscordContext(
   userId: string,
   queryText: string
 ): Promise<string | null> {
   const supabase = getSupabaseAdmin();
-  
+
   // Get user's Discord integration
   const { data: integration } = await supabase
     .from('user_integrations')
-    .select('id')
+    .select('id, provider_user_id, access_token, refresh_token, token_expires_at')
     .eq('user_id', userId)
     .eq('provider', 'discord')
     .eq('status', 'active')
     .single();
-  
+
   if (!integration) {
     return null;
   }
-  
+
   const analysis = analyzeDiscordQuery(queryText);
-  
+
   // Handle server listing intent
   if (analysis.intent === 'list_servers') {
     return listDiscordServers(userId);
   }
-  
-  // If no search terms, return null
+
+  // If no search terms and no specific filters, return null
   if (analysis.searchTerms.length === 0 && !analysis.guildName && !analysis.channelName) {
     return null;
   }
-  
+
   try {
-    // Generate embedding for the query
-    const queryEmbedding = await generateEmbedding(queryText);
-    
-    // Build search query
-    let searchQuery = supabase
-      .from('integration_documents')
-      .select(`
-        id,
-        source_id,
-        title,
-        content,
-        metadata,
-        chunk_index
-      `)
+    // Get a valid OAuth token as fallback
+    const userToken = await getValidDiscordToken(
+      integration.id,
+      integration.access_token,
+      integration.refresh_token,
+      integration.token_expires_at
+    );
+
+    // 1. Get user's guilds from lightweight metadata stored at OAuth time
+    const { data: guilds } = await supabase
+      .from('discord_guild_metadata')
+      .select('guild_id, guild_name')
       .eq('integration_id', integration.id)
-      .eq('provider', 'discord')
-      .order('updated_at', { ascending: false })
-      .limit(MAX_RESULTS);
-    
-    // Apply filters based on analysis
-    if (analysis.guildName) {
-      searchQuery = searchQuery.ilike('metadata->>guild_name', `%${analysis.guildName}%`);
-    }
-    
-    if (analysis.channelName) {
-      searchQuery = searchQuery.ilike('metadata->>channel_name', `%${analysis.channelName}%`);
-    }
-    
-    if (analysis.authorName) {
-      searchQuery = searchQuery.contains('metadata->authors', [analysis.authorName]);
-    }
-    
-    // Apply timeframe filter
-    const timeframeStart = getTimeframeFilter(analysis.timeframe);
-    if (timeframeStart) {
-      searchQuery = searchQuery.gte('metadata->>timestamp_end', timeframeStart);
-    }
-    
-    // Apply text search for keywords
-    if (analysis.searchTerms.length > 0) {
-      const searchPattern = analysis.searchTerms.join(' | ');
-      searchQuery = searchQuery.or(`content.ilike.%${searchPattern}%,title.ilike.%${searchPattern}%`);
-    }
-    
-    const { data: results, error } = await searchQuery;
-    
-    if (error || !results || results.length === 0) {
-      // Try semantic search if keyword search fails
-      const { data: semanticResults } = await supabase.rpc('search_discord_context', {
-        p_user_id: userId,
-        p_query_text: analysis.searchTerms.join(' '),
-        p_query_embedding: queryEmbedding,
-        p_guild_id: analysis.guildName || null,
-        p_channel_id: analysis.channelName || null,
-        p_limit: MAX_RESULTS,
-      });
-      
-      if (semanticResults && semanticResults.length > 0) {
-        return formatDiscordContext(semanticResults as DiscordSearchResult[]);
-      }
-      
+      .order('guild_name');
+
+    if (!guilds || guilds.length === 0) {
       return null;
     }
-    
-    // Format results with metadata
-    const formattedResults: DiscordSearchResult[] = results.map(r => ({
-      id: r.id,
-      source_id: r.source_id,
-      title: r.title,
-      content: r.content,
-      metadata: r.metadata as any,
-      similarity: 1.0, // Keyword match gets max similarity
+
+    // Filter guilds by name if user specified one
+    const targetGuilds = analysis.guildName
+      ? guilds.filter(g => g.guild_name.toLowerCase().includes(analysis.guildName!.toLowerCase()))
+      : guilds;
+
+    if (targetGuilds.length === 0) {
+      return null;
+    }
+
+    // 2. Gather and score channels across guilds
+    type ScoredChannel = { channel: BotChannel; guildId: string; guildName: string; score: number };
+    const scoredChannels: ScoredChannel[] = [];
+
+    // Fetch channels for all target guilds in parallel
+    const channelResults = await Promise.all(
+      targetGuilds.map(async (g) => {
+        const channels = await fetchChannels(g.guild_id, integration.provider_user_id, userToken);
+        return { guild: g, channels };
+      })
+    );
+
+    for (const { guild, channels } of channelResults) {
+      // Only consider text channels (type 0)
+      const textChannels = channels.filter(c => c.type === 0);
+
+      for (const channel of textChannels) {
+        // If user specified a channel name, strict filter
+        if (analysis.channelName) {
+          if (!channel.name.toLowerCase().includes(analysis.channelName.toLowerCase())) {
+            continue;
+          }
+        }
+
+        const score = scoreChannel(channel, analysis.searchTerms);
+        scoredChannels.push({
+          channel,
+          guildId: guild.guild_id,
+          guildName: guild.guild_name,
+          score,
+        });
+      }
+    }
+
+    // Sort by score descending, take top N channels
+    scoredChannels.sort((a, b) => b.score - a.score);
+    const topChannels = scoredChannels.slice(0, TOP_CHANNELS);
+
+    if (topChannels.length === 0) {
+      return null;
+    }
+
+    // 3. Fetch recent messages from top channels in parallel
+    const timeframeStart = getTimeframeFilter(analysis.timeframe);
+    const timeframeDate = timeframeStart ? new Date(timeframeStart) : null;
+
+    const messageResults = await Promise.all(
+      topChannels.map(async ({ channel, guildId, guildName }) => {
+        const messages = await fetchMessages(channel.id, MESSAGES_PER_CHANNEL, userToken);
+        return { channel, guildId, guildName, messages };
+      })
+    );
+
+    // 4. Score and filter messages
+    type ScoredMessage = {
+      message: BotMessage;
+      channelId: string;
+      channelName: string;
+      guildId: string;
+      guildName: string;
+      score: number;
+    };
+    const scoredMessages: ScoredMessage[] = [];
+
+    for (const { channel, guildId, guildName, messages } of messageResults) {
+      for (const msg of messages) {
+        // Skip empty messages and bot messages
+        if (!msg.content.trim() || msg.author.bot) continue;
+
+        // Apply timeframe filter
+        if (timeframeDate && new Date(msg.timestamp) < timeframeDate) continue;
+
+        const score = scoreMessage(msg, analysis.searchTerms, analysis.authorName);
+        if (score > 0 || analysis.searchTerms.length === 0) {
+          scoredMessages.push({
+            message: msg,
+            channelId: channel.id,
+            channelName: channel.name,
+            guildId,
+            guildName,
+            score,
+          });
+        }
+      }
+    }
+
+    // Sort by score, then by timestamp descending
+    scoredMessages.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return new Date(b.message.timestamp).getTime() - new Date(a.message.timestamp).getTime();
+    });
+
+    // Take top results
+    const topMessages = scoredMessages.slice(0, MAX_RESULTS);
+
+    if (topMessages.length === 0) {
+      return null;
+    }
+
+    // 5. Format as DiscordSearchResult for formatDiscordContext()
+    const results: DiscordSearchResult[] = topMessages.map(m => ({
+      id: m.message.id,
+      source_id: m.message.id,
+      title: null,
+      content: `**${m.message.author.global_name || m.message.author.username}:** ${m.message.content}`,
+      metadata: {
+        guild_id: m.guildId,
+        guild_name: m.guildName,
+        channel_id: m.channelId,
+        channel_name: m.channelName,
+        channel_type: 0,
+        authors: [m.message.author.global_name || m.message.author.username],
+        timestamp_end: m.message.timestamp,
+      },
+      similarity: m.score,
     }));
-    
-    return formatDiscordContext(formattedResults);
+
+    return formatDiscordContext(results);
   } catch (error) {
     console.error('[Discord Context] Error retrieving context:', error);
     return null;

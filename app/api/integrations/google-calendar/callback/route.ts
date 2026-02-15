@@ -67,8 +67,6 @@ export async function GET(req: NextRequest) {
     const tokenData = await tokenResponse.json();
     const { access_token, refresh_token, expires_in, scope } = tokenData;
 
-    console.log('[Calendar OAuth] Token exchange success. Granted scopes:', scope);
-
     // Warn if write scope wasn't granted (user may have unchecked it)
     const grantedScopes = scope ? scope.split(' ') : [];
     const hasWriteScope = grantedScopes.some((s: string) =>

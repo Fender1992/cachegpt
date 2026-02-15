@@ -273,8 +273,6 @@ async function saveChatHistory(
 
         if (linkError) {
           console.error('[CHAT-HISTORY] Error linking files to conversation:', linkError)
-        } else {
-          console.log('[CHAT-HISTORY] ✅ Linked', fileIds.length, 'files to conversation', conversationId)
         }
       }
     }
@@ -355,8 +353,6 @@ async function storeInCache(
 
     if (!responseId) {
       console.error('[TIER-CACHE] Failed to store response - storeResponse returned null/undefined');
-    } else {
-      console.log('[TIER-CACHE] Successfully stored response with ID:', responseId);
     }
 
   } catch (error) {
@@ -603,8 +599,6 @@ async function callFreeProvider(messages: any[]): Promise<{ response: string; pr
   // Shuffle providers for load balancing (prevents always hitting Groq first)
   const shuffledProviders = [...providers].sort(() => Math.random() - 0.5);
 
-  console.log('[FREE-PROVIDER] Load balancing order:', shuffledProviders.map(p => p.name).join(' -> '));
-
   for (const provider of shuffledProviders) {
     if (!provider.apiKey) {
       continue;
@@ -678,7 +672,6 @@ async function callFreeProvider(messages: any[]): Promise<{ response: string; pr
   const hasServerAnthropic = !!process.env.ANTHROPIC_API_KEY;
 
   if (hasServerOpenAI || hasServerAnthropic) {
-    console.log('[FREE-PROVIDER] Attempting emergency fallback to server premium keys');
     // Will be caught and handled by caller
   }
 
@@ -794,11 +787,7 @@ export async function POST(request: NextRequest) {
               'gemini': 'google'
             };
             userProvider = reverseMap[selectedCred.provider] || selectedCred.provider;
-            console.log('[CHAT] User has API key for provider:', userProvider);
           }
-        } else {
-          // No API keys - will use internal/free providers (default)
-          console.log('[CHAT] No user API keys found - will use internal/free providers');
         }
       }
     }
@@ -818,38 +807,20 @@ export async function POST(request: NextRequest) {
     // CRITICAL: Extract timezone from client headers (NEVER hard-code)
     const userTimezone = extractTimezoneFromRequest(request);
     trackTimezoneUsage(userTimezone.timezone);
-    console.log('[UNIFIED-CHAT] 🌍 User timezone:', userTimezone.timezone, `(${userTimezone.detectionMethod})`);
 
     // Analyze query freshness to determine caching strategy
     const freshnessAnalysis = analyzeFreshness(userMessage);
-    console.log('[UNIFIED-CHAT] 🔄 Freshness analysis:', {
-      isTimeSensitive: freshnessAnalysis.isTimeSensitive,
-      category: freshnessAnalysis.category,
-      ttl: freshnessAnalysis.ttl,
-      bypassCache: freshnessAnalysis.bypassCache
-    });
 
     // Enrich context with current information, real-time data, and user's timezone
-    console.log('[UNIFIED-CHAT] 🕐 Enriching context with timezone:', {
-      timezone: userTimezone.timezone,
-      currentTime: userTimezone.currentTime,
-      currentDate: userTimezone.currentDate,
-      detectionMethod: userTimezone.detectionMethod
-    });
     const contextAnalysis = enrichContext(userMessage, userTimezone)
 
     // Add freshness hints for time-sensitive queries
     const freshnessHints = getFreshnessContextHints(userMessage, userTimezone.timezone)
-    console.log('[UNIFIED-CHAT] 📝 Generated system context preview:', contextAnalysis.systemContext.substring(0, 500))
 
     // If query is encyclopedic, use Grokipedia (replaces Wikipedia)
     let grokipediaContext: string | null = null
     if (contextAnalysis.shouldUseGrokipedia) {
-      console.log('[UNIFIED-CHAT] 📚 Encyclopedic query detected, fetching Grokipedia context')
       grokipediaContext = await getGrokipediaContext(userMessage)
-      if (grokipediaContext) {
-        console.log('[UNIFIED-CHAT] ✅ Grokipedia context fetched successfully')
-      }
     }
 
     // If query needs real-time information, attempt web search
@@ -869,12 +840,6 @@ export async function POST(request: NextRequest) {
     // Fetch real-time weather context if needed
     const weatherService = getWeatherService();
     const weatherContext = await weatherService.getWeatherContextIfNeeded(userMessage);
-
-    // Debug: Log weather context status
-    console.log('[UNIFIED-CHAT-DEBUG] Weather context length:', weatherContext ? weatherContext.length : 0);
-    if (weatherContext) {
-      console.log('[UNIFIED-CHAT-DEBUG] Weather context preview:', weatherContext.substring(0, 300));
-    }
 
     // Build enriched messages with system context
     const enrichedMessages = [...messages]
@@ -942,14 +907,11 @@ export async function POST(request: NextRequest) {
           role: 'system',
           content: contextPrompt
         });
-        console.log('[UNIFIED-CHAT] ✅ Injected external context:', externalContextType || 'generic');
       }
     }
 
     // If we have uploaded files, retrieve their content and add to context
     if (uploadedFiles && uploadedFiles.length > 0 && userId) {
-      console.log('[UNIFIED-CHAT] 📎 Processing uploaded files:', uploadedFiles.length)
-
       const supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_KEY!
@@ -987,7 +949,6 @@ export async function POST(request: NextRequest) {
           content: fileContext
         })
 
-        console.log('[UNIFIED-CHAT] ✅ Added file context for', files.length, 'files')
       } else if (filesError) {
         console.error('[UNIFIED-CHAT] Error fetching file contents:', filesError)
       }
@@ -1085,14 +1046,6 @@ export async function POST(request: NextRequest) {
     const freshnessKey = freshnessAnalysis.isTimeSensitive ? `fresh:${timezoneDateKey}` : 'static';
     const versionedCacheModel = `${cacheModel}:${CACHE_VERSION}:${freshnessKey}:${userTimezone.timezone}`;
 
-    console.log('[UNIFIED-CHAT] 🔑 Cache key:', {
-      model: cacheModel,
-      version: CACHE_VERSION,
-      freshness: freshnessKey,
-      timezone: userTimezone.timezone,
-      date: timezoneDateKey
-    });
-
     // Generate context hash for invalidation detection
     const contextHash = cacheLifecycleManager.generateContextHash({
       enrichedQuery: contextAnalysis.enrichedQuery,
@@ -1107,7 +1060,6 @@ export async function POST(request: NextRequest) {
 
     // NEW: External context-aware caching (exact match)
     if (externalContextHash) {
-      console.log('[UNIFIED-CHAT] 🔍 Looking for exact context match:', externalContextHash);
       const exactMatch = await findExactContextMatch(
         userMessage,
         externalContextHash,
@@ -1116,8 +1068,6 @@ export async function POST(request: NextRequest) {
       );
 
       if (exactMatch) {
-        console.log('[UNIFIED-CHAT] ✅ External context cache hit for:', externalContextHash);
-
         // Sanitize the cached response
         const sanitizedExactResponse = sanitizeResponse(exactMatch.response);
 
@@ -1154,15 +1104,12 @@ export async function POST(request: NextRequest) {
           },
         });
       }
-      console.log('[UNIFIED-CHAT] ❌ No exact context match, falling through to similarity search');
     }
 
     // Skip cache for time-sensitive queries if bypass is recommended
     let cached: any = null;
     if (!freshnessAnalysis.bypassCache) {
       cached = await findCachedResponse(userMessage, versionedCacheModel, cacheProvider);
-    } else {
-      console.log('[UNIFIED-CHAT] ⚡ Bypassing cache for time-sensitive query');
     }
 
     if (cached) {
@@ -1171,7 +1118,6 @@ export async function POST(request: NextRequest) {
       const isStale = isCacheStale(cachedAt, userMessage, userTimezone.timezone);
 
       if (isStale) {
-        console.log('[UNIFIED-CHAT] 🕐 Cache is stale based on freshness analysis, refetching');
         cached = null; // Force fresh fetch
         trackQueryStats(freshnessAnalysis.isTimeSensitive, false);
       } else {
@@ -1181,12 +1127,10 @@ export async function POST(request: NextRequest) {
 
         // Reject stale or cold entries
         if (lifecycle === CacheLifecycle.STALE || lifecycle === CacheLifecycle.COLD) {
-          console.log('[UNIFIED-CHAT] ❄️ Cache lifecycle is stale/cold, refetching');
           cached = null; // Don't use this cached entry - fall through to fetch new response
         }
         // Reject if context has changed
         else if (storedContextHash && storedContextHash !== contextHash) {
-          console.log('[UNIFIED-CHAT] 🔄 Context hash mismatch, refetching');
           cached = null; // Don't use this cached entry - fall through to fetch new response
         }
       }
@@ -1276,8 +1220,6 @@ export async function POST(request: NextRequest) {
 
     // No cache hit or cache too old, call appropriate provider
     trackQueryStats(freshnessAnalysis.isTimeSensitive, false);
-    console.log('[UNIFIED-CHAT] 🆕 Fetching fresh response from LLM');
-
     // Create adapter for the selected provider
     const adapter = createAdapter(providerResolution.provider, userApiKey || undefined);
 
@@ -1320,12 +1262,6 @@ export async function POST(request: NextRequest) {
       externalContextHash, // NEW: from API request
       externalContextType  // NEW: from API request
     );
-
-    console.log('[UNIFIED-CHAT] 💾 Cached with freshness TTL:', {
-      ttl: freshnessAnalysis.ttl,
-      isTimeSensitive: freshnessAnalysis.isTimeSensitive,
-      timezone: userTimezone.timezone
-    });
 
     // Save to unified chat history system (use original messages + sanitized response)
     // Skip saving for:

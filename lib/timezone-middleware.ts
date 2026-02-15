@@ -24,15 +24,6 @@ export function extractTimezoneFromRequest(request: NextRequest | Request): User
   // Extract timezone from headers
   const timezoneInfo = detectUserTimezone(headers as Headers);
 
-  // Log for debugging
-  console.log(`[TIMEZONE-MIDDLEWARE] Request timezone: ${timezoneInfo.timezone} (${timezoneInfo.detectionMethod})`);
-
-  // Validate timezone is from client, not hard-coded
-  if (timezoneInfo.detectionMethod === 'default') {
-    console.warn(`[TIMEZONE-MIDDLEWARE] ⚠️ No client timezone provided, falling back to UTC`);
-    console.warn(`[TIMEZONE-MIDDLEWARE] Request should include X-Timezone or x-user-timezone header`);
-  }
-
   return timezoneInfo;
 }
 
@@ -61,9 +52,6 @@ export function timezoneMiddleware(req: any, res: any, next: any) {
   // Attach to request object
   req.clientTimezone = clientTZ;
   req.timezoneOffset = clientOffset ? parseInt(clientOffset) : 0;
-
-  // Log for monitoring
-  console.log(`[TIMEZONE-MIDDLEWARE] Active Timezone: ${clientTZ} (offset: ${clientOffset || '0'})`);
 
   // IMPORTANT: Never set process.env.TZ globally
   // This would affect all concurrent requests
@@ -185,7 +173,7 @@ export function logWithTimezone(
       console.warn(prefix, message);
       break;
     default:
-      console.log(prefix, message);
+      break;
   }
 }
 

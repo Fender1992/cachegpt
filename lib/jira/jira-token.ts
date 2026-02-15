@@ -38,8 +38,6 @@ export async function getValidJiraToken(
   }
 
   try {
-    console.log('[Jira Token] Refreshing expired token for integration', integrationId);
-
     const response = await fetch('https://auth.atlassian.com/oauth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -73,7 +71,6 @@ export async function getValidJiraToken(
       })
       .eq('id', integrationId);
 
-    console.log('[Jira Token] Successfully refreshed token, expires at', newExpiresAt.toISOString());
     return access_token;
   } catch (error) {
     console.error('[Jira Token] Refresh exception:', error);

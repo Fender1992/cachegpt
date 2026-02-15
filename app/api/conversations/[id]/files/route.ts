@@ -17,8 +17,6 @@ export async function GET(
   try {
     const { id: conversationId } = await params
 
-    console.log('[CONVERSATION-FILES] Fetching files for conversation:', conversationId)
-
     // Authenticate user
     const authResult = await resolveAuthentication(request)
 
@@ -28,7 +26,6 @@ export async function GET(
     }
 
     const userId = getUserId(authResult)
-    console.log('[CONVERSATION-FILES] User:', userId)
 
     // Create Supabase client
     const supabase = createClient(
@@ -61,8 +58,6 @@ export async function GET(
       console.error('[CONVERSATION-FILES] Error fetching files:', filesError)
       return NextResponse.json({ error: 'Failed to fetch files' }, { status: 500 })
     }
-
-    console.log('[CONVERSATION-FILES] Found files:', files?.length || 0)
 
     // Transform files to match UploadedFile interface
     const transformedFiles = (files || []).map(file => ({

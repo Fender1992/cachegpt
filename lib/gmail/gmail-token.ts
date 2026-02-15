@@ -38,8 +38,6 @@ export async function getValidGmailToken(
   }
 
   try {
-    console.log('[Gmail Token] Refreshing expired token for integration', integrationId);
-
     const response = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -75,7 +73,6 @@ export async function getValidGmailToken(
       })
       .eq('id', integrationId);
 
-    console.log('[Gmail Token] Successfully refreshed token, expires at', newExpiresAt.toISOString());
     return access_token;
   } catch (error) {
     console.error('[Gmail Token] Refresh exception:', error);

@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
       }
 
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        break;
     }
 
     return NextResponse.json({ received: true });
@@ -109,7 +109,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     stripe_subscription_id_param: subscriptionId,
   });
 
-  console.log(`Checkout completed for user ${userId}, tier: ${tier}`);
+  console.log('Checkout completed');
 }
 
 async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
@@ -165,7 +165,7 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
     })
     .eq('id', userId);
 
-  console.log(`Subscription updated for user ${userId}`);
+  console.log('Subscription updated');
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
@@ -191,7 +191,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     })
     .eq('stripe_subscription_id', subscription.id);
 
-  console.log(`Subscription deleted for user ${userId}, downgraded to free`);
+  console.log('Subscription deleted, downgraded to free');
 }
 
 async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
@@ -209,7 +209,7 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
     })
     .eq('stripe_subscription_id', subscriptionId);
 
-  console.log(`Payment succeeded for subscription ${subscriptionId}`);
+  console.log('Payment succeeded');
 }
 
 async function handlePaymentFailed(invoice: Stripe.Invoice) {
@@ -244,7 +244,7 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
       .eq('id', subscription.user_id);
   }
 
-  console.log(`Payment failed for subscription ${subscriptionId}`);
+  console.log('Payment failed');
 }
 
 function mapStripeStatus(stripeStatus: Stripe.Subscription.Status): string {

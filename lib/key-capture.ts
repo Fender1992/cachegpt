@@ -111,7 +111,7 @@ export function generateKeyCaptureScript(provider: string) {
         }
 
       } catch (e) {
-        console.log('Claude auth check error:', e);
+        console.error('Claude auth check error:', e);
       }
     } else {
       // Standard API key capture for other providers with intelligent redirect
@@ -184,7 +184,7 @@ export function generateKeyCaptureScript(provider: string) {
         }
 
       } catch (e) {
-        console.log(\`\${provider} auth check error:\`, e);
+        console.error(\`\${provider} auth check error:\`, e);
       }
     }
 

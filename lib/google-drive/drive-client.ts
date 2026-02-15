@@ -87,7 +87,6 @@ export class DriveClient {
         throw new Error('Google Drive not connected. Please link your account in Settings.');
       }
 
-      console.log('[Drive Client] Connected as', status.email);
       this.connected = true;
 
       // Fetch recent files

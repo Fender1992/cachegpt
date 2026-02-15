@@ -120,8 +120,6 @@ export class GmailClient {
         throw new Error('Gmail not connected. Please link your Gmail account in Settings.');
       }
 
-      console.log('[Gmail Client] Connected as', status.email);
-
       this.connected = true;
 
       // Calculate unread from labels if we have them cached

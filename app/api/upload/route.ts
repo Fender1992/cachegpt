@@ -42,8 +42,6 @@ const ALLOWED_TYPES = {
  */
 export async function POST(request: NextRequest) {
   try {
-    console.log('[UPLOAD] Request received, resolving authentication...')
-
     // Use unified authentication resolver (same as other endpoints like cache-feedback)
     const authResult = await resolveAuthentication(request)
 
@@ -53,7 +51,6 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = getUserId(authResult)
-    console.log('[UPLOAD] User authenticated:', userId, 'via', authResult.authMethod)
 
     // Create Supabase client for database operations
     const supabase = createClient(
@@ -127,8 +124,6 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
-    console.log('[UPLOAD] File uploaded to storage:', storagePath)
-
     // Store file metadata in database
     const { data: fileRecord, error: insertError } = await supabase
       .from('conversation_files')
@@ -158,14 +153,6 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
-    console.log('[UPLOAD] File uploaded and stored:', {
-      id: fileRecord.id,
-      name: file.name,
-      type: file.type,
-      size: `${(file.size / 1024).toFixed(2)}KB`,
-      storagePath: storagePath,
-      contentLength: content.text.length
-    })
 
     return NextResponse.json({
       success: true,
@@ -239,11 +226,6 @@ async function parseFileContent(
 
         const preview = parsedData.substring(0, 200) + (parsedData.length > 200 ? '...' : '')
 
-        console.log('[PDF-PARSE] Success:', {
-          file: file.name,
-          textLength: parsedData.length
-        })
-
         return { text: parsedData, preview }
       } catch (error) {
         console.error('[PDF-PARSE] Error:', error)
@@ -271,7 +253,6 @@ async function parseFileContent(
         const result = await mammoth.extractRawText({ buffer: Buffer.from(buffer) })
         const text = result.value
         const preview = text.substring(0, 200) + (text.length > 200 ? '...' : '')
-        console.log('[DOCX-PARSE] Success:', { file: file.name, textLength: text.length })
         return { text, preview }
       } catch (error) {
         console.error('[DOCX-PARSE] Error:', error)
@@ -294,7 +275,6 @@ async function parseFileContent(
         }
         const text = sheets.join('\n\n')
         const preview = text.substring(0, 200) + (text.length > 200 ? '...' : '')
-        console.log('[XLSX-PARSE] Success:', { file: file.name, sheets: workbook.SheetNames.length, textLength: text.length })
         return { text, preview }
       } catch (error) {
         console.error('[XLSX-PARSE] Error:', error)

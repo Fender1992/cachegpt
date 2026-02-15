@@ -14,12 +14,10 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: sessionError } = await supabase.auth.getUser();
 
     if (sessionError || !user) {
-      console.log('[USER-AVAILABLE] No user found, returning unauthorized');
       return NextResponse.json({ error: 'Unauthorized - Please log in' }, { status: 401 });
     }
 
     const userId = user.id;
-    console.log('[USER-AVAILABLE] Fetching models for user:', userId);
 
     // Check if user has API keys configured (premium access)
     const { data: credentials, error: credError } = await supabase
@@ -38,9 +36,6 @@ export async function POST(request: NextRequest) {
     const hasApiKeys = activeCredentials.length > 0;
     const providersWithKeys = new Set(activeCredentials.map(c => c.provider));
 
-    console.log('[USER-AVAILABLE] User has API keys:', hasApiKeys);
-    console.log('[USER-AVAILABLE] Providers with keys:', Array.from(providersWithKeys));
-
     // Get all active models from the database
     const { data: allModels, error: modelsError } = await supabase
       .from('provider_models')
@@ -53,8 +48,6 @@ export async function POST(request: NextRequest) {
       console.error('[USER-AVAILABLE] Error fetching models:', modelsError);
       return NextResponse.json({ error: 'Failed to fetch models' }, { status: 500 });
     }
-
-    console.log('[USER-AVAILABLE] Total models in database:', allModels?.length || 0);
 
     // Backend free providers (always available, server manages API keys)
     const freeProviders = new Set(['groq', 'openrouter', 'huggingface']);
@@ -71,16 +64,12 @@ export async function POST(request: NextRequest) {
 
       // Premium providers only show if user has configured API keys for that provider
       if (premiumProviders.has(model.provider) || model.requires_api_key) {
-        const hasKey = providersWithKeys.has(model.provider);
-        console.log(`[USER-AVAILABLE] Checking ${model.provider}/${model.model_id}: requires_api_key=${model.requires_api_key}, user has key=${hasKey}`);
-        return hasKey;
+        return providersWithKeys.has(model.provider);
       }
 
       // Unknown providers default to not available
       return false;
     }) || [];
-
-    console.log('[USER-AVAILABLE] Available models after filtering:', availableModels.length);
 
     // Group models by provider
     const groupedModels = availableModels.reduce((acc, model) => {
@@ -90,8 +79,6 @@ export async function POST(request: NextRequest) {
       acc[model.provider].push(model);
       return acc;
     }, {} as Record<string, any[]>);
-
-    console.log('[USER-AVAILABLE] Grouped providers:', Object.keys(groupedModels));
 
     return NextResponse.json({
       models: availableModels,

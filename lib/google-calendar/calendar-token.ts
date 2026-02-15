@@ -38,8 +38,6 @@ export async function getValidCalendarToken(
   }
 
   try {
-    console.log('[Calendar Token] Refreshing expired token for integration', integrationId);
-
     const response = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -75,7 +73,6 @@ export async function getValidCalendarToken(
       })
       .eq('id', integrationId);
 
-    console.log('[Calendar Token] Successfully refreshed token, expires at', newExpiresAt.toISOString());
     return access_token;
   } catch (error) {
     console.error('[Calendar Token] Refresh exception:', error);

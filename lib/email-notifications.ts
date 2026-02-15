@@ -482,8 +482,6 @@ export async function sendBugNotificationEmail(
   const html = generateBugEmailHtml(bug)
   const text = generateBugEmailText(bug)
 
-  console.log(`[EMAIL] Sending bug notification via ${config.provider} to ${recipients.length} recipient(s)`)
-
   switch (config.provider) {
     case 'supabase':
       return sendViaSupabase(config, recipients, subject, html, text)
@@ -508,8 +506,6 @@ export async function processPendingNotifications(supabase: any): Promise<{
   successful: number
   failed: number
 }> {
-  console.log('[EMAIL] Processing pending bug notifications...')
-
   // Get pending notifications
   const { data: notifications, error: fetchError } = await supabase
     .from('bug_notifications')
@@ -541,11 +537,8 @@ export async function processPendingNotifications(supabase: any): Promise<{
   }
 
   if (!notifications || notifications.length === 0) {
-    console.log('[EMAIL] No pending notifications to process')
     return { processed: 0, successful: 0, failed: 0 }
   }
-
-  console.log(`[EMAIL] Found ${notifications.length} pending notification(s)`)
 
   let successful = 0
   let failed = 0
@@ -586,7 +579,6 @@ export async function processPendingNotifications(supabase: any): Promise<{
         .eq('id', notification.id)
 
       successful++
-      console.log(`[EMAIL] ✅ Sent notification ${notification.id}`)
     } else {
       // Mark as failed and increment retry count
       await supabase
@@ -603,8 +595,6 @@ export async function processPendingNotifications(supabase: any): Promise<{
       console.error(`[EMAIL] ❌ Failed to send notification ${notification.id}: ${result.error}`)
     }
   }
-
-  console.log(`[EMAIL] Processed ${notifications.length} notifications: ${successful} sent, ${failed} failed`)
 
   return {
     processed: notifications.length,

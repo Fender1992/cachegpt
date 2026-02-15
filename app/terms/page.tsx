@@ -25,7 +25,7 @@ export default function TermsPage() {
       <div className="max-w-4xl mx-auto px-6 py-12">
         <div className="bg-white rounded-lg p-8 shadow-sm">
           <h1 className="text-3xl font-bold mb-6">Terms of Service</h1>
-          <p className="text-sm text-gray-500 mb-8">Effective Date: January 1, 2024 | Last Updated: January 17, 2025</p>
+          <p className="text-sm text-gray-500 mb-8">Effective Date: January 1, 2024 | Last Updated: February 15, 2026</p>
 
           <div className="prose prose-gray max-w-none">
             <section className="mb-8">
@@ -43,11 +43,14 @@ export default function TermsPage() {
                 includes but is not limited to:
               </p>
               <ul className="list-disc list-inside text-gray-600 space-y-1 ml-4">
-                <li>API request caching and optimization</li>
-                <li>Response adaptation using AI models</li>
-                <li>Analytics and usage tracking</li>
+                <li>Multi-provider AI chat (ChatGPT, Claude, Gemini, Perplexity)</li>
+                <li>Intelligent response caching and optimization</li>
+                <li>Quality modes (Fast and Best/Self-MoA)</li>
+                <li>Third-party integrations (Discord, Gmail, Slack, Microsoft Teams, Google Calendar, Notion, Google Drive, Jira)</li>
+                <li>File uploads and document analysis (PDF, DOCX, XLSX, images)</li>
+                <li>Conversation history and sharing</li>
+                <li>Command-line interface (CLI)</li>
                 <li>API key management</li>
-                <li>Command-line interface tools</li>
               </ul>
             </section>
 
@@ -73,6 +76,7 @@ export default function TermsPage() {
                 <li>You may not attempt to bypass any Service limitations</li>
                 <li>You may not resell or redistribute the Service without permission</li>
                 <li>You must comply with the terms of service of underlying LLM providers</li>
+                <li>OAuth integration connections are subject to each provider's terms of service and usage policies</li>
               </ul>
             </section>
 
@@ -100,6 +104,7 @@ export default function TermsPage() {
                 <li>The collection and use of data as described in our Privacy Policy</li>
                 <li>The caching of API requests and responses for service optimization</li>
                 <li>Anonymous usage analytics for service improvement</li>
+                <li>The use of browser localStorage for user preferences and onboarding state</li>
               </ul>
             </section>
 

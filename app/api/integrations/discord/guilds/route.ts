@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
         botGuildIds = new Set(botGuilds.map(g => g.id));
       }
     } catch (err) {
-      console.log('[Discord Guilds] Bot proxy unavailable, all guilds will show as unknown status');
+      // Bot proxy unavailable, all guilds will show as unknown status
     }
 
     // Map to Discord-compatible format with bot status

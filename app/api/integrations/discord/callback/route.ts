@@ -69,9 +69,6 @@ export async function GET(req: NextRequest) {
 
     const tokenData = await tokenResponse.json();
     const { access_token, refresh_token, expires_in, scope, guild } = tokenData;
-    // When bot scope is used, `guild` contains the guild the bot was added to
-    console.log('[Discord OAuth] Token response - scope:', scope, 'guild:', guild?.id || 'none');
-
     // Get Discord user info
     const userResponse = await fetch(`${DISCORD_API}/users/@me`, {
       headers: {
@@ -184,17 +181,6 @@ export async function GET(req: NextRequest) {
       new URL('/settings?discord_connected=true', req.url)
     );
     response.cookies.delete('discord_oauth_uid');
-
-    // Trigger initial sync in background (non-blocking)
-    if (integrationId) {
-      fetch(`${req.nextUrl.origin}/api/integrations/discord/sync`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Integration-Id': integrationId,
-        },
-      }).catch(console.error);
-    }
 
     return response;
   } catch (error) {

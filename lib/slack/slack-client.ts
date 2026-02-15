@@ -110,8 +110,6 @@ export class SlackClient {
         throw new Error('Slack not connected. Please link your Slack workspace in Settings.');
       }
 
-      console.log('[Slack Client] Connected to', status.teamName);
-
       this.connected = true;
 
       // Fetch channels

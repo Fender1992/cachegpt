@@ -17,8 +17,6 @@ export async function POST(request: NextRequest) {
     // Test user ID (valid UUID)
     const testUserId = 'b5d6e8a0-1234-5678-9abc-def012345678';
 
-    console.log('[TEST-CACHE] Testing with query:', query);
-
     const tierCacheInstance = await getTierCache();
 
     // Check for cached response
@@ -42,7 +40,6 @@ export async function POST(request: NextRequest) {
     const testResponse = `Test response for: ${query}. The answer is 42.`;
 
     // Cache the response
-    console.log('[TEST-CACHE] Caching new response...');
     await tierCacheInstance.storeResponse(
       query,
       testResponse,

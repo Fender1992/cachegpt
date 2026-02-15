@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
         }
       }
     } catch (err) {
-      console.log('[Discord Channels] Bot proxy unavailable or guild not in bot:', (err as Error).message);
+      // Bot proxy unavailable or guild not in bot — fall through to next strategy
     }
 
     // Priority 2: Serve from synced database metadata

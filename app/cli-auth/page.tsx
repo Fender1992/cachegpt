@@ -48,8 +48,6 @@ export default function CLIAuthPage() {
 
       if (error) {
         console.error('Failed to save CLI session:', error)
-      } else {
-        console.log('CLI session saved successfully')
       }
     } catch (err) {
       console.error('Error saving CLI session:', err)

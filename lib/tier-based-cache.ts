@@ -128,8 +128,6 @@ export class TierBasedCache {
 
     try {
       const queryEmbeddingData = this.generateEmbedding(query);
-      console.log(`[TIER-CACHE] Searching: model=${model}, provider=${provider}, query="${query.substring(0, 50)}..."`);
-
       // Search tier by tier for maximum performance
       for (const tier of defaultOptions.tierPriority) {
         const candidates = await this.getCandidatesFromTier(
@@ -142,8 +140,6 @@ export class TierBasedCache {
 
         if (candidates.length === 0) continue;
 
-        console.log(`[TIER-CACHE] Checking ${candidates.length} candidates in ${tier} tier`);
-
         // Find best match in this tier
         const match = await this.findBestMatch(
           queryEmbeddingData.array,
@@ -152,8 +148,6 @@ export class TierBasedCache {
         );
 
         if (match) {
-          console.log(`[TIER-CACHE] ✅ Found match in ${tier} tier with ${Math.round(match.similarity * 100)}% similarity`);
-
           // Update access statistics
           await this.updateAccessStats(match.metadata.id);
 
@@ -161,7 +155,6 @@ export class TierBasedCache {
         }
       }
 
-      console.log('[TIER-CACHE] No matches found across all tiers');
       return null;
 
     } catch (error) {
@@ -180,9 +173,6 @@ export class TierBasedCache {
     limit: number,
     includeArchived: boolean
   ): Promise<CachedResponse[]> {
-    // Debug: Log what we're searching for
-    console.log(`[TIER-CACHE-DEBUG] Searching tier=${tier}, model=${model}, provider=${provider}`);
-
     let query = this.supabase
       .from('cached_responses')
       .select('*')
@@ -211,7 +201,6 @@ export class TierBasedCache {
       return [];
     }
 
-    console.log(`[TIER-CACHE-DEBUG] Found ${data?.length || 0} candidates in ${tier} tier`);
     return data || [];
   }
 
@@ -309,10 +298,6 @@ export class TierBasedCache {
 
       if (updateError) {
         console.error('[TIER-CACHE] Error updating access stats:', updateError);
-      } else {
-        if (newTier !== current.tier) {
-          console.log(`[TIER-CACHE] ✨ Promoted response from ${current.tier} to ${newTier} tier`);
-        }
       }
 
     } catch (error) {
@@ -345,8 +330,6 @@ export class TierBasedCache {
 
       const tier = rankingManager.assignTier(initialScore);
 
-      console.log(`[TIER-CACHE] Storing in ${tier} tier: model=${model}, provider=${provider}, user=${userId}`);
-
       const insertData = {
         query,
         response,
@@ -378,12 +361,9 @@ export class TierBasedCache {
 
       if (error) {
         console.error('[TIER-CACHE] Store error:', error);
-        console.error('[TIER-CACHE] Insert data that failed:', JSON.stringify(insertData, null, 2));
-        console.error('[TIER-CACHE] Full error details:', JSON.stringify(error));
         return null;
       }
 
-      console.log(`[TIER-CACHE] ✅ Stored response with ID: ${data.id} in ${tier} tier`);
       return data.id;
 
     } catch (error) {
@@ -437,7 +417,6 @@ export class TierBasedCache {
     const archivalEnabled = await rankingManager.isFeatureEnabled('use_tier_archival');
 
     if (!archivalEnabled) {
-      console.log('[TIER-CACHE] Archival not enabled');
       return 0;
     }
 
@@ -460,8 +439,6 @@ export class TierBasedCache {
       }
 
       const archivedCount = data?.length || 0;
-      console.log(`[TIER-CACHE] ✅ Archived ${archivedCount} old responses`);
-
       return archivedCount;
 
     } catch (error) {
@@ -474,11 +451,8 @@ export class TierBasedCache {
    * Rebalance tiers by updating popularity scores
    */
   async rebalanceTiers(): Promise<void> {
-    console.log('[TIER-CACHE] Starting tier rebalancing...');
-
     try {
       const updatedCount = await rankingManager.updateAllPopularityScores();
-      console.log(`[TIER-CACHE] ✅ Rebalanced ${updatedCount} responses across tiers`);
 
       // Auto-enable features based on current cache size
       await rankingManager.autoEnableFeatures();

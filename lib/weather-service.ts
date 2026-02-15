@@ -74,7 +74,6 @@ export class WeatherService {
       }
     }
 
-    console.log('[WEATHER] No location found in query, skipping weather context');
     return null;
   }
 

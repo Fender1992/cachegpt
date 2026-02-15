@@ -108,8 +108,6 @@ export class TeamsClient {
         throw new Error('Teams not connected. Please link your Microsoft Teams in Settings.');
       }
 
-      console.log('[Teams Client] Connected to', status.organizationName || 'Teams');
-
       this.connected = true;
 
       // Fetch channels

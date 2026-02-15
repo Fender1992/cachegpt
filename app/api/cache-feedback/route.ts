@@ -87,8 +87,6 @@ export async function POST(request: NextRequest) {
     const weight = Math.min(1.0, 5.0 / feedbackCount); // First 5 feedbacks have full impact
     const newScore = Math.max(0, Math.min(100, currentScore + (delta * weight)));
 
-    console.log(`[CACHE-FEEDBACK] Cache ${cacheId}: ${feedback} (${feedbackCount} total) - Score: ${currentScore.toFixed(1)} → ${newScore.toFixed(1)}`);
-
     // Update cache entry
     const { error: updateError } = await supabase
       .from('cached_responses')

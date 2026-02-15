@@ -71,9 +71,7 @@ class InternalLLMHealthChecker {
         lastError: healthy ? undefined : `HTTP ${response.status}`,
       };
 
-      if (healthy) {
-        console.log('[INTERNAL-LLM-HEALTH] Health check passed');
-      } else {
+      if (!healthy) {
         console.warn('[INTERNAL-LLM-HEALTH] Health check failed:', response.status, response.statusText);
       }
 

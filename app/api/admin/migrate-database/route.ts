@@ -296,8 +296,6 @@ export async function POST(request: NextRequest) {
     `
 
     // Execute migration in steps
-    console.log('Running unified chat system migration...')
-
     await supabase.rpc('execute_sql', { sql: migrationSql })
     await supabase.rpc('execute_sql', { sql: indexesSql })
     await supabase.rpc('execute_sql', { sql: rlsSql })

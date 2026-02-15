@@ -38,8 +38,6 @@ export async function getValidDriveToken(
   }
 
   try {
-    console.log('[Drive Token] Refreshing expired token for integration', integrationId);
-
     const response = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -73,7 +71,6 @@ export async function getValidDriveToken(
       })
       .eq('id', integrationId);
 
-    console.log('[Drive Token] Successfully refreshed token, expires at', newExpiresAt.toISOString());
     return access_token;
   } catch (error) {
     console.error('[Drive Token] Refresh exception:', error);

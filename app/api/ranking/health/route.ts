@@ -32,8 +32,6 @@ const getPredictiveCache = async () => {
  */
 export async function GET(request: NextRequest) {
   try {
-    console.log('[RANKING-HEALTH] Checking system health...');
-
     const manager = await getRankingManager();
     const tierCacheInstance = await getTierCache();
     const predictiveCacheInstance = await getPredictiveCache();
@@ -67,8 +65,6 @@ export async function GET(request: NextRequest) {
       }
     };
 
-    console.log('[RANKING-HEALTH] Health check completed:', response.status);
-
     return NextResponse.json(response);
 
   } catch (error: any) {
@@ -99,8 +95,6 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { action } = body;
-
-    console.log(`[RANKING-HEALTH] Executing maintenance action: ${action}`);
 
     let result: any = {};
 
@@ -145,8 +139,6 @@ export async function POST(request: NextRequest) {
           availableActions: ['rebalance', 'auto-enable', 'archive', 'predict', 'cleanup']
         }, { status: 400 });
     }
-
-    console.log(`[RANKING-HEALTH] Action ${action} completed:`, result);
 
     return NextResponse.json({
       success: true,

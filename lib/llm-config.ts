@@ -76,8 +76,6 @@ class LLMConfig {
         if (this.shouldUpdateConfig(this.config, latestConfig)) {
           const oldVersion = this.config.lastUpdated
           this.config = latestConfig
-          console.log(`LLM models configuration updated from ${oldVersion} to ${latestConfig.lastUpdated}`)
-
           // Log specific model changes
           this.logModelChanges(oldVersion, latestConfig)
         }
@@ -136,9 +134,7 @@ class LLMConfig {
       }
     }
 
-    if (changes.length > 0) {
-      console.log('Active models after update:', changes.join(', '))
-    }
+    // Changes tracked internally
   }
 
   // Get the most advanced model for a provider

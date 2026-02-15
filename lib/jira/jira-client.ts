@@ -120,7 +120,6 @@ export class JiraClient {
         throw new Error('Jira not connected. Please link your account in Settings.');
       }
 
-      console.log('[Jira Client] Connected as', status.email);
       this.connected = true;
 
       // Fetch projects

@@ -22,8 +22,6 @@ const getRankingManager = async () => {
  */
 export async function GET(request: NextRequest) {
   try {
-    console.log('[RANKING-FEATURES] Fetching feature status...');
-
     const manager = await getRankingManager();
     const features = await manager.getFeatures();
     const metrics = await manager.getCacheMetrics();
@@ -44,8 +42,6 @@ export async function GET(request: NextRequest) {
         readyForAdvanced: metrics.totalQueries >= 10000
       }
     };
-
-    console.log('[RANKING-FEATURES] Retrieved features:', response.summary);
 
     return NextResponse.json(response);
 
@@ -81,8 +77,6 @@ export async function PUT(request: NextRequest) {
       }, { status: 400 });
     }
 
-    console.log(`[RANKING-FEATURES] Updating feature ${featureName}: enabled=${isEnabled}`);
-
     const manager = await getRankingManager();
     const success = await manager.updateFeature(featureName, isEnabled, config);
 
@@ -116,8 +110,6 @@ export async function PUT(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    console.log('[RANKING-FEATURES] Auto-enabling features...');
-
     const manager = await getRankingManager();
     await manager.autoEnableFeatures();
 

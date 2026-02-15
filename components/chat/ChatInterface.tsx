@@ -331,25 +331,14 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
         credentials: 'include' // Keep this in case cookies work in the future
       })
 
-      console.log('[CHAT] loadConversations: API response status:', response.status)
-
       if (response.ok) {
         const data = await response.json()
 
-        console.log('[CHAT] loadConversations: API response data:', {
-          conversationsCount: data.conversations?.length || 0,
-          requiresAuth: data.requiresAuth,
-          userIdInResponse: data.user_id,
-          fullResponse: data
-        })
-
         // Check if user needs to authenticate for conversation history
         if (data.requiresAuth) {
-          console.log('[CHAT] Conversation history requires authentication')
           setConversations([])
           // Don't show toast on page load - only when user clicks History button
         } else {
-          console.log('[CHAT] Setting conversations:', data.conversations?.length || 0, 'items')
           setConversations(data.conversations || [])
         }
       } else {
@@ -364,8 +353,6 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
 
   const loadConversationMessages = async (conversationId: string, limit = MAX_MESSAGES_IN_MEMORY) => {
     try {
-      console.log('[CHAT] Loading conversation messages:', conversationId)
-
       // Get session for authentication
       const { data: { session } } = await supabase.auth.getSession()
 
@@ -382,7 +369,6 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
       // Add Bearer token if we have a session
       if (session?.access_token) {
         headers['Authorization'] = `Bearer ${session.access_token}`
-        console.log('[CHAT] Sending Bearer token for conversation messages')
       }
 
       const response = await fetch(`/api/conversations/${conversationId}/messages?limit=${limit}`, {
@@ -390,12 +376,9 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
         credentials: 'include'
       })
 
-      console.log('[CHAT] Conversation messages response status:', response.status)
-
       if (response.ok) {
         const data = await response.json()
         const loadedMessages = data.messages || []
-        console.log('[CHAT] Loaded messages:', loadedMessages.length)
         setMessages(loadedMessages)
         setHasOlderMessages(data.hasMore || false)
         setCurrentConversationId(conversationId)
@@ -779,7 +762,6 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
 
         // If we don't have a conversation ID in URL yet, navigate to the conversation URL
         if (!conversationId && finalData.conversationId) {
-          console.log('[CHAT] Navigating to conversation URL:', finalData.conversationId)
           router.push(`/chat/${finalData.conversationId}`)
         }
       }

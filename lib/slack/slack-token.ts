@@ -48,8 +48,6 @@ export async function getValidSlackToken(
   }
 
   try {
-    console.log('[Slack Token] Refreshing expired token for integration', integrationId);
-
     const response = await fetch('https://slack.com/api/oauth.v2.access', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -88,7 +86,6 @@ export async function getValidSlackToken(
       })
       .eq('id', integrationId);
 
-    console.log('[Slack Token] Successfully refreshed token, expires at', newExpiresAt.toISOString());
     return tokenData.access_token;
   } catch (error) {
     console.error('[Slack Token] Refresh exception:', error);

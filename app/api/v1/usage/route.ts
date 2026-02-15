@@ -185,15 +185,6 @@ export async function POST(req: NextRequest) {
     const dailyRequests = dailyUsage?.length || 0;
     const dailyTokens = dailyUsage?.reduce((sum, u) => sum + (u.tokens_used || 0), 0) || 0;
 
-    // Send alerts at 80% and 95% usage
-    if (dailyRequests >= 800 && dailyRequests < 850) {
-      // Send 80% usage alert (would integrate with email service)
-      console.log(`User ${user_id} at 80% daily request limit`);
-    } else if (dailyRequests >= 950) {
-      // Send 95% usage alert
-      console.log(`User ${user_id} at 95% daily request limit`);
-    }
-
     return NextResponse.json({ success: true });
 
   } catch (error: any) {

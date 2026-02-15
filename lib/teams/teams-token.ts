@@ -44,8 +44,6 @@ export async function getValidTeamsToken(
   }
 
   try {
-    console.log('[Teams Token] Refreshing expired token for integration', integrationId);
-
     const response = await fetch(
       'https://login.microsoftonline.com/common/oauth2/v2.0/token',
       {
@@ -88,7 +86,6 @@ export async function getValidTeamsToken(
       })
       .eq('id', integrationId);
 
-    console.log('[Teams Token] Successfully refreshed token, expires at', newExpiresAt.toISOString());
     return tokenData.access_token;
   } catch (error) {
     console.error('[Teams Token] Refresh exception:', error);
