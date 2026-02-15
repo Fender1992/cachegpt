@@ -29,22 +29,22 @@ export default function BlogPage() {
             Introducing CacheGPT: Free AI Chat for Everyone
           </h2>
           <p className="text-gray-600 dark:text-gray-300 mb-4">
-            October 6, 2025
+            February 10, 2026
           </p>
           <p className="text-gray-700 dark:text-gray-300 mb-6">
             Today we're excited to launch CacheGPT, a new way to chat with AI that's completely
             free and requires no setup. Learn how smart caching makes this possible and why
             we believe AI should be accessible to everyone.
           </p>
-          <div className="text-purple-600 dark:text-purple-400 font-semibold">
-            Coming soon →
-          </div>
+          <Link href="/blog" className="text-purple-600 dark:text-purple-400 font-semibold hover:underline">
+            Read more →
+          </Link>
         </div>
 
         {/* More posts coming soon */}
         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6 text-center">
           <p className="text-blue-800 dark:text-blue-200 mb-4">
-            📝 More blog posts coming soon! Follow us for updates.
+            Stay tuned for upcoming articles on AI caching, Self-MoA, and building with multiple LLM providers.
           </p>
           <div className="flex items-center justify-center gap-6">
             <a

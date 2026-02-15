@@ -28,10 +28,10 @@ const pricingTiers: PricingTier[] = [
     requests: 1000,
     features: [
       '1,000 requests per month',
-      'All AI providers (OpenAI, Claude, Gemini)',
-      'Semantic caching',
+      'Multi-provider AI chat (OpenAI, Claude, Gemini)',
+      'Basic caching',
+      'File uploads',
       'Web dashboard',
-      'CLI access',
       'Community support',
     ],
     cta: 'Get Started Free',
@@ -44,12 +44,12 @@ const pricingTiers: PricingTier[] = [
     requests: 10000,
     features: [
       '10,000 requests per month',
-      'All AI providers',
-      'Advanced semantic caching',
-      'Priority support',
-      'API key access',
+      'All Free features',
+      'Self-MoA quality mode',
+      '8 integrations (Discord, Gmail, Slack, Teams, Calendar, Notion, Drive, Jira)',
+      'Conversation sharing',
+      'Priority caching',
       'Usage analytics',
-      'Custom cache settings',
     ],
     cta: 'Upgrade to Pro',
     popular: true,
@@ -64,10 +64,10 @@ const pricingTiers: PricingTier[] = [
     features: [
       '100,000 requests per month',
       'All Pro features',
-      'Dedicated support',
+      'API access',
+      'CLI tool',
       'Custom integrations',
-      'Team collaboration',
-      'Advanced analytics',
+      'Dedicated support',
       'SLA guarantee',
     ],
     cta: 'Upgrade to Business',
@@ -81,11 +81,11 @@ const pricingTiers: PricingTier[] = [
     requests: 999999999,
     features: [
       'Unlimited requests',
-      'All Business features',
-      'On-premise deployment',
-      'Custom SLA',
-      'Dedicated account manager',
-      'Custom development',
+      'Everything in Pro',
+      'API access',
+      'CLI tool',
+      'Custom integrations',
+      'Dedicated support',
       'Enterprise security',
     ],
     cta: 'Contact Sales',
@@ -118,7 +118,7 @@ export default function PricingPage() {
           }
         }
       } catch (error) {
-        console.error('Error loading user data:', error);
+        // silently handle user data loading failure
       } finally {
         setLoading(false);
       }
@@ -173,7 +173,6 @@ export default function PricingPage() {
       const { url } = await response.json();
       window.location.href = url;
     } catch (error) {
-      console.error('Error creating checkout session:', error);
       setToast({
         message: 'Failed to start checkout. Please try again.',
         type: 'error'
@@ -192,7 +191,7 @@ export default function PricingPage() {
         <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
           Simple, Transparent Pricing
         </h1>
-        <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">
+        <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto mb-8">
           Start free, upgrade as you grow. Cancel anytime, no questions asked.
         </p>
         {user && currentTier !== 'free' && (
@@ -235,7 +234,7 @@ export default function PricingPage() {
               className={`relative rounded-2xl p-8 ${
                 tier.popular
                   ? 'bg-gradient-to-br from-purple-600 to-blue-600 text-white shadow-2xl scale-105'
-                  : 'bg-white border-2 border-gray-200 hover:border-purple-300 transition-all'
+                  : 'bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-500 transition-all'
               }`}
             >
               {tier.popular && (
@@ -245,26 +244,26 @@ export default function PricingPage() {
               )}
 
               <div className="mb-6">
-                <h3 className={`text-2xl font-bold mb-2 ${tier.popular ? 'text-white' : 'text-gray-900'}`}>
+                <h3 className={`text-2xl font-bold mb-2 ${tier.popular ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
                   {tier.name}
                 </h3>
                 <div className="flex items-baseline gap-1">
                   {tier.price === null ? (
-                    <span className={`text-2xl font-bold ${tier.popular ? 'text-white' : 'text-gray-900'}`}>
+                    <span className={`text-2xl font-bold ${tier.popular ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
                       Contact Support for Pricing
                     </span>
                   ) : (
                     <>
-                      <span className={`text-5xl font-bold ${tier.popular ? 'text-white' : 'text-gray-900'}`}>
+                      <span className={`text-5xl font-bold ${tier.popular ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
                         ${tier.price}
                       </span>
                       {tier.interval !== 'custom' && (
-                        <span className={`text-lg ${tier.popular ? 'text-purple-100' : 'text-gray-500'}`}>
+                        <span className={`text-lg ${tier.popular ? 'text-purple-100' : 'text-gray-500 dark:text-gray-400'}`}>
                           /{tier.interval}
                         </span>
                       )}
                       {tier.interval === 'custom' && (
-                        <span className={`text-lg ${tier.popular ? 'text-purple-100' : 'text-gray-500'}`}>
+                        <span className={`text-lg ${tier.popular ? 'text-purple-100' : 'text-gray-500 dark:text-gray-400'}`}>
                           custom pricing
                         </span>
                       )}
@@ -273,8 +272,8 @@ export default function PricingPage() {
                 </div>
               </div>
 
-              <div className={`mb-6 pb-6 border-b ${tier.popular ? 'border-purple-400' : 'border-gray-200'}`}>
-                <p className={`text-sm ${tier.popular ? 'text-purple-100' : 'text-gray-600'}`}>
+              <div className={`mb-6 pb-6 border-b ${tier.popular ? 'border-purple-400' : 'border-gray-200 dark:border-gray-600'}`}>
+                <p className={`text-sm ${tier.popular ? 'text-purple-100' : 'text-gray-600 dark:text-gray-400'}`}>
                   {tier.requests === 999999999
                     ? 'Unlimited requests'
                     : `${tier.requests.toLocaleString()} requests/month`}
@@ -285,7 +284,7 @@ export default function PricingPage() {
                 {tier.features.map((feature, idx) => (
                   <li key={idx} className="flex items-start gap-3">
                     <Check className={`w-5 h-5 flex-shrink-0 mt-0.5 ${tier.popular ? 'text-purple-200' : 'text-purple-600'}`} />
-                    <span className={`text-sm ${tier.popular ? 'text-purple-50' : 'text-gray-700'}`}>
+                    <span className={`text-sm ${tier.popular ? 'text-purple-50' : 'text-gray-700 dark:text-gray-300'}`}>
                       {feature}
                     </span>
                   </li>
@@ -323,42 +322,42 @@ export default function PricingPage() {
 
         {/* FAQ Section */}
         <div className="max-w-3xl mx-auto mt-24">
-          <h2 className="text-3xl font-bold text-center mb-12 text-gray-900">
+          <h2 className="text-3xl font-bold text-center mb-12 text-gray-900 dark:text-white">
             Frequently Asked Questions
           </h2>
           <div className="space-y-6">
-            <div className="bg-white rounded-lg p-6 border border-gray-200">
-              <h3 className="text-lg font-semibold mb-2 text-gray-900">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
                 Can I change plans anytime?
               </h3>
-              <p className="text-gray-600">
+              <p className="text-gray-600 dark:text-gray-300">
                 Yes! You can upgrade, downgrade, or cancel your subscription at any time. Changes take effect immediately, and we'll prorate any charges.
               </p>
             </div>
 
-            <div className="bg-white rounded-lg p-6 border border-gray-200">
-              <h3 className="text-lg font-semibold mb-2 text-gray-900">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
                 What happens if I exceed my request limit?
               </h3>
-              <p className="text-gray-600">
+              <p className="text-gray-600 dark:text-gray-300">
                 Your requests will be paused until the next billing cycle or you can upgrade to a higher tier. We'll send you email notifications at 80% and 100% usage.
               </p>
             </div>
 
-            <div className="bg-white rounded-lg p-6 border border-gray-200">
-              <h3 className="text-lg font-semibold mb-2 text-gray-900">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
                 Do you offer refunds?
               </h3>
-              <p className="text-gray-600">
+              <p className="text-gray-600 dark:text-gray-300">
                 We offer a 30-day money-back guarantee on all paid plans. If you're not satisfied, contact us for a full refund.
               </p>
             </div>
 
-            <div className="bg-white rounded-lg p-6 border border-gray-200">
-              <h3 className="text-lg font-semibold mb-2 text-gray-900">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
                 Is there a setup fee?
               </h3>
-              <p className="text-gray-600">
+              <p className="text-gray-600 dark:text-gray-300">
                 No setup fees, ever. You only pay the monthly subscription price for your chosen tier.
               </p>
             </div>

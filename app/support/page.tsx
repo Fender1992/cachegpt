@@ -44,7 +44,7 @@ export default function SupportPage() {
         message: '',
       })
     } catch (err) {
-      setError('Failed to send message. Please try again or email support@cachegpt.io directly.')
+      setError('Failed to send message. Please try again or email support@cachegpt.app directly.')
     } finally {
       setIsSubmitting(false)
     }
@@ -85,22 +85,22 @@ export default function SupportPage() {
       <div className="max-w-7xl mx-auto px-6 py-12">
         {/* Quick Links */}
         <div className="grid md:grid-cols-2 gap-6 mb-12">
-          <a href="mailto:support@cachegpt.io" className="bg-white rounded-lg p-6 shadow-sm border hover:shadow-md transition">
+          <a href="mailto:support@cachegpt.app" className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition">
             <div className="flex items-center mb-3">
               <Mail className="w-6 h-6 text-purple-600 mr-3" />
               <h3 className="text-lg font-semibold">Email Support</h3>
             </div>
-            <p className="text-gray-600 text-sm">
-              Get help directly at support@cachegpt.io
+            <p className="text-gray-600 dark:text-gray-300 text-sm">
+              Get help directly at support@cachegpt.app
             </p>
           </a>
 
-          <Link href="#faq" className="bg-white rounded-lg p-6 shadow-sm border hover:shadow-md transition">
+          <Link href="#faq" className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition">
             <div className="flex items-center mb-3">
               <MessageCircle className="w-6 h-6 text-purple-600 mr-3" />
               <h3 className="text-lg font-semibold">FAQs</h3>
             </div>
-            <p className="text-gray-600 text-sm">
+            <p className="text-gray-600 dark:text-gray-300 text-sm">
               Find answers to common questions below.
             </p>
           </Link>
@@ -108,7 +108,7 @@ export default function SupportPage() {
 
         <div className="grid lg:grid-cols-2 gap-12">
           {/* Contact Form */}
-          <div className="bg-white rounded-lg p-8 shadow-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-8 shadow-sm">
             <h2 className="text-2xl font-bold mb-6">Contact Us</h2>
 
             {submitted ? (
@@ -118,7 +118,7 @@ export default function SupportPage() {
                     <Check className="w-8 h-8 text-green-600" />
                   </div>
                   <h3 className="text-xl font-semibold mb-2">Message Sent!</h3>
-                  <p className="text-gray-600">We'll get back to you within 24 hours.</p>
+                  <p className="text-gray-600 dark:text-gray-300">We'll get back to you within 24 hours.</p>
                   <button
                     onClick={() => setSubmitted(false)}
                     className="mt-4 text-purple-600 hover:underline"
@@ -130,40 +130,40 @@ export default function SupportPage() {
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                     Name
                   </label>
                   <input
                     type="text"
                     id="name"
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                     Email
                   </label>
                   <input
                     type="email"
                     id="email"
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                     Category
                   </label>
                   <select
                     id="category"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   >
@@ -176,28 +176,28 @@ export default function SupportPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="subject" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                     Subject
                   </label>
                   <input
                     type="text"
                     id="subject"
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
                     value={formData.subject}
                     onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="message" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                     Message
                   </label>
                   <textarea
                     id="message"
                     required
                     rows={6}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
                     value={formData.message}
                     onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                   />
@@ -236,27 +236,27 @@ export default function SupportPage() {
             <h2 className="text-2xl font-bold mb-6">Frequently Asked Questions</h2>
             <div className="space-y-4">
               {faqs.map((faq, index) => (
-                <details key={index} className="bg-white rounded-lg shadow-sm">
-                  <summary className="px-6 py-4 cursor-pointer hover:bg-gray-50 font-medium">
+                <details key={index} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                  <summary className="px-6 py-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 font-medium">
                     {faq.question}
                   </summary>
-                  <div className="px-6 pb-4 text-gray-600">
+                  <div className="px-6 pb-4 text-gray-600 dark:text-gray-300">
                     {faq.answer}
                   </div>
                 </details>
               ))}
             </div>
 
-            <div className="mt-8 bg-purple-50 rounded-lg p-6 border border-purple-200">
+            <div className="mt-8 bg-purple-50 dark:bg-purple-900/20 rounded-lg p-6 border border-purple-200 dark:border-purple-700">
               <h3 className="font-semibold mb-2">Still need help?</h3>
-              <p className="text-gray-600 text-sm mb-3">
+              <p className="text-gray-600 dark:text-gray-300 text-sm mb-3">
                 Our support team is here to help you 24/7.
               </p>
               <div className="flex flex-col space-y-2">
-                <a href="mailto:support@cachegpt.io" className="text-purple-600 hover:underline text-sm">
-                  Email: support@cachegpt.io
+                <a href="mailto:support@cachegpt.app" className="text-purple-600 hover:underline text-sm">
+                  Email: support@cachegpt.app
                 </a>
-                <span className="text-gray-600 text-sm">
+                <span className="text-gray-600 dark:text-gray-300 text-sm">
                   Response time: Within 24 hours
                 </span>
               </div>

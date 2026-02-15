@@ -92,7 +92,6 @@ export default function CasualDashboardPage() {
       // Track stats loaded
       telemetry.statsLoaded();
     } catch (err) {
-      console.error('[DASHBOARD] Error:', err);
       setError('Failed to load dashboard stats');
     } finally {
       setLoading(false);

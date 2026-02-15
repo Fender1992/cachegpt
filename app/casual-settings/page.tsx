@@ -60,8 +60,7 @@ export default function CasualSettingsPage() {
         }
       }
     } catch (error) {
-      console.error('[SETTINGS] Error loading profile:', error);
-    }
+}
   };
 
   const applyTheme = (themeName: Theme) => {

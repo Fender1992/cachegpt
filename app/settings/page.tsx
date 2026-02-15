@@ -43,7 +43,7 @@ const INTEGRATIONS = [
   { key: 'gmail', label: 'Gmail', icon: '📧' },
   { key: 'calendar', label: 'Google Calendar', icon: '📅' },
   { key: 'slack', label: 'Slack', icon: '💼' },
-  { key: 'teams', label: 'Microsoft Teams', icon: '👥', comingSoon: true },
+  { key: 'teams', label: 'Microsoft Teams', icon: '👥' },
   { key: 'notion', label: 'Notion', icon: '📝' },
   { key: 'drive', label: 'Google Drive', icon: '📁' },
   { key: 'jira', label: 'Jira', icon: '🎯' },

@@ -54,7 +54,6 @@ export default function ModesPage() {
       setModes(data.modes || []);
       setTrending(data.trending || []);
     } catch (err: any) {
-      console.error('[MODES] Error fetching modes:', err);
       setError(err.message || 'Failed to load modes. Please try again.');
     } finally {
       setIsLoading(false);
@@ -70,7 +69,6 @@ export default function ModesPage() {
         body: JSON.stringify({ modeSlug, source }),
       });
     } catch (err) {
-      console.error('[MODES] Error recording click:', err);
     }
 
     telemetry.modeSelected(modeSlug);

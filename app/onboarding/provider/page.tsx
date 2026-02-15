@@ -6,25 +6,32 @@ import { supabase } from '@/lib/supabase-client'
 import { Bot, Brain, Sparkles, Zap, CheckCircle2 } from 'lucide-react'
 import { getMostAdvancedModel } from '@/lib/llm-config'
 
+const colorClasses: Record<string, { border: string; bg: string; text: string }> = {
+  green: { border: 'border-green-500', bg: 'bg-green-500/10', text: 'text-green-500' },
+  purple: { border: 'border-purple-500', bg: 'bg-purple-500/10', text: 'text-purple-500' },
+  blue: { border: 'border-blue-500', bg: 'bg-blue-500/10', text: 'text-blue-500' },
+  orange: { border: 'border-orange-500', bg: 'bg-orange-500/10', text: 'text-orange-500' },
+}
+
 const providers = [
   {
     id: 'chatgpt',
     name: 'ChatGPT',
-    description: 'OpenAI GPT-5',
+    description: 'OpenAI GPT-4o',
     icon: Bot,
     color: 'green'
   },
   {
     id: 'claude',
     name: 'Claude',
-    description: 'Anthropic Opus 4.1',
+    description: 'Claude Opus 4.6',
     icon: Brain,
     color: 'purple'
   },
   {
     id: 'gemini',
     name: 'Gemini',
-    description: 'Google Gemini 2.0 Ultra',
+    description: 'Google Gemini 2.0 Flash',
     icon: Sparkles,
     color: 'blue'
   },
@@ -175,13 +182,13 @@ export default function ProviderSelectionPage() {
                   onClick={() => handleProviderSelect(provider.id)}
                   className={`p-4 sm:p-6 rounded-xl transition-all transform hover:scale-105 border-2 ${
                     isSelected
-                      ? `border-${provider.color}-500 bg-${provider.color}-500/10`
+                      ? `${colorClasses[provider.color].border} ${colorClasses[provider.color].bg}`
                       : 'border-gray-700 bg-gray-800/50 hover:border-gray-600'
                   }`}
                   disabled={isLoading}
                 >
                   <Icon className={`w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-3 ${
-                    isSelected ? `text-${provider.color}-500` : 'text-gray-400'
+                    isSelected ? colorClasses[provider.color].text : 'text-gray-400'
                   }`} />
                   <h3 className="font-semibold text-base sm:text-lg text-white">{provider.name}</h3>
                   <p className="text-xs sm:text-sm text-gray-400">{provider.description}</p>
