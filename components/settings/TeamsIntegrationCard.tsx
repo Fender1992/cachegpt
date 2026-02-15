@@ -137,9 +137,13 @@ export default function TeamsIntegrationCard({ userId }: TeamsIntegrationCardPro
           </h2>
         </div>
 
-        {status?.connected && (
+        {status?.connected ? (
           <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
             Connected
+          </span>
+        ) : (
+          <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-medium">
+            Coming Soon
           </span>
         )}
       </div>
@@ -216,15 +220,15 @@ export default function TeamsIntegrationCard({ userId }: TeamsIntegrationCardPro
       ) : (
         <>
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            Connect your Microsoft Teams to get AI responses that understand your team conversations,
+            Microsoft Teams integration is coming soon. You&apos;ll be able to get AI responses that understand your team conversations,
             channels, and messages.
           </p>
           <button
-            onClick={handleConnect}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 transition"
+            disabled
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-400 text-white rounded-lg cursor-not-allowed opacity-60"
           >
             <Link2 className="w-4 h-4" />
-            Connect Teams
+            Coming Soon
           </button>
         </>
       )}

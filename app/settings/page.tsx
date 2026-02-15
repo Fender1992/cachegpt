@@ -6,7 +6,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase-client'
 import {
   Key, Save, Trash2, Eye, EyeOff, Plus,
-  AlertCircle, Check, ChevronLeft, CheckCircle, XCircle, Loader2
+  AlertCircle, Check, ChevronLeft, CheckCircle, XCircle, Loader2,
+  ChevronDown
 } from 'lucide-react'
 import { validateApiKeyFormat, testApiKeyConnection } from '@/lib/api-key-validator'
 import CacheGPTApiKeys from '@/components/settings/cachegpt-api-keys'
@@ -35,6 +36,86 @@ const PROVIDERS = [
   { id: 'google', name: 'Google (Gemini)', placeholder: 'AIza...' },
   { id: 'perplexity', name: 'Perplexity', placeholder: 'pplx-...' },
 ]
+
+const INTEGRATIONS = [
+  { key: 'github', label: 'GitHub', icon: '🐙' },
+  { key: 'discord', label: 'Discord', icon: '💬' },
+  { key: 'gmail', label: 'Gmail', icon: '📧' },
+  { key: 'calendar', label: 'Google Calendar', icon: '📅' },
+  { key: 'slack', label: 'Slack', icon: '💼' },
+  { key: 'teams', label: 'Microsoft Teams', icon: '👥', comingSoon: true },
+  { key: 'notion', label: 'Notion', icon: '📝' },
+  { key: 'drive', label: 'Google Drive', icon: '📁' },
+  { key: 'jira', label: 'Jira', icon: '🎯' },
+] as const;
+
+function IntegrationsAccordion({ userId }: { userId: string }) {
+  const [openItems, setOpenItems] = useState<Set<string>>(new Set());
+
+  const toggle = (key: string) => {
+    setOpenItems(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  const renderCard = (key: string) => {
+    switch (key) {
+      case 'github': return <IntegrationCard provider="github" userId={userId} />;
+      case 'discord': return <DiscordIntegrationCard userId={userId} />;
+      case 'gmail': return <GmailIntegrationCard userId={userId} />;
+      case 'calendar': return <CalendarIntegrationCard userId={userId} />;
+      case 'slack': return <SlackIntegrationCard userId={userId} />;
+      case 'teams': return <TeamsIntegrationCard userId={userId} />;
+      case 'notion': return <NotionIntegrationCard userId={userId} />;
+      case 'drive': return <DriveIntegrationCard userId={userId} />;
+      case 'jira': return <JiraIntegrationCard userId={userId} />;
+      default: return null;
+    }
+  };
+
+  return (
+    <div className="mt-8">
+      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+        Integrations
+      </h2>
+      <div className="space-y-2">
+        {INTEGRATIONS.map(({ key, label, icon, comingSoon }) => {
+          const isOpen = openItems.has(key);
+          return (
+            <div key={key} className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+              <button
+                onClick={() => toggle(key)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750 transition text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">{icon}</span>
+                  <span className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">{label}</span>
+                  {comingSoon && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-medium">
+                      Coming Soon
+                    </span>
+                  )}
+                </div>
+                <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {isOpen && (
+                <div className="border-t border-gray-200 dark:border-gray-700 [&>div]:rounded-none [&>div]:shadow-none [&>div]:border-0">
+                  {renderCard(key)}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const { user, loading } = useAuth()
@@ -398,22 +479,7 @@ export default function SettingsPage() {
 
         {/* Integrations Section */}
         {user && (
-          <div className="mt-8">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-              Integrations
-            </h2>
-            <div className="space-y-4">
-              <IntegrationCard provider="github" userId={user.id} />
-              <DiscordIntegrationCard userId={user.id} />
-              <GmailIntegrationCard userId={user.id} />
-              <CalendarIntegrationCard userId={user.id} />
-              <SlackIntegrationCard userId={user.id} />
-              <TeamsIntegrationCard userId={user.id} />
-              <NotionIntegrationCard userId={user.id} />
-              <DriveIntegrationCard userId={user.id} />
-              <JiraIntegrationCard userId={user.id} />
-            </div>
-          </div>
+          <IntegrationsAccordion userId={user.id} />
         )}
 
         {/* CacheGPT API Keys Section */}
