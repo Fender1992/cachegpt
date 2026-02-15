@@ -4,585 +4,327 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase-client'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import {
-  TrendingUp, DollarSign, Zap, Shield, LogOut, Crown,
-  AlertTriangle, Settings, BarChart3, Download, Terminal,
-  Activity, Users, Database, Clock, ChevronUp, ChevronDown,
-  Cpu, Globe, Code, ArrowUpRight, RefreshCw, Plus, Eye,
-  Copy, Trash2, MoreVertical, Filter, Search
+  MessageSquare, Zap, Cpu, Award, TrendingUp, DollarSign,
+  Clock, RefreshCw, Activity, BarChart3
 } from 'lucide-react'
-import { error as logError } from '@/lib/logger'
-import UsageDashboard from '@/components/dashboard/usage-dashboard'
-import Link from 'next/link'
-import CacheGPTLogo from '@/components/CacheGPTLogo'
+import { telemetry } from '@/lib/telemetry'
+import Navigation from '@/components/Navigation'
 
-interface Stat {
-  title: string
-  value: string | number
-  change: number
-  icon: React.ReactNode
-  color: string
-  bgColor: string
+interface DashboardStats {
+  totalChats: number
+  cacheHitPercentage: number
+  topModel: string
+  costSaved?: number
+  avgResponseTime?: number
 }
 
-interface UsageLog {
-  id: string
-  user_id: string
-  cache_hit: boolean
-  cost: number
-  response_time_ms: number
-  created_at: string
-  endpoint?: string
-  model?: string
-  tokens_used?: number
+interface Badge {
+  achievement_key: string
+  unlocked_at: string
 }
 
-interface ChartDataPoint {
-  date: string
-  requests: number
-  cached: number
+interface ActivityByDay {
+  [date: string]: number
 }
 
-interface ApiKey {
-  id: string
-  key_name: string
-  key: string
-  created_at: string
-  last_used?: string
-}
-
-interface Activity {
-  id: string | number
-  action: string
-  model: string
-  status: string
-  time: string
-  saved: string
-  endpoint?: string
-  created_at?: string
-  cache_hit?: boolean
-  response_time_ms?: number
+const badgeInfo: { [key: string]: { icon: string; title: string; description: string } } = {
+  first_10_chats: {
+    icon: '🎉',
+    title: 'Getting Started',
+    description: 'Completed your first 10 chats',
+  },
+  cache_hero_80: {
+    icon: '⚡',
+    title: 'Cache Hero',
+    description: '80% cache hit rate achieved',
+  },
+  prompt_master_100: {
+    icon: '🎯',
+    title: 'Prompt Master',
+    description: 'Sent 100+ messages',
+  },
+  early_adopter: {
+    icon: '🚀',
+    title: 'Early Adopter',
+    description: 'Joined during beta',
+  },
+  speed_demon: {
+    icon: '💨',
+    title: 'Speed Demon',
+    description: 'Saved 10+ seconds with cache',
+  },
 }
 
 export default function Dashboard() {
-  const { user, loading } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState('overview')
-  const [timeRange, setTimeRange] = useState('7d')
+  const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [activityByDay, setActivityByDay] = useState<ActivityByDay>({})
+  const [badges, setBadges] = useState<Badge[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
-  const [showApiKey, setShowApiKey] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
-
-  const [stats, setStats] = useState({
-    totalRequests: 0,
-    cacheHits: 0,
-    costSaved: 0,
-    avgResponseTime: 0,
-    activeUsers: 0,
-    apiCalls: 0
-  })
-
-  const [chartData, setChartData] = useState<ChartDataPoint[]>([])
-  const [apiKeys, setApiKeys] = useState<ApiKey[]>([])
-  const [recentActivity, setRecentActivity] = useState<Activity[]>([])
 
   useEffect(() => {
-    if (!user && !loading) {
-      router.push('/')
-    }
-  }, [user, loading, router])
-
-  useEffect(() => {
-    // Only fetch if we have a user and we're done loading
-    if (user && !loading) {
-      fetchDashboardData()
-    }
-  }, [user, loading, timeRange])
-
-  const fetchDashboardData = async () => {
-    // Skip data fetching during static generation
-    if (typeof window === 'undefined') {
+    if (!authLoading && !user) {
+      router.push('/login')
       return
     }
 
-    setRefreshing(true)
-    try {
-      // Fetch metrics from new API endpoint
-      const daysMap: Record<string, number> = {
-        '24h': 1,
-        '7d': 7,
-        '30d': 30,
-        '90d': 90
-      }
-      const days = daysMap[timeRange] || 7
+    if (user) {
+      telemetry.dashboardView()
+      fetchDashboardStats()
+    }
+  }, [user, authLoading, router])
 
-      const response = await fetch(`/api/metrics/usage?days=${days}`, {
-        credentials: 'include'
+  const fetchDashboardStats = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      setRefreshing(true)
+
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: HeadersInit = {}
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+      }
+
+      const response = await fetch('/api/dashboard-stats', {
+        headers,
+        credentials: 'include',
       })
 
       if (!response.ok) {
-        // If unauthorized, redirect to login
-        if (response.status === 401) {
-          router.push('/')
-          return
-        }
-        throw new Error('Failed to fetch metrics')
+        throw new Error('Failed to fetch dashboard stats')
       }
 
-      const metricsData = await response.json()
+      const data = await response.json()
+      setStats(data.stats)
+      setActivityByDay(data.activityByDay)
+      setBadges(data.badges)
 
-      // Update stats from API response
-      setStats({
-        totalRequests: metricsData.summary.totalRequests,
-        cacheHits: metricsData.summary.cacheHits,
-        costSaved: metricsData.summary.costSaved,
-        avgResponseTime: metricsData.summary.avgResponseTime,
-        activeUsers: 1, // Current user
-        apiCalls: metricsData.summary.totalRequests
-      })
-
-      // Set chart data from API
-      setChartData(metricsData.chartData)
-
-      // Fetch API keys
-      const { data: keysData } = await supabase
-        .from('api_keys')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false })
-
-      if (keysData) {
-        setApiKeys(keysData)
-      }
-
-      // Set recent activity from API
-      const activities = metricsData.recentActivity.map((log: any) => ({
-        id: log.id,
-        action: 'API Call',
-        model: log.model,
-        status: log.cached ? 'cached' : 'miss',
-        time: new Date(log.timestamp).toLocaleString(),
-        saved: log.cached ? `$${log.costSaved.toFixed(4)}` : '$0.00',
-        endpoint: log.provider,
-        response_time_ms: log.responseTime
-      }))
-      setRecentActivity(activities)
-    } catch (error) {
-      logError('Error fetching dashboard data', error)
+      telemetry.statsLoaded()
+    } catch (err) {
+      setError('Failed to load dashboard stats')
     } finally {
+      setLoading(false)
       setRefreshing(false)
     }
   }
 
-  const handleSignOut = async () => {
-    // Skip sign out during static generation
-    if (typeof window === 'undefined') {
-      return
-    }
-
-    await supabase.auth.signOut()
-    router.push('/')
-  }
-
-  const copyApiKey = (key: string) => {
-    // Skip clipboard access during static generation
-    if (typeof window === 'undefined' || !navigator.clipboard) {
-      return
-    }
-
-    navigator.clipboard.writeText(key)
-    // Show toast notification
-  }
-
-  const statCards: Stat[] = [
-    {
-      title: 'Total Requests',
-      value: stats.totalRequests.toLocaleString(),
-      change: 0,
-      icon: <Activity className="w-5 h-5" />,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-100'
-    },
-    {
-      title: 'Cache Hit Rate',
-      value: stats.totalRequests ? `${((stats.cacheHits / stats.totalRequests) * 100).toFixed(1)}%` : '0%',
-      change: 0,
-      icon: <Zap className="w-5 h-5" />,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-100'
-    },
-    {
-      title: 'Cost Saved',
-      value: `$${stats.costSaved.toFixed(2)}`,
-      change: 0,
-      icon: <DollarSign className="w-5 h-5" />,
-      color: 'text-green-600',
-      bgColor: 'bg-green-100'
-    },
-    {
-      title: 'Avg Response',
-      value: `${stats.avgResponseTime}ms`,
-      change: 0,
-      icon: <Clock className="w-5 h-5" />,
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-100'
-    }
-  ]
-
-  const tabs = [
-    { id: 'overview', label: 'Overview', icon: <BarChart3 className="w-4 h-4" /> },
-    { id: 'api-keys', label: 'API Keys', icon: <Shield className="w-4 h-4" /> },
-    { id: 'usage', label: 'Usage', icon: <Activity className="w-4 h-4" /> },
-    { id: 'settings', label: 'Settings', icon: <Settings className="w-4 h-4" /> }
-  ]
-
-  if (loading) {
+  if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="relative">
+      <>
+        <Navigation />
+        <div className="min-h-screen flex items-center justify-center">
           <div className="w-16 h-16 border-4 border-purple-200 rounded-full animate-spin border-t-purple-600"></div>
         </div>
-      </div>
+      </>
     )
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Background Pattern */}
-      <div className="fixed inset-0 -z-10">
-        <div className="absolute inset-0 grid-pattern opacity-50"></div>
-        <div className="absolute inset-0 mesh-gradient opacity-20"></div>
-      </div>
-
-      {/* Header */}
-      <header className="sticky top-0 z-40 glass-card border-b border-gray-200 dark:border-gray-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <CacheGPTLogo size={40} className="hidden sm:block" animated={false} />
-              <CacheGPTLogo size={32} className="sm:hidden" animated={false} />
-              <div>
-                <h1 className="text-lg sm:text-xl font-bold">CacheGPT Dashboard</h1>
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 hidden sm:block">Welcome back, {user?.email}</p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => fetchDashboardData()}
-                className={`p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition ${refreshing ? 'animate-spin' : ''}`}
-              >
-                <RefreshCw className="w-5 h-5" />
-              </button>
-
-              <div className="relative group">
-                <div className="flex items-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-1 sm:py-2 rounded-lg bg-purple-100 dark:bg-purple-900/30 cursor-pointer">
-                  <Crown className="w-3 h-3 sm:w-4 sm:h-4 text-purple-600" />
-                  <span className="text-xs sm:text-sm font-medium hidden sm:inline">Free Plan</span>
-                </div>
-                <div className="absolute right-0 mt-2 w-48 glass-card rounded-lg shadow-lg p-2 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all">
-                  <button className="w-full text-left px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-sm">
-                    Upgrade to Pro
-                  </button>
-                </div>
-              </div>
-
-              <button
-                onClick={handleSignOut}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-              >
-                <LogOut className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
-        {/* Tabs */}
-        <div className="flex items-center space-x-1 mb-4 sm:mb-8 p-1 glass-card rounded-xl w-full sm:w-fit overflow-x-auto">
-          {tabs.map(tab => (
+  if (error) {
+    return (
+      <>
+        <Navigation />
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">{error}</p>
             <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
-                activeTab === tab.id
-                  ? 'bg-white dark:bg-gray-800 shadow-sm text-purple-600'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
-              }`}
+              onClick={fetchDashboardStats}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
             >
-              {tab.icon}
-              <span>{tab.label}</span>
+              Retry
             </button>
-          ))}
+          </div>
         </div>
+      </>
+    )
+  }
 
-        {/* Time Range Selector */}
-        {activeTab === 'overview' && (
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl sm:text-2xl font-bold">Dashboard Overview</h2>
-            <div className="flex items-center space-x-2">
-              {['24h', '7d', '30d', '90d'].map(range => (
-                <button
-                  key={range}
-                  onClick={() => setTimeRange(range)}
-                  className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-lg text-xs sm:text-sm font-medium transition ${
-                    timeRange === range
-                      ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600'
-                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-                  }`}
-                >
-                  {range}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+  // Prepare chart data (last 14 days)
+  const chartDates: string[] = []
+  const chartValues: number[] = []
+  const today = new Date()
+  for (let i = 13; i >= 0; i--) {
+    const date = new Date(today)
+    date.setDate(date.getDate() - i)
+    const dateStr = date.toISOString().split('T')[0]
+    const dayLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    chartDates.push(dayLabel)
+    chartValues.push(activityByDay[dateStr] || 0)
+  }
 
-        {/* Overview Tab */}
-        {activeTab === 'overview' && (
-          <div className="space-y-6">
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {statCards.map((stat, index) => (
-                <div
-                  key={index}
-                  className="glass-card rounded-xl sm:rounded-2xl p-4 sm:p-6 card-lift cursor-pointer group"
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className={`p-3 rounded-xl ${stat.bgColor} ${stat.color} group-hover:scale-110 transition-transform`}>
-                      {stat.icon}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">{stat.title}</p>
-                    <p className="text-xl sm:text-2xl font-bold">{stat.value}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+  const maxValue = Math.max(...chartValues, 1)
 
-            {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-              {/* Usage Chart */}
-              <Card className="glass-card border-0">
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <span>Usage Trends</span>
-                    <BarChart3 className="w-5 h-5 text-gray-400" />
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-64 flex items-end justify-between space-x-2">
-                    {chartData.length > 0 ? (
-                      chartData.map((day, index) => (
-                        <div key={index} className="flex-1 flex flex-col items-center">
-                          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-t relative" style={{ height: `${(day.requests / Math.max(...chartData.map(d => d.requests))) * 200}px` }}>
-                            <div
-                              className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-purple-500 to-purple-400 rounded-t"
-                              style={{ height: `${(day.cached / day.requests) * 100}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-xs text-gray-500 mt-2">{day.date.split('/')[1]}</span>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400">
-                        No data available
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-center space-x-6 mt-4">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-3 h-3 bg-gray-200 dark:bg-gray-700 rounded"></div>
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Total Requests</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-3 h-3 bg-purple-500 rounded"></div>
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Cached</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Recent Activity */}
-              <Card className="glass-card border-0">
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <span>Recent Activity</span>
-                    <Activity className="w-5 h-5 text-gray-400" />
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {recentActivity.map((activity) => (
-                      <div key={activity.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition">
-                        <div className="flex items-center space-x-3">
-                          <div className={`w-2 h-2 rounded-full ${
-                            activity.status === 'cached' ? 'bg-green-500' :
-                            activity.status === 'miss' ? 'bg-yellow-500' :
-                            'bg-blue-500'
-                          }`}></div>
-                          <div>
-                            <p className="text-sm font-medium">{activity.action}</p>
-                            <p className="text-xs text-gray-500">{activity.model}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs text-gray-500">{activity.time}</p>
-                          {activity.saved !== '-' && (
-                            <p className="text-xs text-green-600 font-medium">{activity.saved}</p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <button className="glass-card rounded-2xl p-6 text-left hover:shadow-lg transition-all group">
-                <div className="flex items-center justify-between mb-4">
-                  <Terminal className="w-8 h-8 text-purple-600" />
-                  <ArrowUpRight className="w-5 h-5 text-gray-400 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-                </div>
-                <h3 className="font-semibold mb-1">CLI Documentation</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Learn how to use our CLI tool</p>
-              </button>
-
-              <button className="glass-card rounded-2xl p-6 text-left hover:shadow-lg transition-all group">
-                <div className="flex items-center justify-between mb-4">
-                  <Code className="w-8 h-8 text-blue-600" />
-                  <ArrowUpRight className="w-5 h-5 text-gray-400 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-                </div>
-                <h3 className="font-semibold mb-1">API Reference</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Explore our API endpoints</p>
-              </button>
-
-              <button className="glass-card rounded-2xl p-6 text-left hover:shadow-lg transition-all group">
-                <div className="flex items-center justify-between mb-4">
-                  <Globe className="w-8 h-8 text-green-600" />
-                  <ArrowUpRight className="w-5 h-5 text-gray-400 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-                </div>
-                <h3 className="font-semibold mb-1">Integration Guide</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Connect with your stack</p>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* API Keys Tab */}
-        {activeTab === 'api-keys' && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl sm:text-2xl font-bold">API Keys Management</h2>
-              <button className="btn-glow flex items-center space-x-2">
-                <Plus className="w-4 h-4" />
-                <span>Create New Key</span>
-              </button>
-            </div>
-
-            <div className="glass-card rounded-2xl p-6">
-              <div className="flex items-center space-x-4 mb-6">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search keys..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 input-modern"
-                  />
-                </div>
-                <button className="p-2 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-purple-500 transition">
-                  <Filter className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                {apiKeys.length > 0 ? (
-                  apiKeys.filter(key => key.key_name.toLowerCase().includes(searchQuery.toLowerCase())).map((key) => (
-                    <div key={key.id} className="flex items-center justify-between p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-purple-500 transition">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
-                          <Shield className="w-6 h-6 text-white" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold">{key.key_name}</h3>
-                          <div className="flex items-center space-x-2 mt-1">
-                            <code className="text-sm text-gray-600 dark:text-gray-400 font-mono">
-                              {showApiKey === key.id ? key.key : `sk-...${key.key.slice(-8)}`}
-                            </code>
-                            <Badge variant={'default'}>
-                              Active
-                            </Badge>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => setShowApiKey(showApiKey === key.id ? null : key.id)}
-                          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => copyApiKey(key.key)}
-                          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-                        >
-                          <Copy className="w-4 h-4" />
-                        </button>
-                        <button className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition text-red-600">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-12">
-                    <Shield className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600 dark:text-gray-400 mb-4">No API keys yet</p>
-                    <button className="btn-glow">Create Your First Key</button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Usage Tab - Detailed usage analytics */}
-        {activeTab === 'usage' && (
-          <UsageDashboard />
-        )}
-
-        {/* Settings Tab - Redirect to settings page */}
-        {activeTab === 'settings' && (
-          <div className="glass-card rounded-2xl p-8 text-center">
-            <div className="max-w-md mx-auto">
-              <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <Settings className="w-8 h-8 text-white" />
-              </div>
-              <h2 className="text-2xl font-bold mb-3">Account Settings</h2>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
-                Manage your profile, API keys, provider credentials, and subscription settings.
+  return (
+    <>
+      <Navigation />
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                Your Dashboard
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                Track your AI activity and achievements
               </p>
-              <Link
-                href="/settings"
-                className="btn-glow inline-flex items-center space-x-2 px-6 py-3"
-              >
-                <Settings className="w-5 h-5" />
-                <span>Go to Settings</span>
-                <ArrowUpRight className="w-4 h-4" />
-              </Link>
+            </div>
+            <button
+              onClick={fetchDashboardStats}
+              className={`p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition ${refreshing ? 'animate-spin' : ''}`}
+              title="Refresh"
+            >
+              <RefreshCw className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+            </button>
+          </div>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {/* Total Chats */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
+                  <MessageSquare className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                </div>
+              </div>
+              <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
+                {stats?.totalChats || 0}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Total Chats</div>
+            </div>
+
+            {/* Cache Hit Rate */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg flex items-center justify-center">
+                  <Zap className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+                </div>
+              </div>
+              <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
+                {stats?.cacheHitPercentage || 0}%
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Cache Hits</div>
+            </div>
+
+            {/* Cost Saved */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+                  <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400" />
+                </div>
+              </div>
+              <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
+                ${stats?.costSaved?.toFixed(2) || '0.00'}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Cost Saved</div>
+            </div>
+
+            {/* Top Model */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                  <Cpu className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                </div>
+              </div>
+              <div className="text-lg font-bold text-gray-900 dark:text-white mb-1 truncate">
+                {stats?.topModel || 'N/A'}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Favorite Model</div>
             </div>
           </div>
-        )}
-      </main>
-    </div>
+
+          {/* Activity Chart */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700 mb-8">
+            <div className="flex items-center mb-6">
+              <TrendingUp className="w-5 h-5 text-purple-600 dark:text-purple-400 mr-2" />
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                Your AI Activity (Last 14 Days)
+              </h2>
+            </div>
+
+            <div className="space-y-4">
+              {chartDates.map((date, index) => {
+                const value = chartValues[index]
+                const percentage = (value / maxValue) * 100
+
+                return (
+                  <div key={date} className="flex items-center gap-4">
+                    <div className="w-16 text-xs text-gray-600 dark:text-gray-400 text-right">
+                      {date}
+                    </div>
+                    <div className="flex-1 bg-gray-100 dark:bg-gray-700 rounded-full h-8 relative overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full transition-all duration-500 flex items-center justify-end pr-3"
+                        style={{ width: `${Math.max(percentage, value > 0 ? 10 : 0)}%` }}
+                      >
+                        {value > 0 && (
+                          <span className="text-xs font-medium text-white">{value}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {chartValues.every(v => v === 0) && (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                <p>No activity yet. Start chatting to see your progress!</p>
+              </div>
+            )}
+          </div>
+
+          {/* Badges Section */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center mb-6">
+              <Award className="w-5 h-5 text-purple-600 dark:text-purple-400 mr-2" />
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Your Badges</h2>
+            </div>
+
+            {badges.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {badges.map((badge) => {
+                  const info = badgeInfo[badge.achievement_key] || {
+                    icon: '🏆',
+                    title: badge.achievement_key,
+                    description: 'Achievement unlocked',
+                  }
+
+                  return (
+                    <div
+                      key={badge.achievement_key}
+                      className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl p-4 border-2 border-purple-200 dark:border-purple-700"
+                    >
+                      <div className="text-4xl mb-2">{info.icon}</div>
+                      <div className="font-bold text-gray-900 dark:text-white mb-1">
+                        {info.title}
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        {info.description}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                        {new Date(badge.unlocked_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                <Award className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                <p className="text-lg font-medium mb-2">No badges yet!</p>
+                <p className="text-sm">
+                  Keep chatting to unlock achievements and earn badges
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
   )
 }

@@ -1,46 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase-server';
-import { createClient as createBrowserClient } from '@supabase/supabase-js';
-
-export const runtime = 'edge';
+import { createClient } from '@supabase/supabase-js';
+import {
+  resolveAuthentication,
+  isAuthError,
+  getUserId
+} from '@/lib/unified-auth-resolver';
 
 /**
  * GET /api/dashboard-stats
- * Returns casual user dashboard statistics
+ * Returns user dashboard statistics
  */
 export async function GET(request: NextRequest) {
   try {
-    let userId: string | null = null;
+    // Authenticate user
+    const authResult = await resolveAuthentication(request);
 
-    // Try Bearer token first (used by client-side fetches)
-    const authHeader = request.headers.get('authorization');
-    if (authHeader?.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
-      const supabaseClient = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
-      const { data: { user }, error } = await supabaseClient.auth.getUser(token);
-      if (!error && user) {
-        userId = user.id;
-      }
-    }
-
-    // Fall back to cookie-based auth
-    if (!userId) {
-      const supabase = await createClient();
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (!authError && user) {
-        userId = user.id;
-      }
-    }
-
-    if (!userId) {
+    if (isAuthError(authResult)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const userId = getUserId(authResult);
+
     // Use service-level client for data queries
-    const supabase = await createClient();
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    );
 
     // Get total chats (conversations)
     const { count: totalChats, error: chatsError } = await supabase
@@ -52,35 +37,48 @@ export async function GET(request: NextRequest) {
       console.error('[DASHBOARD] Error fetching chats:', chatsError);
     }
 
-    // Get cache hit stats from conversations
-    const { data: conversations, error: conversationsError } = await supabase
-      .from('conversations')
-      .select('cache_hits, total_messages')
+    // Get total messages count
+    const { count: totalMessages, error: messagesError } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
       .eq('user_id', userId);
 
-    if (conversationsError) {
-      console.error('[DASHBOARD] Error fetching conversation stats:', conversationsError);
+    if (messagesError) {
+      console.error('[DASHBOARD] Error fetching messages:', messagesError);
     }
 
-    // Calculate cache hit percentage
+    // Get cache hit stats from usage table (if it exists)
     let cacheHitPercentage = 0;
-    if (conversations && conversations.length > 0) {
-      const totalCacheHits = conversations.reduce((sum, conv) => sum + (conv.cache_hits || 0), 0);
-      const totalMessages = conversations.reduce((sum, conv) => sum + (conv.total_messages || 0), 0);
-      if (totalMessages > 0) {
-        cacheHitPercentage = Math.round((totalCacheHits / totalMessages) * 100);
-      }
+    let costSaved = 0;
+    const { data: usageData, error: usageError } = await supabase
+      .from('usage')
+      .select('cache_hit, cost_saved')
+      .eq('user_id', userId);
+
+    if (!usageError && usageData && usageData.length > 0) {
+      const cacheHits = usageData.filter(u => u.cache_hit).length;
+      cacheHitPercentage = Math.round((cacheHits / usageData.length) * 100);
+      costSaved = usageData.reduce((sum, u) => sum + (u.cost_saved || 0), 0);
     }
 
     // Get most used model from user profile
-    const { data: profile, error: profileError } = await supabase
+    // Try user_id first, fall back to id
+    let profile = null;
+    const { data: profileByUserId, error: profileError1 } = await supabase
       .from('user_profiles')
       .select('selected_provider, selected_model')
-      .eq('id', userId)
+      .eq('user_id', userId)
       .single();
 
-    if (profileError) {
-      console.error('[DASHBOARD] Error fetching profile:', profileError);
+    if (!profileError1 && profileByUserId) {
+      profile = profileByUserId;
+    } else {
+      const { data: profileById } = await supabase
+        .from('user_profiles')
+        .select('selected_provider, selected_model')
+        .eq('id', userId)
+        .single();
+      profile = profileById;
     }
 
     const topModel = profile?.selected_model || 'GPT-4';
@@ -109,15 +107,16 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Get user achievements
-    const { data: achievements, error: achievementsError } = await supabase
+    // Get user achievements (gracefully handle if table doesn't exist)
+    let achievements: any[] = [];
+    const { data: achievementsData, error: achievementsError } = await supabase
       .from('user_achievements')
       .select('achievement_key, unlocked_at')
       .eq('user_id', userId)
       .order('unlocked_at', { ascending: false });
 
-    if (achievementsError) {
-      console.error('[DASHBOARD] Error fetching achievements:', achievementsError);
+    if (!achievementsError && achievementsData) {
+      achievements = achievementsData;
     }
 
     // Return stats
@@ -125,11 +124,13 @@ export async function GET(request: NextRequest) {
       {
         stats: {
           totalChats: totalChats || 0,
+          totalMessages: totalMessages || 0,
           cacheHitPercentage,
+          costSaved: parseFloat(costSaved.toFixed(2)),
           topModel,
         },
         activityByDay,
-        badges: achievements || [],
+        badges: achievements,
       },
       {
         status: 200,

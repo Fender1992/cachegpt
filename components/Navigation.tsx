@@ -55,13 +55,13 @@ export default function Navigation() {
             {user ? (
               <div className="flex items-center gap-3">
                 <Link
-                  href="/casual-dashboard"
+                  href="/dashboard"
                   className="text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition"
                 >
                   Dashboard
                 </Link>
                 <Link
-                  href="/casual-settings"
+                  href="/settings"
                   className="text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition"
                 >
                   Settings
@@ -150,14 +150,14 @@ export default function Navigation() {
                   <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
                 </div>
                 <Link
-                  href="/casual-dashboard"
+                  href="/dashboard"
                   onClick={() => setIsOpen(false)}
                   className="block py-2 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition"
                 >
                   Dashboard
                 </Link>
                 <Link
-                  href="/casual-settings"
+                  href="/settings"
                   onClick={() => setIsOpen(false)}
                   className="block py-2 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition"
                 >
