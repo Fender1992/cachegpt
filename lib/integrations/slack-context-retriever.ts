@@ -18,10 +18,15 @@ interface SlackSearchResult {
 }
 
 interface QueryAnalysis {
-  intent: 'search_messages' | 'find_channel' | 'general';
+  intent: 'search_messages' | 'find_channel' | 'send_message' | 'general';
   searchTerms: string[];
   channelName?: string;
   userName?: string;
+  // Parsed message details for send intents
+  parsedMessage?: {
+    channelName: string;
+    text: string;
+  };
 }
 
 function getSupabaseAdmin() {
@@ -38,8 +43,27 @@ export function analyzeSlackQuery(query: string): QueryAnalysis {
   const lowerQuery = query.toLowerCase();
 
   let intent: QueryAnalysis['intent'] = 'general';
+  let parsedMessage: QueryAnalysis['parsedMessage'] | undefined;
 
-  if (/(?:slack|message|channel|thread|dm|direct message)/i.test(query)) {
+  // Write intents (check first — most specific)
+  if (/(?:send|post|write|tell|say)\s+(?:a\s+)?(?:message\s+)?(?:in|to|on)\s+(?:slack\s+)?#?(\w[\w-]*)/i.test(query) ||
+      /(?:message|tell|notify)\s+#?(\w[\w-]*)\s+(?:on|in)\s+slack/i.test(query) ||
+      /(?:send|post)\s+(?:in|to)\s+slack\s+#?(\w[\w-]*)/i.test(query)) {
+    intent = 'send_message';
+
+    // Extract channel name from #channel or "in channel"
+    const channelExtract = query.match(/(?:in|to|on)\s+(?:slack\s+)?#?(\w[\w-]*)/i) ||
+                           query.match(/(?:message|tell|notify)\s+#?(\w[\w-]*)/i);
+    const targetChannel = channelExtract?.[1] || '';
+
+    // Extract message text — "saying X", "that X", "with message X", or text after channel reference
+    const textMatch = query.match(/(?:saying|that\s+says?|with\s+(?:the\s+)?(?:message|text)|message:?|:)\s+["\']?(.+)/i);
+    const text = textMatch?.[1]?.replace(/["\']$/, '').trim() || '';
+
+    if (targetChannel) {
+      parsedMessage = { channelName: targetChannel, text };
+    }
+  } else if (/(?:slack|message|channel|thread|dm|direct message)/i.test(query)) {
     intent = 'search_messages';
   } else if (/(?:said|wrote|posted|mentioned|shared|asked).*(?:in|on)\s+(?:slack|#)/i.test(query)) {
     intent = 'search_messages';
@@ -78,6 +102,7 @@ export function analyzeSlackQuery(query: string): QueryAnalysis {
     searchTerms,
     channelName,
     userName,
+    parsedMessage,
   };
 }
 
@@ -121,6 +146,72 @@ export function formatSlackContext(results: SlackSearchResult[]): string {
 }
 
 /**
+ * Send a message to a Slack channel (server-side)
+ */
+async function sendSlackMessage(
+  token: string,
+  parsedMessage: NonNullable<QueryAnalysis['parsedMessage']>
+): Promise<string> {
+  if (!parsedMessage.channelName) {
+    return '## Slack Action\n\nCould not send message — no channel specified. Ask the user which channel to post in.';
+  }
+  if (!parsedMessage.text) {
+    return '## Slack Action\n\nCould not send message — no message text provided. Ask the user what they want to say.';
+  }
+
+  // Resolve channel name to ID
+  const listRes = await fetch(
+    'https://slack.com/api/conversations.list?types=public_channel,private_channel&limit=200',
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(10000),
+    }
+  );
+
+  if (!listRes.ok) {
+    return '## Slack Action\n\nFailed to list Slack channels. Ask the user to check their Slack connection in Settings.';
+  }
+
+  const listData = await listRes.json();
+  if (!listData.ok) {
+    return `## Slack Action\n\nFailed to list channels: ${listData.error}`;
+  }
+
+  const channels = listData.channels || [];
+  const targetChannel = channels.find((c: any) =>
+    c.name.toLowerCase() === parsedMessage.channelName.toLowerCase()
+  );
+
+  if (!targetChannel) {
+    const available = channels.slice(0, 10).map((c: any) => `#${c.name}`).join(', ');
+    return `## Slack Action\n\nChannel "#${parsedMessage.channelName}" not found. Available channels include: ${available}. Ask the user to specify the correct channel name.`;
+  }
+
+  // Send the message
+  const sendRes = await fetch('https://slack.com/api/chat.postMessage', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      channel: targetChannel.id,
+      text: parsedMessage.text,
+    }),
+    signal: AbortSignal.timeout(10000),
+  });
+
+  const sendData = await sendRes.json();
+
+  if (!sendData.ok) {
+    console.error('[Slack Action] Send failed:', sendData.error);
+    return `## Slack Action\n\nFailed to send message to #${parsedMessage.channelName}: ${sendData.error}`;
+  }
+
+  return `## Slack Action\n\nSuccessfully sent message to #${parsedMessage.channelName}:\n- **Channel:** #${parsedMessage.channelName}\n- **Message:** ${parsedMessage.text.substring(0, 200)}\n\nConfirm this to the user in a friendly way.`;
+}
+
+/**
  * Main Slack context retrieval function
  * Searches Slack messages on demand
  */
@@ -159,6 +250,14 @@ export async function retrieveSlackContext(
 
     if (!token) {
       return null;
+    }
+
+    // Handle write intents (send messages)
+    if (analysis.intent === 'send_message') {
+      if (analysis.parsedMessage) {
+        return await sendSlackMessage(token, analysis.parsedMessage);
+      }
+      return '## Slack Action\n\nThe user wants to send a Slack message but the request is missing details. Ask the user to provide:\n- **Channel** name (e.g., #general)\n- **Message** text\n\nExample: "Send a message in #general saying Hello everyone!"';
     }
 
     // Build search query

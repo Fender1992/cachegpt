@@ -24,7 +24,7 @@ interface CalendarEventResult {
 }
 
 interface QueryAnalysis {
-  intent: 'check_schedule' | 'check_availability' | 'find_event' | 'create_event' | 'delete_event' | 'general';
+  intent: 'check_schedule' | 'check_availability' | 'find_event' | 'create_event' | 'update_event' | 'delete_event' | 'general';
   timeRange: {
     timeMin: string;
     timeMax: string;
@@ -286,6 +286,9 @@ export function analyzeCalendarQuery(query: string): QueryAnalysis {
     /\bblock\s*(?:off|out)\b.+\b(?:tomorrow|today|(?:next\s+)?(?:mon|tue|wed|thu|fri|sat|sun)\w*|\d{1,2}\s*(?:am|pm))/i.test(query)
   ) {
     intent = 'create_event';
+  } else if (/(?:reschedule|move|change\s+(?:the\s+)?time|update|postpone|push\s*back|bring\s*forward)\b.*(?:event|appointment|meeting|calendar|calender)/i.test(query) ||
+    /(?:move|reschedule|change|update)\b.*\b(?:to|from)\b.*\b(?:tomorrow|today|(?:next\s+)?(?:mon|tue|wed|thu|fri|sat|sun)\w*|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s+\d|\d{1,2}\s*(?:am|pm))/i.test(query)) {
+    intent = 'update_event';
   } else if (/(?:delete|remove|cancel|take\s*off)\b.*(?:event|appointment|meeting|calendar|calender)/i.test(query)) {
     intent = 'delete_event';
   // Read intents
@@ -359,9 +362,9 @@ export function analyzeCalendarQuery(query: string): QueryAnalysis {
     .split(/\s+/)
     .filter(word => word.length > 2 && !stopWords.has(word));
 
-  // Parse event details for create intent
+  // Parse event details for create/update intents
   let parsedEvent: QueryAnalysis['parsedEvent'] | undefined;
-  if (intent === 'create_event') {
+  if (intent === 'create_event' || intent === 'update_event') {
     parsedEvent = parseEventFromQuery(query);
   }
 
@@ -577,6 +580,127 @@ async function deleteCalendarEvent(
 }
 
 /**
+ * Update (reschedule) a calendar event via Google Calendar API (server-side)
+ */
+async function updateCalendarEvent(
+  token: string,
+  analysis: QueryAnalysis,
+  userTimezone?: string
+): Promise<string> {
+  // Fetch events in the time range to find the event to update
+  const params = new URLSearchParams({
+    timeMin: analysis.timeRange.timeMin,
+    timeMax: analysis.timeRange.timeMax,
+    maxResults: '10',
+    singleEvents: 'true',
+    orderBy: 'startTime',
+  });
+
+  const eventsRes = await fetch(
+    `${CALENDAR_API}/calendars/primary/events?${params}`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(10000),
+    }
+  );
+
+  if (!eventsRes.ok) {
+    return '## Calendar Action\n\nFailed to search for events to update.';
+  }
+
+  const eventsData = await eventsRes.json();
+  const items = eventsData.items || [];
+
+  if (items.length === 0) {
+    return '## Calendar Action\n\nNo events found in the specified time range to update.';
+  }
+
+  // Find best matching event by search terms
+  let target = items[0];
+  if (analysis.searchTerms.length > 0) {
+    const scored = items.map((event: any) => {
+      const text = `${event.summary || ''} ${event.description || ''}`.toLowerCase();
+      const score = analysis.searchTerms.filter((t: string) => text.includes(t)).length;
+      return { event, score };
+    });
+    scored.sort((a: any, b: any) => b.score - a.score);
+    target = scored[0].event;
+  }
+
+  // Parse the new date/time from the query using the existing parser
+  const parsedEvent = parseEventFromQuery(analysis.searchTerms.length > 0
+    ? analysis.searchTerms.join(' ') // won't work well, use original query stored nowhere
+    : '');
+
+  // Build update body — for now, use parsedEvent from the analysis if available
+  // The query analysis already parsed time ranges, use those for the update
+  const updateBody: Record<string, any> = {};
+
+  if (analysis.parsedEvent) {
+    // Resolve timezone
+    let timeZone = userTimezone;
+    if (!timeZone) {
+      try {
+        const calRes = await fetch(`${CALENDAR_API}/calendars/primary`, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: AbortSignal.timeout(5000),
+        });
+        if (calRes.ok) {
+          const calData = await calRes.json();
+          timeZone = calData.timeZone;
+        }
+      } catch { /* use default */ }
+    }
+
+    if (analysis.parsedEvent.isAllDay) {
+      updateBody.start = { date: analysis.parsedEvent.date };
+      const endDate = new Date(analysis.parsedEvent.date + 'T00:00:00');
+      endDate.setDate(endDate.getDate() + 1);
+      updateBody.end = { date: endDate.toISOString().split('T')[0] };
+    } else if (analysis.parsedEvent.startTime) {
+      const startObj: Record<string, string> = { dateTime: `${analysis.parsedEvent.date}T${analysis.parsedEvent.startTime}:00` };
+      const endObj: Record<string, string> = { dateTime: `${analysis.parsedEvent.date}T${analysis.parsedEvent.endTime || analysis.parsedEvent.startTime}:00` };
+      if (timeZone) {
+        startObj.timeZone = timeZone;
+        endObj.timeZone = timeZone;
+      }
+      updateBody.start = startObj;
+      updateBody.end = endObj;
+    }
+  }
+
+  if (Object.keys(updateBody).length === 0) {
+    return `## Calendar Action\n\nFound event "${target.summary || '(No title)'}" but could not determine the new date/time. Ask the user to specify when to reschedule it to (e.g., "Reschedule my meeting to tomorrow at 3pm").`;
+  }
+
+  const patchRes = await fetch(
+    `${CALENDAR_API}/calendars/primary/events/${encodeURIComponent(target.id)}`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updateBody),
+      signal: AbortSignal.timeout(10000),
+    }
+  );
+
+  if (!patchRes.ok) {
+    const errorText = await patchRes.text();
+    console.error('[Calendar Action] Update failed:', patchRes.status, errorText);
+    return `## Calendar Action\n\nFailed to update event "${target.summary || 'Unknown'}". Error: ${patchRes.status}`;
+  }
+
+  const updated = await patchRes.json();
+  const newStart = updated.start?.dateTime
+    ? new Date(updated.start.dateTime).toLocaleString()
+    : updated.start?.date || 'Unknown';
+
+  return `## Calendar Action\n\nSuccessfully updated event on user's Google Calendar:\n- **Event:** ${updated.summary || target.summary}\n- **New Time:** ${newStart}\n\nConfirm this to the user in a friendly way.`;
+}
+
+/**
  * Main Calendar context retrieval function
  * Fetches events on demand via Google Calendar API
  */
@@ -609,7 +733,7 @@ export async function retrieveCalendarContext(
   // Pre-flight scope check for write operations
   // Only block if we have stored scopes AND they explicitly show read-only (no write scope)
   // If scopes are missing/empty, let the request through — the 403 handler will catch it
-  const isWriteAction = analysis.intent === 'create_event' || analysis.intent === 'delete_event';
+  const isWriteAction = analysis.intent === 'create_event' || analysis.intent === 'delete_event' || analysis.intent === 'update_event';
   if (isWriteAction && integration.provider_data?.scope) {
     const scopes: string[] = integration.provider_data.scope;
     if (scopes.length > 0) {
@@ -648,6 +772,10 @@ export async function retrieveCalendarContext(
 
     if (analysis.intent === 'delete_event') {
       return await deleteCalendarEvent(token, analysis);
+    }
+
+    if (analysis.intent === 'update_event') {
+      return await updateCalendarEvent(token, analysis, userTimezone);
     }
 
     // Fetch events from Google Calendar API

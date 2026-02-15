@@ -34,7 +34,7 @@ interface DiscordSearchResult {
 }
 
 interface QueryAnalysis {
-  intent: 'search_messages' | 'find_conversation' | 'list_servers' | 'general';
+  intent: 'search_messages' | 'find_conversation' | 'list_servers' | 'send_message' | 'general';
   searchTerms: string[];
   timeframe?: {
     start?: Date;
@@ -44,6 +44,12 @@ interface QueryAnalysis {
   guildName?: string;
   channelName?: string;
   authorName?: string;
+  // Parsed message details for send intents
+  parsedMessage?: {
+    channelName: string;
+    text: string;
+    guildName?: string;
+  };
 }
 
 function getSupabaseAdmin() {
@@ -56,13 +62,32 @@ function getSupabaseAdmin() {
 /**
  * Analyze query to understand user intent
  */
-function analyzeDiscordQuery(query: string): QueryAnalysis {
+export function analyzeDiscordQuery(query: string): QueryAnalysis {
   const lowerQuery = query.toLowerCase();
   
   // Determine intent
   let intent: QueryAnalysis['intent'] = 'general';
-  
-  if (/(?:what|which).*(?:server|guild)s?.*(?:have|connected|linked)/i.test(query)) {
+  let parsedMessage: QueryAnalysis['parsedMessage'] | undefined;
+
+  // Write intents (check first — most specific)
+  if (/(?:send|post|write|say)\s+(?:a\s+)?(?:message\s+)?(?:in|to|on)\s+(?:discord\s+)?#?(\w[\w-]*)/i.test(query) ||
+      /(?:message|tell|notify)\s+#?(\w[\w-]*)\s+(?:on|in)\s+discord/i.test(query) ||
+      /(?:send|post)\s+(?:in|to)\s+discord/i.test(query)) {
+    intent = 'send_message';
+
+    const channelExtract = query.match(/(?:in|to|on)\s+(?:discord\s+)?#?(\w[\w-]*)/i) ||
+                           query.match(/(?:message|tell|notify)\s+#?(\w[\w-]*)/i);
+    const targetChannel = channelExtract?.[1] || '';
+
+    const textMatch = query.match(/(?:saying|that\s+says?|with\s+(?:the\s+)?(?:message|text)|message:?|:)\s+["\']?(.+)/i);
+    const text = textMatch?.[1]?.replace(/["\']$/, '').trim() || '';
+
+    const serverMatch = query.match(/(?:in|on)\s+(?:server|guild)\s+["\']?([^"'\s]+)["\']?/i);
+
+    if (targetChannel) {
+      parsedMessage = { channelName: targetChannel, text, guildName: serverMatch?.[1] };
+    }
+  } else if (/(?:what|which).*(?:server|guild)s?.*(?:have|connected|linked)/i.test(query)) {
     intent = 'list_servers';
   } else if (/(?:find|search|look for).*(?:message|conversation|discussion)/i.test(query)) {
     intent = 'search_messages';
@@ -111,6 +136,7 @@ function analyzeDiscordQuery(query: string): QueryAnalysis {
     guildName: serverMatch?.[1],
     channelName: channelMatch?.[1],
     authorName: authorMatch?.[1],
+    parsedMessage,
   };
 }
 
@@ -401,6 +427,85 @@ async function fetchMessages(
 }
 
 /**
+ * Send a message to a Discord channel (server-side)
+ */
+async function sendDiscordMessage(
+  userId: string,
+  integrationId: string,
+  providerUserId: string | null,
+  userToken: string | null,
+  parsedMessage: NonNullable<QueryAnalysis['parsedMessage']>
+): Promise<string> {
+  if (!parsedMessage.channelName) {
+    return '## Discord Action\n\nCould not send message — no channel specified. Ask the user which channel to post in.';
+  }
+  if (!parsedMessage.text) {
+    return '## Discord Action\n\nCould not send message — no message text provided. Ask the user what they want to say.';
+  }
+
+  const supabase = getSupabaseAdmin();
+
+  // Get user's guilds
+  const { data: guilds } = await supabase
+    .from('discord_guild_metadata')
+    .select('guild_id, guild_name')
+    .eq('integration_id', integrationId)
+    .order('guild_name');
+
+  if (!guilds || guilds.length === 0) {
+    return '## Discord Action\n\nNo Discord servers found. The user may need to reconnect Discord in Settings.';
+  }
+
+  // Filter guilds if specified
+  const targetGuilds = parsedMessage.guildName
+    ? guilds.filter(g => g.guild_name.toLowerCase().includes(parsedMessage.guildName!.toLowerCase()))
+    : guilds;
+
+  // Find the channel across guilds
+  for (const guild of targetGuilds) {
+    const channels = await fetchChannels(guild.guild_id, providerUserId, userToken);
+    const textChannels = channels.filter(c => c.type === 0);
+    const targetChannel = textChannels.find(c =>
+      c.name.toLowerCase() === parsedMessage.channelName.toLowerCase()
+    );
+
+    if (targetChannel) {
+      // Try bot proxy first
+      const botAvailable = await botProxy.isAvailable();
+      if (botAvailable) {
+        try {
+          await botProxy.sendMessage(targetChannel.id, parsedMessage.text);
+          return `## Discord Action\n\nSuccessfully sent message to #${parsedMessage.channelName} in ${guild.guild_name}:\n- **Channel:** #${parsedMessage.channelName}\n- **Server:** ${guild.guild_name}\n- **Message:** ${parsedMessage.text.substring(0, 200)}\n\nConfirm this to the user in a friendly way.`;
+        } catch (e) {
+          console.warn('[Discord Action] Bot proxy send failed, trying OAuth fallback', e);
+        }
+      }
+
+      // Fallback: user's OAuth token
+      if (userToken) {
+        const res = await fetch(`${DISCORD_API}/channels/${targetChannel.id}/messages`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${userToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ content: parsedMessage.text }),
+          signal: AbortSignal.timeout(10000),
+        });
+
+        if (res.ok) {
+          return `## Discord Action\n\nSuccessfully sent message to #${parsedMessage.channelName} in ${guild.guild_name}:\n- **Channel:** #${parsedMessage.channelName}\n- **Server:** ${guild.guild_name}\n- **Message:** ${parsedMessage.text.substring(0, 200)}\n\nConfirm this to the user in a friendly way.`;
+        }
+      }
+
+      return `## Discord Action\n\nFailed to send message to #${parsedMessage.channelName}. The bot may not have permission to send messages in this channel.`;
+    }
+  }
+
+  return `## Discord Action\n\nChannel "#${parsedMessage.channelName}" not found in any connected server. Ask the user to specify the correct channel name.`;
+}
+
+/**
  * Main Discord context retrieval function
  * Fetches messages on demand from Discord via bot proxy (no pre-sync)
  */
@@ -428,6 +533,26 @@ export async function retrieveDiscordContext(
   // Handle server listing intent
   if (analysis.intent === 'list_servers') {
     return listDiscordServers(userId);
+  }
+
+  // Handle send message intent
+  if (analysis.intent === 'send_message') {
+    if (analysis.parsedMessage) {
+      const userToken = await getValidDiscordToken(
+        integration.id,
+        integration.access_token,
+        integration.refresh_token,
+        integration.token_expires_at
+      );
+      return await sendDiscordMessage(
+        userId,
+        integration.id,
+        integration.provider_user_id,
+        userToken,
+        analysis.parsedMessage
+      );
+    }
+    return '## Discord Action\n\nThe user wants to send a Discord message but the request is missing details. Ask the user to provide:\n- **Channel** name (e.g., #general)\n- **Message** text\n\nExample: "Send a message in #general on discord saying Hello everyone!"';
   }
 
   // If no search terms and no specific filters, return null

@@ -22,13 +22,19 @@ interface GmailSearchResult {
 }
 
 interface QueryAnalysis {
-  intent: 'search_emails' | 'find_thread' | 'list_labels' | 'general';
+  intent: 'search_emails' | 'find_thread' | 'list_labels' | 'send_email' | 'reply_email' | 'general';
   searchTerms: string[];
   timeframe?: {
     relative?: 'today' | 'yesterday' | 'this week' | 'last week' | 'this month';
   };
   senderName?: string;
   subjectQuery?: string;
+  // Parsed email details for send intents
+  parsedEmail?: {
+    to: string;
+    subject: string;
+    body: string;
+  };
 }
 
 function getSupabaseAdmin() {
@@ -45,8 +51,34 @@ export function analyzeGmailQuery(query: string): QueryAnalysis {
   const lowerQuery = query.toLowerCase();
 
   let intent: QueryAnalysis['intent'] = 'general';
+  let parsedEmail: QueryAnalysis['parsedEmail'] | undefined;
 
-  if (/(?:what|which).*(?:label|folder)s?/i.test(query)) {
+  // Write intents (check first — most specific)
+  if (/(?:send|compose|write|draft)\s+(?:an?\s+)?(?:email|mail)\s+(?:to|for)/i.test(query) ||
+      /(?:email|mail)\s+\S+.*\s+(?:about|regarding|saying|that|with)/i.test(query) ||
+      /(?:reply|respond)\s+(?:to|back)/i.test(query)) {
+    // Extract email address
+    const emailMatch = query.match(/(?:to|email)\s+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
+    const to = emailMatch?.[1] || '';
+
+    // Extract subject — "about X", "regarding X", "subject X"
+    const subjectMatch = query.match(/(?:about|regarding|subject|re:?)\s+["\']?([^"'\n.!?]+)/i);
+    const subject = subjectMatch?.[1]?.trim() || '';
+
+    // Extract body — "saying X", "that says X", "with message X", "body X", or text after ":"
+    const bodyMatch = query.match(/(?:saying|that\s+says?|with\s+(?:the\s+)?(?:message|body|content)|body:?|message:?)\s+["\']?([^"']+)/i);
+    const body = bodyMatch?.[1]?.trim() || '';
+
+    if (/(?:reply|respond)\s+(?:to|back)/i.test(query)) {
+      intent = 'reply_email';
+    } else {
+      intent = 'send_email';
+    }
+
+    if (to || subject || body) {
+      parsedEmail = { to, subject, body };
+    }
+  } else if (/(?:what|which).*(?:label|folder)s?/i.test(query)) {
     intent = 'list_labels';
   } else if (/(?:find|search|look for).*(?:email|mail|message)/i.test(query)) {
     intent = 'search_emails';
@@ -101,6 +133,7 @@ export function analyzeGmailQuery(query: string): QueryAnalysis {
     timeframe,
     senderName,
     subjectQuery,
+    parsedEmail,
   };
 }
 
@@ -240,6 +273,66 @@ export function formatGmailContext(results: GmailSearchResult[]): string {
   return lines.join('\n');
 }
 
+function base64UrlEncode(str: string): string {
+  return Buffer.from(str, 'utf-8')
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+/**
+ * Send an email via Gmail API (server-side)
+ */
+async function sendGmailEmail(
+  token: string,
+  fromEmail: string,
+  parsedEmail: NonNullable<QueryAnalysis['parsedEmail']>
+): Promise<string> {
+  if (!parsedEmail.to) {
+    return '## Gmail Action\n\nCould not send email — no recipient email address found. Ask the user to provide the recipient\'s email address.';
+  }
+  if (!parsedEmail.subject && !parsedEmail.body) {
+    return '## Gmail Action\n\nCould not send email — no subject or body found. Ask the user to provide at least a subject and message body.';
+  }
+
+  const messageParts = [
+    `From: ${fromEmail}`,
+    `To: ${parsedEmail.to}`,
+    `Subject: ${parsedEmail.subject || '(no subject)'}`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/plain; charset="UTF-8"',
+    '',
+    parsedEmail.body || '',
+  ];
+
+  const rawMessage = base64UrlEncode(messageParts.join('\r\n'));
+
+  const res = await fetch(
+    `${GMAIL_API}/messages/send`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ raw: rawMessage }),
+      signal: AbortSignal.timeout(10000),
+    }
+  );
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error('[Gmail Action] Send failed:', res.status, errorText);
+    if (res.status === 403) {
+      return '## Gmail Action\n\nFailed to send email — permission denied (403). The Gmail token does not have send permissions.\n\nTell the user: "Your Gmail is connected with **read-only** permissions. To fix this, go to **Settings**, **disconnect** Gmail, then **reconnect** it. Google will prompt you to grant send access."';
+    }
+    return `## Gmail Action\n\nFailed to send email. Error: ${res.status}. Ask the user to try again or check their Gmail connection in Settings.`;
+  }
+
+  return `## Gmail Action\n\nSuccessfully sent email:\n- **To:** ${parsedEmail.to}\n- **Subject:** ${parsedEmail.subject || '(no subject)'}\n\nConfirm this to the user in a friendly way.`;
+}
+
 /**
  * Main Gmail context retrieval function
  * Fetches emails on demand via Gmail API search
@@ -279,6 +372,14 @@ export async function retrieveGmailContext(
 
     if (!token) {
       return null;
+    }
+
+    // Handle write intents (send/reply emails)
+    if (analysis.intent === 'send_email' || analysis.intent === 'reply_email') {
+      if (analysis.parsedEmail) {
+        return await sendGmailEmail(token, integration.provider_user_id || '', analysis.parsedEmail);
+      }
+      return '## Gmail Action\n\nThe user wants to send an email but the request is missing details. Ask the user to provide:\n- **Recipient** email address\n- **Subject** line\n- **Message** body\n\nExample: "Send an email to john@example.com about the meeting saying Let\'s meet at 3pm"';
     }
 
     // Build Gmail search query

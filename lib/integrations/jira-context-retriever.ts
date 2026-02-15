@@ -30,20 +30,100 @@ function extractTextFromADF(node: any): string {
 
 interface JiraQueryAnalysis {
   isJiraQuery: boolean;
-  intent: 'my_issues' | 'search' | 'specific_issue' | 'sprint' | 'general';
+  intent: 'my_issues' | 'search' | 'specific_issue' | 'sprint' | 'create_issue' | 'update_issue' | 'general';
   issueKey: string | null;
   jql: string | null;
   searchTerms: string[];
+  // Parsed issue details for create intents
+  parsedCreate?: {
+    summary: string;
+    description?: string;
+    issueType?: string;
+    priority?: string;
+    projectKey?: string;
+  };
+  // Parsed update details
+  parsedUpdate?: {
+    issueKey: string;
+    fields: Record<string, string>;
+  };
 }
 
 /**
  * Analyze query to determine Jira intent
  */
-function analyzeJiraQuery(query: string): JiraQueryAnalysis {
+export function analyzeJiraQuery(query: string): JiraQueryAnalysis {
   const lowerQuery = query.toLowerCase();
 
   // Check for specific issue key (e.g., PROJ-123)
   const issueKeyMatch = query.match(/\b([A-Z][A-Z0-9]+-\d+)\b/);
+
+  // Write intents — check first
+  if (/(?:create|make|file|open|add|new)\s+(?:a\s+)?(?:jira\s+)?(?:ticket|issue|bug|task|story)/i.test(query) ||
+      /(?:jira|ticket|issue)\s+(?:for|about|to)\s+/i.test(query) && /(?:create|make|file|open|add|new)/i.test(query)) {
+    // Extract project key if present (e.g., "in PROJ", "project PROJ")
+    const projectMatch = query.match(/(?:in|project|for)\s+([A-Z][A-Z0-9]+)\b/);
+    // Extract issue type
+    let issueType = 'Task';
+    if (/\bbug\b/i.test(query)) issueType = 'Bug';
+    else if (/\bstory\b/i.test(query)) issueType = 'Story';
+    else if (/\bepic\b/i.test(query)) issueType = 'Epic';
+    // Extract priority
+    let priority: string | undefined;
+    if (/\b(?:critical|highest)\b/i.test(query)) priority = 'Highest';
+    else if (/\bhigh\b/i.test(query)) priority = 'High';
+    else if (/\blow\b/i.test(query)) priority = 'Low';
+    else if (/\blowest\b/i.test(query)) priority = 'Lowest';
+    // Extract summary — text after "titled/called/about/for" or remaining natural language
+    const summaryMatch = query.match(/(?:titled|called|about|for|:)\s+["\']?([^"'\n]+)/i);
+    const summary = summaryMatch?.[1]?.trim() || query
+      .replace(/(?:create|make|file|open|add|new)\s+(?:a\s+)?(?:jira\s+)?(?:ticket|issue|bug|task|story)\s*/i, '')
+      .replace(/\b(?:in|project|for)\s+[A-Z][A-Z0-9]+\b/i, '')
+      .replace(/\b(?:critical|highest|high|medium|low|lowest)\s*(?:priority)?\b/i, '')
+      .trim() || 'New Issue';
+
+    return {
+      isJiraQuery: true,
+      intent: 'create_issue',
+      issueKey: null,
+      jql: null,
+      searchTerms: [],
+      parsedCreate: {
+        summary,
+        issueType,
+        priority,
+        projectKey: projectMatch?.[1],
+      },
+    };
+  }
+
+  if (issueKeyMatch && /(?:update|change|set|move|assign|close|resolve|transition|edit|modify)/i.test(query)) {
+    const fields: Record<string, string> = {};
+    // Extract status change
+    const statusMatch = query.match(/(?:status|move|transition)\s+(?:to\s+)?["\']?([^"'\n,]+)/i);
+    if (statusMatch) fields.status = statusMatch[1].trim();
+    // Extract assignee change
+    const assigneeMatch = query.match(/(?:assign|assignee)\s+(?:to\s+)?["\']?([^"'\n,]+)/i);
+    if (assigneeMatch) fields.assignee = assigneeMatch[1].trim();
+    // Close/resolve shorthand
+    if (/\b(?:close|resolve)\b/i.test(query)) fields.status = 'Done';
+    // Priority change
+    const priMatch = query.match(/(?:priority)\s+(?:to\s+)?["\']?(highest|high|medium|low|lowest)/i);
+    if (priMatch) fields.priority = priMatch[1];
+
+    return {
+      isJiraQuery: true,
+      intent: 'update_issue',
+      issueKey: issueKeyMatch[1],
+      jql: null,
+      searchTerms: [],
+      parsedUpdate: {
+        issueKey: issueKeyMatch[1],
+        fields,
+      },
+    };
+  }
+
   if (issueKeyMatch) {
     return {
       isJiraQuery: true,
@@ -105,6 +185,166 @@ function analyzeJiraQuery(query: string): JiraQueryAnalysis {
 }
 
 /**
+ * Create a Jira issue (server-side)
+ */
+async function createJiraIssue(
+  token: string,
+  baseUrl: string,
+  parsedCreate: NonNullable<JiraQueryAnalysis['parsedCreate']>
+): Promise<string> {
+  // If no project key provided, try to get user's default project
+  let projectKey = parsedCreate.projectKey;
+  if (!projectKey) {
+    try {
+      const projRes = await fetch(`${baseUrl}/project?maxResults=1`, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(5000),
+      });
+      if (projRes.ok) {
+        const projects = await projRes.json();
+        if (projects.length > 0) {
+          projectKey = projects[0].key;
+        }
+      }
+    } catch {
+      // Will fail below without project key
+    }
+  }
+
+  if (!projectKey) {
+    return '## Jira Action\n\nCould not create issue — no project specified and no default project found. Ask the user which Jira project to create the issue in (e.g., "Create a bug in PROJ about login failing").';
+  }
+
+  const issueBody: any = {
+    fields: {
+      project: { key: projectKey },
+      summary: parsedCreate.summary,
+      issuetype: { name: parsedCreate.issueType || 'Task' },
+    },
+  };
+
+  if (parsedCreate.description) {
+    issueBody.fields.description = {
+      type: 'doc',
+      version: 1,
+      content: [{
+        type: 'paragraph',
+        content: [{ type: 'text', text: parsedCreate.description }],
+      }],
+    };
+  }
+
+  if (parsedCreate.priority) {
+    issueBody.fields.priority = { name: parsedCreate.priority };
+  }
+
+  const res = await fetch(`${baseUrl}/issue`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(issueBody),
+    signal: AbortSignal.timeout(10000),
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error('[Jira Action] Create failed:', res.status, errorText);
+    return `## Jira Action\n\nFailed to create issue. Error: ${res.status}. Ask the user to check their Jira connection in Settings.`;
+  }
+
+  const created = await res.json();
+  return `## Jira Action\n\nSuccessfully created Jira issue:\n- **Key:** ${created.key}\n- **Summary:** ${parsedCreate.summary}\n- **Type:** ${parsedCreate.issueType || 'Task'}\n- **Project:** ${projectKey}\n\nConfirm this to the user in a friendly way.`;
+}
+
+/**
+ * Update a Jira issue (server-side)
+ */
+async function updateJiraIssue(
+  token: string,
+  baseUrl: string,
+  parsedUpdate: NonNullable<JiraQueryAnalysis['parsedUpdate']>
+): Promise<string> {
+  const updateBody: any = { fields: {} };
+  const changes: string[] = [];
+
+  // Handle status transitions separately (requires transition API)
+  if (parsedUpdate.fields.status) {
+    try {
+      // Get available transitions
+      const transRes = await fetch(
+        `${baseUrl}/issue/${encodeURIComponent(parsedUpdate.issueKey)}/transitions`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: AbortSignal.timeout(5000),
+        }
+      );
+
+      if (transRes.ok) {
+        const transData = await transRes.json();
+        const transition = (transData.transitions || []).find((t: any) =>
+          t.name.toLowerCase().includes(parsedUpdate.fields.status!.toLowerCase()) ||
+          t.to?.name?.toLowerCase().includes(parsedUpdate.fields.status!.toLowerCase())
+        );
+
+        if (transition) {
+          await fetch(
+            `${baseUrl}/issue/${encodeURIComponent(parsedUpdate.issueKey)}/transitions`,
+            {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ transition: { id: transition.id } }),
+              signal: AbortSignal.timeout(5000),
+            }
+          );
+          changes.push(`Status → ${transition.to?.name || parsedUpdate.fields.status}`);
+        }
+      }
+    } catch (e) {
+      console.warn('[Jira Action] Transition failed:', e);
+    }
+  }
+
+  // Handle priority change
+  if (parsedUpdate.fields.priority) {
+    updateBody.fields.priority = { name: parsedUpdate.fields.priority.charAt(0).toUpperCase() + parsedUpdate.fields.priority.slice(1).toLowerCase() };
+    changes.push(`Priority → ${parsedUpdate.fields.priority}`);
+  }
+
+  // Apply field updates if any
+  if (Object.keys(updateBody.fields).length > 0) {
+    const res = await fetch(
+      `${baseUrl}/issue/${encodeURIComponent(parsedUpdate.issueKey)}`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateBody),
+        signal: AbortSignal.timeout(10000),
+      }
+    );
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error('[Jira Action] Update failed:', res.status, errorText);
+      return `## Jira Action\n\nFailed to update ${parsedUpdate.issueKey}. Error: ${res.status}`;
+    }
+  }
+
+  if (changes.length === 0) {
+    return `## Jira Action\n\nNo changes could be applied to ${parsedUpdate.issueKey}. Ask the user what they want to change (status, priority, assignee, etc.).`;
+  }
+
+  return `## Jira Action\n\nSuccessfully updated ${parsedUpdate.issueKey}:\n${changes.map(c => `- ${c}`).join('\n')}\n\nConfirm this to the user in a friendly way.`;
+}
+
+/**
  * Main Jira context retrieval function
  */
 export async function retrieveJiraContext(
@@ -149,6 +389,21 @@ export async function retrieveJiraContext(
     }
 
     const baseUrl = `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3`;
+
+    // Handle write intents
+    if (analysis.intent === 'create_issue') {
+      if (analysis.parsedCreate) {
+        return await createJiraIssue(token, baseUrl, analysis.parsedCreate);
+      }
+      return '## Jira Action\n\nThe user wants to create a Jira issue but the request is missing details. Ask the user to provide:\n- **Summary/title** for the issue\n- **Project** key (e.g., PROJ)\n- **Type** (Bug, Task, Story)\n\nExample: "Create a bug in PROJ about login page crashing"';
+    }
+
+    if (analysis.intent === 'update_issue') {
+      if (analysis.parsedUpdate) {
+        return await updateJiraIssue(token, baseUrl, analysis.parsedUpdate);
+      }
+      return `## Jira Action\n\nThe user wants to update a Jira issue but the request is unclear. Ask the user what to change (status, priority, assignee).`;
+    }
 
     // Handle specific issue lookup
     if (analysis.intent === 'specific_issue' && analysis.issueKey) {

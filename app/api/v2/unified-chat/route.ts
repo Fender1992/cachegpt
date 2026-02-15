@@ -910,6 +910,142 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Integration context (GitHub repos, Discord messages, Gmail, Calendar, Slack, Teams, Notion, Drive, Jira)
+    // Each retriever is wrapped independently so one failure doesn't block others
+    let hasIntegrationWriteAction = false;
+    if (userId) {
+      // GitHub context
+      try {
+        const { retrieveRelevantContext: retrieveGitHubContext } = await import('@/lib/integrations/enhanced-context-retriever');
+        const githubContext = await retrieveGitHubContext(userId, userMessage);
+        if (githubContext) {
+          enrichedMessages.splice(enrichedMessages.length - 1, 0,
+            { role: 'system', content: `## Connected Integration: GitHub\n\nYou have direct access to the user's GitHub. You can view repositories, commits, code, issues, and pull requests. The data has already been retrieved server-side — use the result below to respond naturally.\n\n${githubContext}` });
+        }
+      } catch (e) {
+        console.error('[Integration] GitHub context error:', e);
+      }
+
+      // Discord context
+      try {
+        const { retrieveDiscordContext, analyzeDiscordQuery } = await import('@/lib/integrations/discord-context-retriever');
+        const discordAnalysis = analyzeDiscordQuery(userMessage);
+        if (discordAnalysis.intent === 'send_message') {
+          hasIntegrationWriteAction = true;
+        }
+        const discordContext = await retrieveDiscordContext(userId, userMessage);
+        if (discordContext) {
+          enrichedMessages.splice(enrichedMessages.length - 1, 0,
+            { role: 'system', content: `## Connected Integration: Discord\n\nYou have direct access to the user's Discord. You can view servers, channels, messages, and send messages to channels. The action has already been executed server-side — use the result below to respond naturally.\n\n${discordContext}` });
+        }
+      } catch (e) {
+        console.error('[Integration] Discord context error:', e);
+      }
+
+      // Gmail context
+      try {
+        const { retrieveGmailContext, analyzeGmailQuery } = await import('@/lib/integrations/gmail-context-retriever');
+        const gmailAnalysis = analyzeGmailQuery(userMessage);
+        if (gmailAnalysis.intent === 'send_email' || gmailAnalysis.intent === 'reply_email') {
+          hasIntegrationWriteAction = true;
+        }
+        const gmailContext = await retrieveGmailContext(userId, userMessage);
+        if (gmailContext) {
+          enrichedMessages.splice(enrichedMessages.length - 1, 0,
+            { role: 'system', content: `## Connected Integration: Gmail\n\nYou have direct access to the user's Gmail. You can search emails, read messages, view labels, and send emails on their behalf. The action has already been executed server-side — use the result below to respond naturally.\n\n${gmailContext}` });
+        }
+      } catch (e) {
+        console.error('[Integration] Gmail context error:', e);
+      }
+
+      // Google Calendar context
+      try {
+        const { retrieveCalendarContext, analyzeCalendarQuery } = await import('@/lib/integrations/calendar-context-retriever');
+        const calendarAnalysis = analyzeCalendarQuery(userMessage);
+        if (calendarAnalysis.intent === 'create_event' || calendarAnalysis.intent === 'delete_event' || calendarAnalysis.intent === 'update_event') {
+          hasIntegrationWriteAction = true;
+        }
+        const calendarContext = await retrieveCalendarContext(userId, userMessage, userTimezone.timezone);
+        if (calendarContext) {
+          enrichedMessages.splice(enrichedMessages.length - 1, 0,
+            { role: 'system', content: `## Connected Integration: Google Calendar\n\nYou have direct access to the user's Google Calendar. You can create, read, update, and delete events on their behalf. The calendar action has already been executed server-side — use the result below to respond naturally.\n\n${calendarContext}` });
+        } else if (hasIntegrationWriteAction && (calendarAnalysis.intent === 'create_event' || calendarAnalysis.intent === 'delete_event' || calendarAnalysis.intent === 'update_event')) {
+          enrichedMessages.splice(enrichedMessages.length - 1, 0,
+            { role: 'system', content: '## Calendar Action\n\nThe user wants to create or modify a calendar event, but their Google Calendar is not connected. Please let them know they need to connect Google Calendar in their Settings page first, then try again.' });
+        }
+      } catch (e) {
+        console.error('[Integration] Calendar context error:', e);
+      }
+
+      // Slack context
+      try {
+        const { retrieveSlackContext, analyzeSlackQuery } = await import('@/lib/integrations/slack-context-retriever');
+        const slackAnalysis = analyzeSlackQuery(userMessage);
+        if (slackAnalysis.intent === 'send_message') {
+          hasIntegrationWriteAction = true;
+        }
+        const slackContext = await retrieveSlackContext(userId, userMessage);
+        if (slackContext) {
+          enrichedMessages.splice(enrichedMessages.length - 1, 0,
+            { role: 'system', content: `## Connected Integration: Slack\n\nYou have direct access to the user's Slack. You can view channels, search messages, and send messages to channels. The action has already been executed server-side — use the result below to respond naturally.\n\n${slackContext}` });
+        }
+      } catch (e) {
+        console.error('[Integration] Slack context error:', e);
+      }
+
+      // Teams context
+      try {
+        const { retrieveTeamsContext } = await import('@/lib/integrations/teams-context-retriever');
+        const teamsContext = await retrieveTeamsContext(userId, userMessage);
+        if (teamsContext) {
+          enrichedMessages.splice(enrichedMessages.length - 1, 0,
+            { role: 'system', content: `## Connected Integration: Microsoft Teams\n\nYou have direct access to the user's Microsoft Teams. You can view teams, channels, and search messages. The data has already been retrieved server-side — use the result below to respond naturally.\n\n${teamsContext}` });
+        }
+      } catch (e) {
+        console.error('[Integration] Teams context error:', e);
+      }
+
+      // Notion context
+      try {
+        const { retrieveNotionContext } = await import('@/lib/integrations/notion-context-retriever');
+        const notionContext = await retrieveNotionContext(userId, userMessage);
+        if (notionContext) {
+          enrichedMessages.splice(enrichedMessages.length - 1, 0,
+            { role: 'system', content: `## Connected Integration: Notion\n\nYou have direct access to the user's Notion. You can search pages, databases, and read page content. The data has already been retrieved server-side — use the result below to respond naturally.\n\n${notionContext}` });
+        }
+      } catch (e) {
+        console.error('[Integration] Notion context error:', e);
+      }
+
+      // Google Drive context
+      try {
+        const { retrieveDriveContext } = await import('@/lib/integrations/drive-context-retriever');
+        const driveContext = await retrieveDriveContext(userId, userMessage);
+        if (driveContext) {
+          enrichedMessages.splice(enrichedMessages.length - 1, 0,
+            { role: 'system', content: `## Connected Integration: Google Drive\n\nYou have direct access to the user's Google Drive. You can search files, read document contents, and browse folders. The data has already been retrieved server-side — use the result below to respond naturally.\n\n${driveContext}` });
+        }
+      } catch (e) {
+        console.error('[Integration] Drive context error:', e);
+      }
+
+      // Jira context
+      try {
+        const { retrieveJiraContext, analyzeJiraQuery } = await import('@/lib/integrations/jira-context-retriever');
+        const jiraAnalysis = analyzeJiraQuery(userMessage);
+        if (jiraAnalysis.intent === 'create_issue' || jiraAnalysis.intent === 'update_issue') {
+          hasIntegrationWriteAction = true;
+        }
+        const jiraContext = await retrieveJiraContext(userId, userMessage);
+        if (jiraContext) {
+          enrichedMessages.splice(enrichedMessages.length - 1, 0,
+            { role: 'system', content: `## Connected Integration: Jira\n\nYou have direct access to the user's Jira. You can search issues, view sprints, and create or update issues. The action has already been executed server-side — use the result below to respond naturally.\n\n${jiraContext}` });
+        }
+      } catch (e) {
+        console.error('[Integration] Jira context error:', e);
+      }
+    }
+
     // If we have uploaded files, retrieve their content and add to context
     if (uploadedFiles && uploadedFiles.length > 0 && userId) {
       const supabase = createClient(
@@ -1108,7 +1244,7 @@ export async function POST(request: NextRequest) {
 
     // Skip cache for time-sensitive queries if bypass is recommended
     let cached: any = null;
-    if (!freshnessAnalysis.bypassCache) {
+    if (!freshnessAnalysis.bypassCache && !hasIntegrationWriteAction) {
       cached = await findCachedResponse(userMessage, versionedCacheModel, cacheProvider);
     }
 
