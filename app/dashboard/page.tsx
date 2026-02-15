@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase-client'
 import {
   MessageSquare, Zap, Cpu, Award, TrendingUp, DollarSign,
-  Clock, RefreshCw, Activity, BarChart3
+  Clock, RefreshCw, Activity, BarChart3, Leaf, Droplets, BatteryCharging
 } from 'lucide-react'
 import { telemetry } from '@/lib/telemetry'
 import Navigation from '@/components/Navigation'
@@ -167,7 +167,7 @@ export default function Dashboard() {
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
                 Your Dashboard
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
@@ -176,7 +176,7 @@ export default function Dashboard() {
             </div>
             <button
               onClick={fetchDashboardStats}
-              className={`p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition ${refreshing ? 'animate-spin' : ''}`}
+              className={`p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition ${refreshing ? 'animate-spin' : ''}`}
               title="Refresh"
             >
               <RefreshCw className="w-5 h-5 text-gray-600 dark:text-gray-400" />
@@ -193,17 +193,40 @@ export default function Dashboard() {
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
                 <div className="flex-1">
                   <p className="text-green-100 text-sm font-medium uppercase tracking-wide mb-1">Total Saved</p>
-                  <div className="text-4xl sm:text-5xl font-bold mb-2">
+                  <div className="text-3xl sm:text-5xl font-bold mb-2">
                     ${totalSaved.toFixed(2)}
                   </div>
                   <p className="text-green-100 text-sm">
                     from {stats.totalChats} chats with {stats.cacheHitPercentage}% cache hit rate
                   </p>
+                  {/* Environmental Impact */}
+                  {(() => {
+                    const cacheHits = Math.round((stats.cacheHitPercentage / 100) * stats.totalChats);
+                    const co2Saved = (cacheHits * 0.5).toFixed(1);
+                    const waterSaved = (cacheHits * 3).toFixed(0);
+                    const energySaved = (cacheHits * 0.002).toFixed(2);
+                    return cacheHits > 0 ? (
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-green-100 text-xs">
+                        <span className="flex items-center gap-1">
+                          <Leaf className="w-3.5 h-3.5" />
+                          {co2Saved}g CO₂ saved
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Droplets className="w-3.5 h-3.5" />
+                          {waterSaved}ml water saved
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <BatteryCharging className="w-3.5 h-3.5" />
+                          {energySaved} kWh saved
+                        </span>
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
                 <div className="flex flex-col items-center gap-3">
                   {/* Cache hit rate ring */}
-                  <div className="relative w-24 h-24">
-                    <svg className="w-24 h-24 -rotate-90" viewBox="0 0 100 100">
+                  <div className="relative w-20 h-20 sm:w-24 sm:h-24">
+                    <svg className="w-20 h-20 sm:w-24 sm:h-24 -rotate-90" viewBox="0 0 100 100">
                       <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="8" />
                       <circle
                         cx="50" cy="50" r="42" fill="none" stroke="white" strokeWidth="8"
@@ -340,21 +363,22 @@ export default function Dashboard() {
             <div className="flex items-center mb-6">
               <TrendingUp className="w-5 h-5 text-purple-600 dark:text-purple-400 mr-2" />
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                Your AI Activity (Last 14 Days)
+                <span className="hidden sm:inline">Your AI Activity (Last 14 Days)</span>
+                <span className="sm:hidden">Your AI Activity (Last 7 Days)</span>
               </h2>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-2 sm:space-y-4">
               {chartDates.map((date, index) => {
                 const value = chartValues[index]
                 const percentage = (value / maxValue) * 100
 
                 return (
-                  <div key={date} className="flex items-center gap-4">
-                    <div className="w-16 text-xs text-gray-600 dark:text-gray-400 text-right">
+                  <div key={date} className={`flex items-center gap-4${index < 7 ? ' hidden sm:flex' : ''}`}>
+                    <div className="w-12 sm:w-16 text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 text-right">
                       {date}
                     </div>
-                    <div className="flex-1 bg-gray-100 dark:bg-gray-700 rounded-full h-8 relative overflow-hidden">
+                    <div className="flex-1 bg-gray-100 dark:bg-gray-700 rounded-full h-6 sm:h-8 relative overflow-hidden">
                       <div
                         className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full transition-all duration-500 flex items-center justify-end pr-3"
                         style={{ width: `${Math.max(percentage, value > 0 ? 10 : 0)}%` }}

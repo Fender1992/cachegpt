@@ -101,7 +101,7 @@ export default function Navigation() {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden p-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+            className="md:hidden p-2.5 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
           >
             {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
@@ -115,28 +115,28 @@ export default function Navigation() {
             <Link
               href="/"
               onClick={() => setIsOpen(false)}
-              className="block py-2 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition"
+              className="block py-3 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition"
             >
               Home
             </Link>
             <Link
               href="/chat"
               onClick={() => setIsOpen(false)}
-              className="block py-2 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition"
+              className="block py-3 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition"
             >
               Chat
             </Link>
             <Link
               href="/modes"
               onClick={() => setIsOpen(false)}
-              className="block py-2 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition"
+              className="block py-3 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition"
             >
               Modes
             </Link>
             <Link
               href="/pricing"
               onClick={() => setIsOpen(false)}
-              className="block py-2 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition"
+              className="block py-3 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition"
             >
               Pricing
             </Link>
@@ -152,14 +152,14 @@ export default function Navigation() {
                 <Link
                   href="/dashboard"
                   onClick={() => setIsOpen(false)}
-                  className="block py-2 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition"
+                  className="block py-3 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition"
                 >
                   Dashboard
                 </Link>
                 <Link
                   href="/settings"
                   onClick={() => setIsOpen(false)}
-                  className="block py-2 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition"
+                  className="block py-3 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition"
                 >
                   Settings
                 </Link>
@@ -168,7 +168,7 @@ export default function Navigation() {
                     handleLogout();
                     setIsOpen(false);
                   }}
-                  className="block w-full text-left py-2 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition"
+                  className="block w-full text-left py-3 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition"
                 >
                   Logout
                 </button>
@@ -178,14 +178,14 @@ export default function Navigation() {
                 <Link
                   href="/login"
                   onClick={() => setIsOpen(false)}
-                  className="block py-2 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition"
+                  className="block py-3 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition"
                 >
                   Login
                 </Link>
                 <Link
                   href="/chat"
                   onClick={() => setIsOpen(false)}
-                  className="block w-full text-center py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+                  className="block w-full text-center py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
                 >
                   Start Free
                 </Link>

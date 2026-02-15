@@ -423,7 +423,7 @@ function SettingsContent() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition whitespace-nowrap ${
+                className={`flex items-center gap-2 px-3 py-2.5 sm:px-4 rounded-lg font-medium transition whitespace-nowrap min-h-[44px] ${
                   activeTab === tab.id
                     ? 'bg-purple-600 text-white'
                     : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -466,7 +466,7 @@ function SettingsContent() {
               <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-2 px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition"
+                  className="flex items-center gap-2 px-4 py-2 min-h-[44px] text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition"
                 >
                   <LogOut className="w-4 h-4" />
                   Logout
@@ -520,14 +520,14 @@ function SettingsContent() {
                               />
                               <button
                                 onClick={() => toggleShowKey(provider.id)}
-                                className="p-1.5 sm:p-2 text-gray-600 hover:text-purple-600 transition"
+                                className="p-2.5 sm:p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-600 hover:text-purple-600 transition"
                                 title={isShowing ? 'Hide' : 'Show'}
                               >
                                 {isShowing ? <EyeOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Eye className="w-4 h-4 sm:w-5 sm:h-5" />}
                               </button>
                               <button
                                 onClick={() => handleRemoveKey(provider.id)}
-                                className="p-1.5 sm:p-2 text-red-600 hover:text-red-700 transition"
+                                className="p-2.5 sm:p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-red-600 hover:text-red-700 transition"
                                 title="Remove"
                               >
                                 <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -538,7 +538,7 @@ function SettingsContent() {
                               <button
                                 onClick={() => handleTestConnection(provider.id)}
                                 disabled={existingKey.validationStatus === 'testing'}
-                                className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-3 py-2 min-h-[36px] text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 {existingKey.validationStatus === 'testing' ? (
                                   <>
