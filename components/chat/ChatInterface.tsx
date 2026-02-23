@@ -1422,7 +1422,7 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
               style={{ fontSize: '16px' }}
             />
             <button
-              onClick={handleSendMessage}
+              onClick={() => handleSendMessage()}
               disabled={!message.trim() || isLoading}
               className="px-3 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 sm:gap-2 text-sm sm:text-base shadow-sm"
               aria-label="Send message"
