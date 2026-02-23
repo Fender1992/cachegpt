@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useCallback } from 'react'
-import { createClient } from '@/lib/supabase-client'
+import { supabase } from '@/lib/supabase-client'
 import { isDesktop } from '@/lib/api-client'
 
 /**
@@ -16,7 +16,6 @@ export function useDesktopAuth() {
       const refreshToken = parsed.searchParams.get('refresh_token')
 
       if (accessToken && refreshToken) {
-        const supabase = createClient()
         const { error } = await supabase.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken,
