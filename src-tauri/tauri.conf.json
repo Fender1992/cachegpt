@@ -10,9 +10,11 @@
     "beforeBuildCommand": "yarn build:desktop"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "title": "CacheGPT",
+        "url": "chat",
         "width": 1200,
         "height": 800,
         "minWidth": 800,

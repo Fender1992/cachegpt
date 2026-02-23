@@ -147,8 +147,8 @@ function AuthCallbackContent() {
 
             router.push(successUrl)
           } else {
-            // For web users, redirect to home page
-            router.push('/')
+            // For web users, redirect to chat
+            router.push('/chat')
           }
         } else {
           // No session, redirect to login

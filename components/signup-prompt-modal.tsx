@@ -4,11 +4,13 @@ import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import { supabase } from '@/lib/supabase-client'
 import { AuthForm } from '@/components/auth/auth-form'
+import { useIsDesktop } from '@/hooks/useIsDesktop'
 
 const DELAY_MS = 30000 // 30 seconds
 const STORAGE_KEY = 'signup_prompt_dismissed'
 
 export default function SignupPromptModal() {
+  const isDesktopApp = useIsDesktop()
   const [showModal, setShowModal] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [isChecking, setIsChecking] = useState(true)
@@ -18,7 +20,7 @@ export default function SignupPromptModal() {
   }, [])
 
   useEffect(() => {
-    if (isChecking || isLoggedIn) return
+    if (isDesktopApp || isChecking || isLoggedIn) return
 
     // Check if user has dismissed this before
     const dismissed = localStorage.getItem(STORAGE_KEY)

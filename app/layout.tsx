@@ -4,6 +4,8 @@ import './globals.css'
 import { ProviderCacheProvider } from '@/lib/provider-cache-context'
 import SignupPromptModal from '@/components/signup-prompt-modal'
 import { DesktopAuthProvider } from '@/components/DesktopAuthProvider'
+import DesktopLayoutWrapper from '@/components/desktop/DesktopLayoutWrapper'
+import DesktopRedirect from '@/components/desktop/DesktopRedirect'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -76,7 +78,10 @@ export default function RootLayout({
       <body className={inter.className}>
         <ProviderCacheProvider>
           <DesktopAuthProvider />
-          {children}
+          <DesktopRedirect />
+          <DesktopLayoutWrapper>
+            {children}
+          </DesktopLayoutWrapper>
           <SignupPromptModal />
         </ProviderCacheProvider>
       </body>

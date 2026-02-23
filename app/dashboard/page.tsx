@@ -11,6 +11,7 @@ import {
 import { telemetry } from '@/lib/telemetry'
 import { apiFetch } from '@/lib/api-client'
 import Navigation from '@/components/Navigation'
+import { useIsDesktop } from '@/hooks/useIsDesktop'
 
 interface DashboardStats {
   totalChats: number
@@ -60,6 +61,7 @@ const badgeInfo: { [key: string]: { icon: string; title: string; description: st
 export default function Dashboard() {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
+  const isDesktopApp = useIsDesktop()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [activityByDay, setActivityByDay] = useState<ActivityByDay>({})
   const [badges, setBadges] = useState<Badge[]>([])
@@ -118,7 +120,7 @@ export default function Dashboard() {
   if (authLoading || loading) {
     return (
       <>
-        <Navigation />
+        {!isDesktopApp && <Navigation />}
         <div className="min-h-screen flex items-center justify-center">
           <div className="w-16 h-16 border-4 border-purple-200 rounded-full animate-spin border-t-purple-600"></div>
         </div>
@@ -129,7 +131,7 @@ export default function Dashboard() {
   if (error) {
     return (
       <>
-        <Navigation />
+        {!isDesktopApp && <Navigation />}
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
             <p className="text-red-600 mb-4">{error}</p>
@@ -162,7 +164,7 @@ export default function Dashboard() {
 
   return (
     <>
-      <Navigation />
+      {!isDesktopApp && <Navigation />}
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           {/* Header */}

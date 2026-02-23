@@ -26,6 +26,17 @@ const moves = [
   { src: path.join(root, 'app', 'admin', 'enterprise'), dst: path.join(root, '.desktop-bak-admin-enterprise') },
   { src: path.join(root, 'app', 'admin', 'feature-flags'), dst: path.join(root, '.desktop-bak-admin-feature-flags') },
   { src: path.join(root, 'app', 'admin', 'funnel-report'), dst: path.join(root, '.desktop-bak-admin-funnel-report') },
+  // Marketing routes — not needed in desktop app
+  { src: path.join(root, 'app', 'pricing'), dst: path.join(root, '.desktop-bak-pricing') },
+  { src: path.join(root, 'app', 'blog'), dst: path.join(root, '.desktop-bak-blog') },
+  { src: path.join(root, 'app', 'about'), dst: path.join(root, '.desktop-bak-about') },
+  { src: path.join(root, 'app', 'download'), dst: path.join(root, '.desktop-bak-download') },
+  { src: path.join(root, 'app', 'enterprise'), dst: path.join(root, '.desktop-bak-enterprise') },
+  { src: path.join(root, 'app', 'donate'), dst: path.join(root, '.desktop-bak-donate') },
+  { src: path.join(root, 'app', 'terms'), dst: path.join(root, '.desktop-bak-terms') },
+  { src: path.join(root, 'app', 'privacy'), dst: path.join(root, '.desktop-bak-privacy') },
+  { src: path.join(root, 'app', 'security'), dst: path.join(root, '.desktop-bak-security') },
+  { src: path.join(root, 'app', 'changelog'), dst: path.join(root, '.desktop-bak-changelog') },
 ];
 
 if (phase === 'pre') {

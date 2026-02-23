@@ -23,6 +23,7 @@ import DriveIntegrationCard from '@/components/settings/DriveIntegrationCard'
 import JiraIntegrationCard from '@/components/settings/JiraIntegrationCard'
 import { telemetry } from '@/lib/telemetry'
 import Navigation from '@/components/Navigation'
+import { useIsDesktop } from '@/hooks/useIsDesktop'
 
 type Tab = 'profile' | 'api-keys' | 'integrations' | 'themes' | 'privacy'
 type Theme = 'light' | 'dark' | 'solarized' | 'neon'
@@ -148,6 +149,7 @@ function SettingsContent() {
   const { user, loading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const isDesktopApp = useIsDesktop()
   const [activeTab, setActiveTab] = useState<Tab>('profile')
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([])
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({})
@@ -381,7 +383,7 @@ function SettingsContent() {
 
   return (
     <>
-      <Navigation />
+      {!isDesktopApp && <Navigation />}
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-purple-900">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           {/* Header */}

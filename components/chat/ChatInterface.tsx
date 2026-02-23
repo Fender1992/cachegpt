@@ -18,7 +18,9 @@ import MarkdownMessage from '@/components/chat/MarkdownMessage'
 import FileUpload, { UploadedFile } from '@/components/chat/FileUpload'
 import { error as logError } from '@/lib/logger'
 import { isFeatureEnabled } from '@/lib/featureFlags'
-import { apiFetch } from '@/lib/api-client'
+import { apiFetch, isDesktop } from '@/lib/api-client'
+import { useIsDesktop } from '@/hooks/useIsDesktop'
+import { useDesktopNavigationOptional } from '@/components/desktop/DesktopNavigationContext'
 
 const providerIcons = {
   chatgpt: Bot,
@@ -51,6 +53,8 @@ interface ChatMessage {
 const MAX_MESSAGES_IN_MEMORY = 50
 
 function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { params?: Promise<{ id: string }>, onShowHistoryChange?: (show: boolean) => void, isPanelPinned?: boolean }) {
+  const isDesktopApp = useIsDesktop()
+  const desktopNav = useDesktopNavigationOptional()
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -142,6 +146,28 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
       setShowCacheTutorial(true)
     }
   }, [])
+
+  // Bridge state to desktop navigation context
+  useEffect(() => {
+    if (!isDesktopApp || !desktopNav) return
+    desktopNav.setConversations(conversations as any)
+    desktopNav.setCurrentConversationId(currentConversationId)
+    desktopNav.setIsAnonymous(isAnonymous)
+    if (userProfile?.email) {
+      desktopNav.setUserEmail(userProfile.email)
+    }
+  }, [isDesktopApp, desktopNav, conversations, currentConversationId, isAnonymous, userProfile])
+
+  // Bridge callbacks to desktop navigation context using refs to avoid re-render loops.
+  // Refs always point to the latest function without triggering effect re-runs.
+  // Assignments happen after function definitions (further down in component).
+  const desktopCallbackRefs = useRef<{
+    startNewConversation: () => void
+    loadConversationMessages: (id: string) => void
+    loadConversationFiles: (id: string) => void
+    deleteConversation: (id: string, e: React.MouseEvent) => void
+    handleLogout: () => void
+  } | null>(null)
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -392,8 +418,10 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
         setActiveConversationId(conversationId) // Set as active so new messages append to this conversation
         setShowHistory(false)
 
-        // Navigate to the conversation URL to enable refresh persistence
-        router.push(`/chat/${conversationId}`)
+        // Navigate to the conversation URL to enable refresh persistence (skip on desktop — dynamic routes not in static export)
+        if (!isDesktopApp) {
+          router.push(`/chat/${conversationId}`)
+        }
       } else {
         const errorData = await response.json().catch(() => ({}))
         console.error('[CHAT] Failed to load conversation messages:', response.status, errorData)
@@ -622,10 +650,11 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
     }
   }
 
-  const handleSendMessage = async () => {
-    if (!message.trim() || isLoading) return
+  const handleSendMessage = async (overrideMessage?: string) => {
+    const msgToSend = overrideMessage || message
+    if (!msgToSend.trim() || isLoading) return
 
-    const userMessage = message.trim()
+    const userMessage = msgToSend.trim()
     setMessage('')
 
     // Add user message with metadata
@@ -767,8 +796,8 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
       if (finalData.conversationId) {
         setActiveConversationId(finalData.conversationId)
 
-        // If we don't have a conversation ID in URL yet, navigate to the conversation URL
-        if (!conversationId && finalData.conversationId) {
+        // If we don't have a conversation ID in URL yet, navigate to the conversation URL (skip on desktop — dynamic routes not in static export)
+        if (!isDesktopApp && !conversationId && finalData.conversationId) {
           router.push(`/chat/${finalData.conversationId}`)
         }
       }
@@ -846,12 +875,8 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
   const handleRetry = (retryMessage: string) => {
     // Remove the error message from display
     setMessages(prev => prev.filter(msg => !msg.error))
-    // Set the message and trigger send
-    setMessage(retryMessage)
-    // Trigger send after state updates
-    setTimeout(() => {
-      handleSendMessage()
-    }, 0)
+    // Directly call send with the retry message instead of relying on stale state
+    handleSendMessage(retryMessage)
   }
 
   const startNewConversation = () => {
@@ -892,6 +917,30 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
     router.push('/settings')
   }
 
+  // Assign latest callback references for desktop bridging (ref declared earlier in component)
+  desktopCallbackRefs.current = {
+    startNewConversation,
+    loadConversationMessages,
+    loadConversationFiles,
+    deleteConversation,
+    handleLogout,
+  }
+
+  // Register desktop callbacks once (delegates through refs to get latest closures)
+  useEffect(() => {
+    if (!isDesktopApp || !desktopNav) return
+    desktopNav._setChatCallbacks({
+      onNewChat: () => desktopCallbackRefs.current?.startNewConversation(),
+      onSelectConversation: (id: string) => {
+        desktopCallbackRefs.current?.loadConversationMessages(id)
+        desktopCallbackRefs.current?.loadConversationFiles(id)
+      },
+      onDeleteConversation: (id: string, e: React.MouseEvent) => desktopCallbackRefs.current?.deleteConversation(id, e),
+      onLogout: () => desktopCallbackRefs.current?.handleLogout(),
+      onLogin: () => router.push('/login'),
+    })
+  }, [isDesktopApp, desktopNav, router])
+
   if (!userProfile) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center">
@@ -909,8 +958,8 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
     <div
       className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-slate-900 dark:to-gray-900 flex flex-col overflow-hidden relative"
       style={{
-        height: '100dvh',
-        minHeight: '-webkit-fill-available'
+        height: isDesktopApp ? '100%' : '100dvh',
+        minHeight: isDesktopApp ? '100%' : '-webkit-fill-available'
       }}
       onDragOver={(e) => {
         e.preventDefault()
@@ -947,8 +996,8 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
           </div>
         </div>
       )}
-      {/* Header */}
-      <div className="flex-shrink-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm relative z-50">
+      {/* Header — hidden on desktop (sidebar provides navigation) */}
+      {!isDesktopApp && <div className="flex-shrink-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm relative z-50">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-3">
             <ProviderIcon className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 dark:text-blue-400" />
@@ -1074,24 +1123,26 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
             )}
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* Main content area with sidebar */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Conversation Sidebar (left side on desktop, bottom sheet on mobile) */}
-        <ConversationSidebar
-          conversations={conversations}
-          currentConversationId={currentConversationId}
-          isAnonymous={isAnonymous}
-          isOpen={showHistory}
-          onClose={() => setShowHistory(false)}
-          onSelectConversation={(id) => {
-            loadConversationMessages(id)
-            loadConversationFiles(id)
-          }}
-          onDeleteConversation={deleteConversation}
-          onLogin={() => router.push('/login')}
-        />
+        {/* Conversation Sidebar (left side on desktop, bottom sheet on mobile) — hidden on desktop app */}
+        {!isDesktopApp && (
+          <ConversationSidebar
+            conversations={conversations}
+            currentConversationId={currentConversationId}
+            isAnonymous={isAnonymous}
+            isOpen={showHistory}
+            onClose={() => setShowHistory(false)}
+            onSelectConversation={(id) => {
+              loadConversationMessages(id)
+              loadConversationFiles(id)
+            }}
+            onDeleteConversation={deleteConversation}
+            onLogin={() => router.push('/login')}
+          />
+        )}
 
         {/* Chat content column (messages + input) */}
         <div className={`flex flex-1 flex-col overflow-hidden ${isPanelPinned ? 'sm:mr-[28rem]' : ''}`}>
@@ -1287,11 +1338,41 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
       <div className="flex-shrink-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm sticky bottom-0 z-10 transition-all duration-300"
            style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
         <div className="max-w-4xl mx-auto">
+          {/* Desktop toolbar — provider selector + quality mode (replaces header controls) */}
+          {isDesktopApp && (
+            <div className="flex items-center gap-2 mb-2">
+              <ProviderSelector
+                currentProvider={selectedProvider}
+                onProviderChange={handleProviderChange}
+              />
+              <button
+                onClick={() => setQualityMode(qualityMode === 'fast' ? 'best' : 'fast')}
+                className={`px-3 py-1.5 text-sm rounded-lg transition-all flex items-center gap-1.5 ${
+                  qualityMode === 'best'
+                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                }`}
+                title={qualityMode === 'fast' ? 'Fast Mode (Click for Best Quality)' : 'Best Mode - Using Self-MoA'}
+              >
+                {qualityMode === 'fast' ? (
+                  <>
+                    <Zap className="w-3.5 h-3.5" />
+                    <span>Fast</span>
+                  </>
+                ) : (
+                  <>
+                    <Rocket className="w-3.5 h-3.5" />
+                    <span>Best</span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
           {/* Referenced conversations indicator */}
           {referencedConversationIds.length > 0 && (
             <div className="mb-2 flex flex-wrap gap-2">
               {referencedConversationIds.map((refId) => {
-                const refConv = conversations.find(c => c.id === refId)
+                const refConv = conversations.find(c => c.conversation_id === refId)
                 return refConv ? (
                   <div key={refId} className="inline-flex items-center gap-2 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm rounded-full">
                     <span className="truncate max-w-[200px]">{refConv.title}</span>
@@ -1315,7 +1396,7 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
               droppedFiles={droppedFiles}
             />
             <ConversationReferenceButton
-              conversations={conversations.filter(c => c.id !== activeConversationId)}
+              conversations={conversations.filter(c => c.conversation_id !== activeConversationId).map(c => ({ id: c.conversation_id, title: c.title, created_at: c.created_at || c.last_message_at, updated_at: c.last_message_at || c.created_at }))}
               onReferenceSelect={handleConversationReference}
               disabled={isLoading}
             />

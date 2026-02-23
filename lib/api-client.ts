@@ -5,10 +5,10 @@
 
 const PRODUCTION_URL = 'https://cachegpt.app'
 
-/** Detect if running inside Tauri desktop app */
+/** Detect if running inside Tauri desktop app (v2 uses __TAURI_INTERNALS__, withGlobalTauri exposes __TAURI__) */
 export function isDesktop(): boolean {
   if (typeof window === 'undefined') return false
-  return !!(window as any).__TAURI__
+  return !!(window as any).__TAURI__ || !!(window as any).__TAURI_INTERNALS__
 }
 
 /** Get the base URL for API calls */

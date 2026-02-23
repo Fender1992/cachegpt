@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase-client'
+import { isDesktop } from '@/lib/api-client'
 import {
   Mail, Lock, Eye, EyeOff, Sparkles, ArrowRight,
   User, Shield, Zap, CheckCircle2
@@ -34,7 +35,7 @@ export function AuthForm({ isFromCLI = false, callbackPort }: AuthFormProps) {
             data: {
               full_name: email.split('@')[0], // Default name from email
             },
-            emailRedirectTo: `${window.location.origin}/auth/callback`
+            emailRedirectTo: `${isDesktop() ? 'https://cachegpt.app' : window.location.origin}/auth/callback`
           }
         })
 
@@ -99,7 +100,7 @@ export function AuthForm({ isFromCLI = false, callbackPort }: AuthFormProps) {
         }
 
         // Redirect to success page with CLI parameters if from CLI
-        let redirectUrl = '/'
+        let redirectUrl = isDesktop() ? '/chat' : '/'
         if (isFromCLI) {
           const params = new URLSearchParams({
             source: 'cli',
@@ -138,9 +139,13 @@ export function AuthForm({ isFromCLI = false, callbackPort }: AuthFormProps) {
         // Web auth flow, no localStorage needed
       }
 
-      // Use dynamic redirect URL based on current origin
-      // Add CLI parameters to the redirect URL (though Supabase may not preserve them)
-      let baseUrl = `${window.location.origin}/auth/callback`
+      // On desktop, use the server-side desktop-callback route that exchanges the code
+      // and redirects to cachegpt:// deep link. Use production URL since tauri://localhost isn't registered.
+      const isDesktopApp = isDesktop()
+      const origin = isDesktopApp ? 'https://cachegpt.app' : window.location.origin
+      let baseUrl = isDesktopApp
+        ? `${origin}/api/auth/desktop-callback`
+        : `${origin}/auth/callback`
 
       // Try to pass params in URL as backup to localStorage
       const urlParams = new URLSearchParams()
