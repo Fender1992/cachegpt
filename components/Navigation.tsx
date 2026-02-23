@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Menu, X, Home, MessageSquare, Zap, Settings, User, LogOut } from 'lucide-react';
+import { Menu, X, Home, MessageSquare, Zap, Settings, User, LogOut, Download } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
 import CacheGPTLogo from '@/components/CacheGPTLogo';
 
@@ -50,6 +50,10 @@ export default function Navigation() {
             </Link>
             <Link href="/pricing" className="text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition">
               Pricing
+            </Link>
+            <Link href="/download" className="flex items-center gap-1 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition">
+              <Download className="w-4 h-4" />
+              Desktop
             </Link>
 
             {user ? (
@@ -139,6 +143,14 @@ export default function Navigation() {
               className="block py-3 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition"
             >
               Pricing
+            </Link>
+            <Link
+              href="/download"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-2 py-3 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition"
+            >
+              <Download className="w-4 h-4" />
+              Desktop App
             </Link>
 
             {user ? (
