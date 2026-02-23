@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Download, Apple, Monitor, Terminal } from 'lucide-react'
+import { Download, Apple, Monitor, Terminal, Clock } from 'lucide-react'
+import Navigation from '@/components/Navigation'
 
 type Platform = 'macos' | 'windows' | 'linux' | 'unknown'
 
@@ -16,30 +17,6 @@ function detectPlatform(): Platform {
 
 const VERSION = '1.0.0'
 
-const downloads = {
-  macos: {
-    label: 'macOS',
-    icon: Apple,
-    file: 'CacheGPT_1.0.0_aarch64.dmg',
-    note: 'macOS 10.15+ (Apple Silicon & Intel)',
-  },
-  windows: {
-    label: 'Windows',
-    icon: Monitor,
-    file: 'CacheGPT_1.0.0_x64-setup.exe',
-    note: 'Windows 10+',
-  },
-  linux: {
-    label: 'Linux',
-    icon: Terminal,
-    files: [
-      { name: '.deb (Debian/Ubuntu)', file: 'CacheGPT_1.0.0_amd64.deb' },
-      { name: '.AppImage (Universal)', file: 'CacheGPT_1.0.0_amd64.AppImage' },
-    ],
-    note: 'Ubuntu 20.04+, Fedora 36+, or equivalent',
-  },
-}
-
 export default function DownloadPage() {
   const [platform, setPlatform] = useState<Platform>('unknown')
 
@@ -47,110 +24,130 @@ export default function DownloadPage() {
     setPlatform(detectPlatform())
   }, [])
 
-  const baseUrl = 'https://cachegpt.app/releases/desktop'
-
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
+      <Navigation />
       <div className="max-w-4xl mx-auto px-4 py-16">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold mb-4">Download CacheGPT Desktop</h1>
-          <p className="text-lg text-muted-foreground">
+          <p className="text-lg text-gray-600 dark:text-gray-400">
             Native app with system tray, global hotkey, and instant access to your AI assistant.
           </p>
-          <p className="text-sm text-muted-foreground mt-2">Version {VERSION}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">Version {VERSION}</p>
+        </div>
+
+        {/* Coming Soon Banner */}
+        <div className="mb-8 p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-xl text-center">
+          <div className="flex items-center justify-center gap-2 mb-1">
+            <Clock className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+            <span className="font-semibold text-purple-700 dark:text-purple-300">Coming Soon</span>
+          </div>
+          <p className="text-sm text-purple-600 dark:text-purple-400">
+            Desktop builds are being prepared. Check back shortly for downloadable installers.
+          </p>
         </div>
 
         <div className="grid md:grid-cols-3 gap-6 mb-12">
           {/* macOS */}
           <div
             className={`rounded-xl border p-6 flex flex-col items-center gap-4 transition-all ${
-              platform === 'macos' ? 'border-primary ring-2 ring-primary/20' : 'border-border'
+              platform === 'macos'
+                ? 'border-purple-400 dark:border-purple-600 ring-2 ring-purple-200 dark:ring-purple-800'
+                : 'border-gray-200 dark:border-gray-700'
             }`}
           >
             <Apple className="w-12 h-12" />
-            <h2 className="text-xl font-semibold">{downloads.macos.label}</h2>
-            <a
-              href={`${baseUrl}/${downloads.macos.file}`}
-              className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:opacity-90 transition-opacity"
+            <h2 className="text-xl font-semibold">macOS</h2>
+            <button
+              disabled
+              className="inline-flex items-center gap-2 bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-6 py-3 rounded-lg font-medium cursor-not-allowed"
             >
               <Download className="w-4 h-4" />
               Download .dmg
-            </a>
-            <p className="text-xs text-muted-foreground text-center">{downloads.macos.note}</p>
+            </button>
+            <p className="text-xs text-gray-500 dark:text-gray-400 text-center">macOS 10.15+ (Apple Silicon &amp; Intel)</p>
           </div>
 
           {/* Windows */}
           <div
             className={`rounded-xl border p-6 flex flex-col items-center gap-4 transition-all ${
-              platform === 'windows' ? 'border-primary ring-2 ring-primary/20' : 'border-border'
+              platform === 'windows'
+                ? 'border-purple-400 dark:border-purple-600 ring-2 ring-purple-200 dark:ring-purple-800'
+                : 'border-gray-200 dark:border-gray-700'
             }`}
           >
             <Monitor className="w-12 h-12" />
-            <h2 className="text-xl font-semibold">{downloads.windows.label}</h2>
-            <a
-              href={`${baseUrl}/${downloads.windows.file}`}
-              className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:opacity-90 transition-opacity"
+            <h2 className="text-xl font-semibold">Windows</h2>
+            <button
+              disabled
+              className="inline-flex items-center gap-2 bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-6 py-3 rounded-lg font-medium cursor-not-allowed"
             >
               <Download className="w-4 h-4" />
               Download .exe
-            </a>
-            <p className="text-xs text-muted-foreground text-center">{downloads.windows.note}</p>
+            </button>
+            <p className="text-xs text-gray-500 dark:text-gray-400 text-center">Windows 10+</p>
           </div>
 
           {/* Linux */}
           <div
             className={`rounded-xl border p-6 flex flex-col items-center gap-4 transition-all ${
-              platform === 'linux' ? 'border-primary ring-2 ring-primary/20' : 'border-border'
+              platform === 'linux'
+                ? 'border-purple-400 dark:border-purple-600 ring-2 ring-purple-200 dark:ring-purple-800'
+                : 'border-gray-200 dark:border-gray-700'
             }`}
           >
             <Terminal className="w-12 h-12" />
-            <h2 className="text-xl font-semibold">{downloads.linux.label}</h2>
+            <h2 className="text-xl font-semibold">Linux</h2>
             <div className="flex flex-col gap-2 w-full">
-              {downloads.linux.files.map((f) => (
-                <a
-                  key={f.file}
-                  href={`${baseUrl}/${f.file}`}
-                  className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
-                >
-                  <Download className="w-4 h-4" />
-                  {f.name}
-                </a>
-              ))}
+              <button
+                disabled
+                className="inline-flex items-center justify-center gap-2 bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-4 py-2 rounded-lg text-sm font-medium cursor-not-allowed"
+              >
+                <Download className="w-4 h-4" />
+                .deb (Debian/Ubuntu)
+              </button>
+              <button
+                disabled
+                className="inline-flex items-center justify-center gap-2 bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-4 py-2 rounded-lg text-sm font-medium cursor-not-allowed"
+              >
+                <Download className="w-4 h-4" />
+                .AppImage (Universal)
+              </button>
             </div>
-            <p className="text-xs text-muted-foreground text-center">{downloads.linux.note}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 text-center">Ubuntu 20.04+, Fedora 36+, or equivalent</p>
           </div>
         </div>
 
         {/* Features */}
-        <div className="border rounded-xl p-8">
+        <div className="border border-gray-200 dark:border-gray-700 rounded-xl p-8">
           <h3 className="text-lg font-semibold mb-4">Desktop Features</h3>
           <div className="grid sm:grid-cols-2 gap-4 text-sm">
             <div className="flex items-start gap-3">
-              <span className="text-primary font-bold">+</span>
+              <span className="text-purple-600 dark:text-purple-400 font-bold">+</span>
               <div>
                 <p className="font-medium">System Tray</p>
-                <p className="text-muted-foreground">Always running, quick access from tray icon</p>
+                <p className="text-gray-500 dark:text-gray-400">Always running, quick access from tray icon</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <span className="text-primary font-bold">+</span>
+              <span className="text-purple-600 dark:text-purple-400 font-bold">+</span>
               <div>
                 <p className="font-medium">Global Hotkey</p>
-                <p className="text-muted-foreground">Cmd/Ctrl+Shift+C to toggle from anywhere</p>
+                <p className="text-gray-500 dark:text-gray-400">Cmd/Ctrl+Shift+C to toggle from anywhere</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <span className="text-primary font-bold">+</span>
+              <span className="text-purple-600 dark:text-purple-400 font-bold">+</span>
               <div>
                 <p className="font-medium">Auto Updates</p>
-                <p className="text-muted-foreground">Stays current automatically</p>
+                <p className="text-gray-500 dark:text-gray-400">Stays current automatically</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <span className="text-primary font-bold">+</span>
+              <span className="text-purple-600 dark:text-purple-400 font-bold">+</span>
               <div>
                 <p className="font-medium">Native Performance</p>
-                <p className="text-muted-foreground">Lightweight native wrapper, low memory usage</p>
+                <p className="text-gray-500 dark:text-gray-400">Lightweight native wrapper, low memory usage</p>
               </div>
             </div>
           </div>
