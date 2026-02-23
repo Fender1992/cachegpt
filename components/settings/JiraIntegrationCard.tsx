@@ -5,6 +5,7 @@ import {
   Loader2, Check, AlertCircle, Link2, Unlink, Bug,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
+import { apiFetch } from '@/lib/api-client';
 
 interface JiraIntegrationStatus {
   connected: boolean;
@@ -37,7 +38,7 @@ export default function JiraIntegrationCard({ userId }: JiraIntegrationCardProps
   const fetchStatus = useCallback(async () => {
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch('/api/integrations/jira', { headers });
+      const res = await apiFetch('/api/integrations/jira', { headers });
       if (res.ok) {
         const data: JiraIntegrationStatus = await res.json();
         setStatus(data);
@@ -84,7 +85,7 @@ export default function JiraIntegrationCard({ userId }: JiraIntegrationCardProps
     setMessage(null);
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch('/api/integrations/jira', {
+      const res = await apiFetch('/api/integrations/jira', {
         method: 'DELETE',
         headers,
       });

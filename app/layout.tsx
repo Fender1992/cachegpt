@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { ProviderCacheProvider } from '@/lib/provider-cache-context'
 import SignupPromptModal from '@/components/signup-prompt-modal'
+import { DesktopAuthProvider } from '@/components/DesktopAuthProvider'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -74,6 +75,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <ProviderCacheProvider>
+          <DesktopAuthProvider />
           {children}
           <SignupPromptModal />
         </ProviderCacheProvider>

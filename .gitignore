@@ -87,3 +87,7 @@ tmp/.next/
 .next/
 .vercel
 .env*.local
+
+# Tauri / Desktop
+src-tauri/target/
+out-desktop/

@@ -4,6 +4,7 @@ import { useState, useRef } from 'react'
 import { Bug, X, Send, Upload, Image as ImageIcon } from 'lucide-react'
 import Toast from './toast'
 import { supabase } from '@/lib/supabase-client'
+import { apiFetch } from '@/lib/api-client'
 
 interface BugReportButtonProps {
   className?: string
@@ -123,7 +124,7 @@ export default function BugReportButton({ className = '' }: BugReportButtonProps
         screenshotUrl = await uploadScreenshot()
       }
 
-      const response = await fetch('/api/bugs/report', {
+      const response = await apiFetch('/api/bugs/report', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

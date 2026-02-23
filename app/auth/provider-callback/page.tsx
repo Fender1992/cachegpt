@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
 import { CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
+import { apiFetch } from '@/lib/api-client'
 
 function ProviderCallbackContent() {
   const router = useRouter()
@@ -42,7 +43,7 @@ function ProviderCallbackContent() {
       }
 
       // Exchange code for tokens using our API route
-      const tokenResponse = await fetch('/api/auth/provider-token', {
+      const tokenResponse = await apiFetch('/api/auth/provider-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code, provider: providerName, state })

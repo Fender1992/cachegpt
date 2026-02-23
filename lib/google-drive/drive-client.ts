@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '@/lib/supabase-client';
+import { apiFetch } from '@/lib/api-client';
 
 export interface DriveFile {
   id: string;
@@ -77,7 +78,7 @@ export class DriveClient {
       this.updateState({ isConnecting: true, error: null });
 
       const headers = await this.getAuthHeader();
-      const statusRes = await fetch('/api/integrations/google-drive', { headers });
+      const statusRes = await apiFetch('/api/integrations/google-drive', { headers });
       if (!statusRes.ok) {
         throw new Error('Failed to check Google Drive status');
       }
@@ -90,7 +91,7 @@ export class DriveClient {
       this.connected = true;
 
       // Fetch recent files
-      const filesRes = await fetch('/api/integrations/google-drive/files', { headers });
+      const filesRes = await apiFetch('/api/integrations/google-drive/files', { headers });
       const filesData = filesRes.ok ? await filesRes.json() : { files: [] };
 
       this.updateState({
@@ -129,7 +130,7 @@ export class DriveClient {
       const params = new URLSearchParams();
       if (query) params.set('q', query);
 
-      const res = await fetch(`/api/integrations/google-drive/files?${params}`, { headers });
+      const res = await apiFetch(`/api/integrations/google-drive/files?${params}`, { headers });
       if (res.ok) {
         const data = await res.json();
         this.updateState({ files: data.files || [] });
@@ -145,7 +146,7 @@ export class DriveClient {
     try {
       this.updateState({ selectedFile: null });
       const headers = await this.getAuthHeader();
-      const res = await fetch(`/api/integrations/google-drive/files?fileId=${fileId}`, { headers });
+      const res = await apiFetch(`/api/integrations/google-drive/files?fileId=${fileId}`, { headers });
 
       if (res.ok) {
         const data = await res.json();
@@ -165,7 +166,7 @@ export class DriveClient {
 
     try {
       const headers = await this.getAuthHeader();
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/integrations/google-drive/files?fileId=${encodeURIComponent(fileId)}`,
         { method: 'DELETE', headers }
       );

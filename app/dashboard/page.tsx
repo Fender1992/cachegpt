@@ -9,6 +9,7 @@ import {
   Clock, RefreshCw, Activity, BarChart3, Leaf, Droplets, BatteryCharging
 } from 'lucide-react'
 import { telemetry } from '@/lib/telemetry'
+import { apiFetch } from '@/lib/api-client'
 import Navigation from '@/components/Navigation'
 
 interface DashboardStats {
@@ -91,7 +92,7 @@ export default function Dashboard() {
         headers['Authorization'] = `Bearer ${session.access_token}`
       }
 
-      const response = await fetch('/api/dashboard-stats', {
+      const response = await apiFetch('/api/dashboard-stats', {
         headers,
         credentials: 'include',
       })

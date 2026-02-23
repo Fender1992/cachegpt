@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { supabase } from '@/lib/supabase-client'
+import { apiFetch } from '@/lib/api-client'
 
 interface UserProvider {
   provider: string
@@ -97,7 +98,7 @@ export function ProviderCacheProvider({ children }: { children: React.ReactNode 
         headers['Authorization'] = `Bearer ${session.access_token}`
       }
 
-      const response = await fetch('/api/user/provider-capabilities', {
+      const response = await apiFetch('/api/user/provider-capabilities', {
         headers,
         credentials: 'include'
       })

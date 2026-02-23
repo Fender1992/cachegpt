@@ -8,6 +8,7 @@
  */
 
 import { supabase } from '@/lib/supabase-client';
+import { apiFetch } from '@/lib/api-client';
 
 export interface NotionPage {
   id: string;
@@ -106,7 +107,7 @@ export class NotionClient {
       this.updateState({ isConnecting: true, error: null });
 
       const headers = await this.getAuthHeader();
-      const statusRes = await fetch('/api/integrations/notion', { headers });
+      const statusRes = await apiFetch('/api/integrations/notion', { headers });
       if (!statusRes.ok) {
         throw new Error('Failed to check Notion status');
       }
@@ -119,7 +120,7 @@ export class NotionClient {
       this.connected = true;
 
       // Fetch pages
-      const pagesRes = await fetch('/api/integrations/notion/pages?pageSize=20', { headers });
+      const pagesRes = await apiFetch('/api/integrations/notion/pages?pageSize=20', { headers });
       const pagesData = pagesRes.ok ? await pagesRes.json() : { items: [], nextCursor: null, hasMore: false };
       const pages: NotionPage[] = pagesData.items || [];
 
@@ -178,7 +179,7 @@ export class NotionClient {
       }
 
       const headers = await this.getAuthHeader();
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/integrations/notion/pages?pageId=${pageId}`,
         { headers }
       );
@@ -201,7 +202,7 @@ export class NotionClient {
 
     try {
       const headers = await this.getAuthHeader();
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/integrations/notion/pages?pageSize=20&cursor=${this.state.nextCursor}`,
         { headers }
       );
@@ -230,7 +231,7 @@ export class NotionClient {
       this.updateState({ error: null });
 
       const headers = await this.getAuthHeader();
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/integrations/notion/search?q=${encodeURIComponent(query)}&pageSize=20`,
         { headers }
       );

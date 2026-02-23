@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { telemetry } from '@/lib/telemetry';
 import { Loader2, ArrowRight } from 'lucide-react';
+import { apiFetch } from '@/lib/api-client';
 import Navigation from '@/components/Navigation';
 
 interface Mode {
@@ -43,7 +44,7 @@ export default function ModesPage() {
 
   const fetchModes = async () => {
     try {
-      const response = await fetch('/api/modes');
+      const response = await apiFetch('/api/modes');
       if (!response.ok) {
         if (response.status === 403) {
           throw new Error('This feature is not available yet');
@@ -63,7 +64,7 @@ export default function ModesPage() {
   const handleModeClick = async (modeSlug: string, source: string) => {
     // Record click for trending
     try {
-      await fetch('/api/modes/click', {
+      await apiFetch('/api/modes/click', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ modeSlug, source }),

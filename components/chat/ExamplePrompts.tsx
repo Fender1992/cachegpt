@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Sparkles, Code, BookOpen, Lightbulb, ArrowRight, MessageSquare } from 'lucide-react';
 import { telemetry } from '@/lib/telemetry';
+import { apiFetch } from '@/lib/api-client';
 
 interface ExamplePrompt {
   icon: typeof Sparkles;
@@ -69,7 +70,7 @@ export default function ExamplePrompts({
     // Record click for mode if applicable
     if (mode) {
       try {
-        await fetch('/api/modes/click', {
+        await apiFetch('/api/modes/click', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ modeSlug: mode.slug, source: 'empty_state' }),

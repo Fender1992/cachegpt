@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
 import Toast from '@/components/toast'
+import { apiFetch } from '@/lib/api-client'
 import {
   Bug, Filter, Search, Calendar, User, Globe,
   AlertTriangle, CheckCircle, Clock, XCircle,
@@ -105,7 +106,7 @@ export default function AdminBugsClient() {
       if (priorityFilter) params.append('priority', priorityFilter)
       if (categoryFilter) params.append('category', categoryFilter)
 
-      const response = await fetch(`/api/bugs/manage?${params}`, {
+      const response = await apiFetch(`/api/bugs/manage?${params}`, {
         headers: {
           'Authorization': `Bearer ${session.access_token}`
         }
@@ -131,7 +132,7 @@ export default function AdminBugsClient() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
 
-      const response = await fetch('/api/bugs/manage', {
+      const response = await apiFetch('/api/bugs/manage', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -167,7 +168,7 @@ export default function AdminBugsClient() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
 
-      const response = await fetch(`/api/bugs/manage?id=${showDeleteConfirm}`, {
+      const response = await apiFetch(`/api/bugs/manage?id=${showDeleteConfirm}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${session.access_token}`

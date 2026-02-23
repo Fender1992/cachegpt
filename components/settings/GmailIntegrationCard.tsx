@@ -5,6 +5,7 @@ import {
   Loader2, Check, AlertCircle, Link2, Unlink, Mail, Tag,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
+import { apiFetch } from '@/lib/api-client';
 
 interface GmailIntegrationStatus {
   connected: boolean;
@@ -41,7 +42,7 @@ export default function GmailIntegrationCard({ userId }: GmailIntegrationCardPro
   const fetchStatus = useCallback(async () => {
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch('/api/integrations/gmail', { headers });
+      const res = await apiFetch('/api/integrations/gmail', { headers });
       if (res.ok) {
         const data: GmailIntegrationStatus = await res.json();
         setStatus(data);
@@ -89,7 +90,7 @@ export default function GmailIntegrationCard({ userId }: GmailIntegrationCardPro
     setMessage(null);
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch('/api/integrations/gmail', {
+      const res = await apiFetch('/api/integrations/gmail', {
         method: 'DELETE',
         headers
       });

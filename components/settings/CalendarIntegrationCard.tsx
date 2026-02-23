@@ -5,6 +5,7 @@ import {
   Loader2, Check, AlertCircle, Link2, Unlink, Calendar, Hash,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
+import { apiFetch } from '@/lib/api-client';
 
 interface CalendarIntegrationStatus {
   connected: boolean;
@@ -39,7 +40,7 @@ export default function CalendarIntegrationCard({ userId }: CalendarIntegrationC
   const fetchStatus = useCallback(async () => {
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch('/api/integrations/google-calendar', { headers });
+      const res = await apiFetch('/api/integrations/google-calendar', { headers });
       if (res.ok) {
         const data: CalendarIntegrationStatus = await res.json();
         setStatus(data);
@@ -87,7 +88,7 @@ export default function CalendarIntegrationCard({ userId }: CalendarIntegrationC
     setMessage(null);
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch('/api/integrations/google-calendar', {
+      const res = await apiFetch('/api/integrations/google-calendar', {
         method: 'DELETE',
         headers
       });

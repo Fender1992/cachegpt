@@ -4,6 +4,23 @@ import { rateLimit } from './middleware/rateLimit-simple'
 import { getApiVersion, addVersionHeaders } from './middleware/api-version'
 
 export async function middleware(request: NextRequest) {
+  const origin = request.headers.get('origin') || ''
+  const isTauriOrigin = origin === 'tauri://localhost' || origin === 'https://tauri.localhost'
+
+  // Handle CORS preflight for Tauri desktop app
+  if (isTauriOrigin && request.method === 'OPTIONS') {
+    return new NextResponse(null, {
+      status: 204,
+      headers: {
+        'Access-Control-Allow-Origin': origin,
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-user-timezone, x-timezone-offset',
+        'Access-Control-Allow-Credentials': 'true',
+        'Access-Control-Max-Age': '86400',
+      },
+    })
+  }
+
   // Apply rate limiting
   const rateLimitResult = await rateLimit(request)
   if (rateLimitResult.status === 429) {
@@ -71,6 +88,12 @@ export async function middleware(request: NextRequest) {
       'Strict-Transport-Security',
       'max-age=31536000; includeSubDomains; preload'
     )
+  }
+
+  // Add CORS headers for Tauri desktop app
+  if (isTauriOrigin) {
+    response.headers.set('Access-Control-Allow-Origin', origin)
+    response.headers.set('Access-Control-Allow-Credentials', 'true')
   }
 
   return response

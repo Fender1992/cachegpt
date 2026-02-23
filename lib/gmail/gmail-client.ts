@@ -8,6 +8,7 @@
  */
 
 import { supabase } from '@/lib/supabase-client';
+import { apiFetch } from '@/lib/api-client';
 
 export interface GmailLabel {
   id: string;
@@ -110,7 +111,7 @@ export class GmailClient {
       this.updateState({ isConnecting: true, error: null });
 
       const headers = await this.getAuthHeader();
-      const statusRes = await fetch('/api/integrations/gmail', { headers });
+      const statusRes = await apiFetch('/api/integrations/gmail', { headers });
       if (!statusRes.ok) {
         throw new Error('Failed to check Gmail status');
       }
@@ -126,7 +127,7 @@ export class GmailClient {
       let unreadCount = 0;
 
       // Fetch labels
-      const labelsRes = await fetch('/api/integrations/gmail/labels', { headers });
+      const labelsRes = await apiFetch('/api/integrations/gmail/labels', { headers });
       const labels: GmailLabel[] = labelsRes.ok ? await labelsRes.json() : [];
 
       // Cache labels
@@ -194,7 +195,7 @@ export class GmailClient {
 
       // Always fetch fresh messages
       const headers = await this.getAuthHeader();
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/integrations/gmail/messages?labelId=${label.id}&limit=20`,
         { headers }
       );
@@ -222,7 +223,7 @@ export class GmailClient {
 
     try {
       const headers = await this.getAuthHeader();
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/integrations/gmail/messages?labelId=${this.state.selectedLabel.id}&limit=20&pageToken=${this.state.nextPageToken}`,
         { headers }
       );
@@ -253,7 +254,7 @@ export class GmailClient {
       this.updateState({ error: null });
 
       const headers = await this.getAuthHeader();
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/integrations/gmail/messages?messageId=${messageId}`,
         { headers }
       );
@@ -281,7 +282,7 @@ export class GmailClient {
         });
 
         // Fire-and-forget the API call to mark as read in Gmail
-        fetch('/api/integrations/gmail/messages', {
+        apiFetch('/api/integrations/gmail/messages', {
           method: 'POST',
           headers: { ...headers, 'Content-Type': 'application/json' },
           body: JSON.stringify({ messageId }),
@@ -300,7 +301,7 @@ export class GmailClient {
 
     try {
       const headers = await this.getAuthHeader();
-      const res = await fetch('/api/integrations/gmail/send', {
+      const res = await apiFetch('/api/integrations/gmail/send', {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({ to, subject, body, threadId, inReplyTo }),
@@ -322,7 +323,7 @@ export class GmailClient {
 
     try {
       const headers = await this.getAuthHeader();
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/integrations/gmail/messages?messageId=${messageId}`,
         {
           method: 'DELETE',
@@ -361,7 +362,7 @@ export class GmailClient {
 
     try {
       const headers = await this.getAuthHeader();
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/integrations/gmail/messages?messageIds=${messageIds.join(',')}`,
         { method: 'DELETE', headers }
       );

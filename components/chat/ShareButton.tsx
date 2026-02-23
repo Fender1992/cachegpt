@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Share2, Check, Loader2 } from 'lucide-react';
+import { apiFetch } from '@/lib/api-client';
 
 interface ShareButtonProps {
   prompt: string;
@@ -29,7 +30,7 @@ export default function ShareButton({
     setIsSharing(true);
 
     try {
-      const response = await fetch('/api/share', {
+      const response = await apiFetch('/api/share', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

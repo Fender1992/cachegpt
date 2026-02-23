@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { PROVIDER_CAPTURE_CONFIGS } from '@/lib/key-capture'
 import { Loader2, ExternalLink, CheckCircle2, AlertCircle, Eye } from 'lucide-react'
+import { apiFetch } from '@/lib/api-client'
 
 function ProviderCaptureContent() {
   const searchParams = useSearchParams()
@@ -76,7 +77,7 @@ function ProviderCaptureContent() {
         }
 
         // Check our API for captured authentication
-        const response = await fetch(`/api/auth/capture-key?session=${sessionId}`)
+        const response = await apiFetch(`/api/auth/capture-key?session=${sessionId}`)
         if (response.status === 429) {
           // Rate limited - wait much longer before next attempt
           setTimeout(checkAuth, 30000) // Wait 30 seconds

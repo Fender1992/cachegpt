@@ -14,6 +14,7 @@ import {
   TrendingUp
 } from 'lucide-react'
 import { error as logError } from '@/lib/logger'
+import { apiFetch } from '@/lib/api-client'
 import Navigation from '@/components/Navigation'
 
 interface ServiceStatus {
@@ -65,7 +66,7 @@ export default function StatusPageClient() {
 
   const checkStatus = async () => {
     try {
-      const healthResponse = await fetch('/api/health-check');
+      const healthResponse = await apiFetch('/api/health-check');
       const healthData = healthResponse.ok ? await healthResponse.json() : null;
 
       const newServices: ServiceStatus[] = [
@@ -102,7 +103,7 @@ export default function StatusPageClient() {
       setOverallStatus(hasOutage ? 'outage' : hasDegraded ? 'degraded' : 'operational')
 
       try {
-        const metricsResponse = await fetch('/api/metrics/system')
+        const metricsResponse = await apiFetch('/api/metrics/system')
         if (metricsResponse.ok) {
           const systemMetrics = await metricsResponse.json()
 

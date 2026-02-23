@@ -12,6 +12,7 @@
 
 import { DiscordMessage, DiscordChannel, DiscordGuild } from './discord-gateway';
 import { supabase } from '@/lib/supabase-client';
+import { apiFetch } from '@/lib/api-client';
 
 export interface DiscordUser {
   id: string;
@@ -122,7 +123,7 @@ export class DiscordClient {
       const headers = await this.getAuthHeader();
 
       // Check Discord integration status (returns user info from provider_data)
-      const statusRes = await fetch('/api/integrations/discord', { headers });
+      const statusRes = await apiFetch('/api/integrations/discord', { headers });
       if (!statusRes.ok) {
         throw new Error('Failed to check Discord status');
       }
@@ -143,7 +144,7 @@ export class DiscordClient {
       };
 
       // Fetch guilds through our proxy
-      const guildsRes = await fetch('/api/integrations/discord/guilds', { headers });
+      const guildsRes = await apiFetch('/api/integrations/discord/guilds', { headers });
       const guilds: DiscordGuild[] = guildsRes.ok ? await guildsRes.json() : [];
 
       this.connected = true;
@@ -259,7 +260,7 @@ export class DiscordClient {
       }
 
       const headers = await this.getAuthHeader();
-      const res = await fetch(`/api/integrations/discord/channels?guildId=${guild.id}`, { headers });
+      const res = await apiFetch(`/api/integrations/discord/channels?guildId=${guild.id}`, { headers });
 
       if (!res.ok) {
         if (res.status === 403) {
@@ -330,7 +331,7 @@ export class DiscordClient {
    */
   private async fetchAllMessages(channelId: string): Promise<void> {
     const headers = await this.getAuthHeader();
-    const res = await fetch(
+    const res = await apiFetch(
       `/api/integrations/discord/messages?channelId=${channelId}&limit=${INITIAL_MESSAGE_LIMIT}`,
       { headers }
     );
@@ -357,7 +358,7 @@ export class DiscordClient {
       if (!lastMessage) return;
 
       const headers = await this.getAuthHeader();
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/integrations/discord/messages?channelId=${channelId}&limit=${LOAD_MORE_LIMIT}&after=${lastMessage.id}`,
         { headers }
       );
@@ -398,7 +399,7 @@ export class DiscordClient {
       this.updateState({ loadingMore: true });
 
       const headers = await this.getAuthHeader();
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/integrations/discord/messages?channelId=${channelId}&limit=${LOAD_MORE_LIMIT}&before=${oldestMessage.id}`,
         { headers }
       );
@@ -441,7 +442,7 @@ export class DiscordClient {
 
     try {
       const headers = await this.getAuthHeader();
-      const res = await fetch('/api/integrations/discord/messages', {
+      const res = await apiFetch('/api/integrations/discord/messages', {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({

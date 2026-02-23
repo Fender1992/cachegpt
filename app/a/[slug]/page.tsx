@@ -18,6 +18,11 @@ interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
+// Required for static export — no pages pre-rendered, but route still works client-side
+export async function generateStaticParams() {
+  return []
+}
+
 /**
  * Generate metadata for OG preview
  */

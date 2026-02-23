@@ -1,4 +1,5 @@
 // Automated API key capture system for LLM providers
+import { apiFetch } from '@/lib/api-client'
 
 export interface KeyCaptureResult {
   success: boolean;

@@ -11,6 +11,7 @@
 'use client';
 
 import { TelemetryEvent, TelemetryPayload, TelemetryContext } from '@/types/telemetry';
+import { apiFetch } from '@/lib/api-client';
 
 // Batch configuration
 const BATCH_SIZE = 10;
@@ -129,7 +130,7 @@ function getContext(): TelemetryContext {
  */
 async function sendToServer(payload: TelemetryPayload, retryCount = 0) {
   try {
-    const response = await fetch('/api/telemetry', {
+    const response = await apiFetch('/api/telemetry', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

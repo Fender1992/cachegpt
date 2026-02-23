@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Mail, MessageCircle, Book, AlertCircle, Send, Check, Loader2 } from 'lucide-react'
+import { apiFetch } from '@/lib/api-client'
 import Navigation from '@/components/Navigation'
 
 export default function SupportPage() {
@@ -23,7 +24,7 @@ export default function SupportPage() {
     setError('')
 
     try {
-      const response = await fetch('/api/support', {
+      const response = await apiFetch('/api/support', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

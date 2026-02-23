@@ -1,14 +1,15 @@
+'use client'
+
 import { AuthForm } from '@/components/auth/auth-form'
 import { Sparkles } from 'lucide-react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
 
-export default async function LoginPage({
-  searchParams
-}: {
-  searchParams: Promise<{ source?: string; return_to?: string; callback_port?: string }>
-}) {
-  const params = await searchParams;
-  const isFromCLI = params?.source === 'cli' || params?.return_to === 'terminal';
+function LoginContent() {
+  const searchParams = useSearchParams()
+  const isFromCLI = searchParams?.get('source') === 'cli' || searchParams?.get('return_to') === 'terminal'
+  const callbackPort = searchParams?.get('callback_port') || undefined
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
@@ -34,16 +35,28 @@ export default async function LoginPage({
       <main className="flex-1 flex items-center justify-center p-4 sm:p-6">
         <AuthForm
           isFromCLI={isFromCLI}
-          callbackPort={params?.callback_port}
+          callbackPort={callbackPort}
         />
       </main>
 
       {/* Footer */}
       <footer className="p-4 sm:p-6">
         <div className="max-w-7xl mx-auto text-center text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-          © 2025 CacheGPT. All rights reserved.
+          &copy; 2025 CacheGPT. All rights reserved.
         </div>
       </footer>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="animate-pulse text-gray-400">Loading...</div>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   )
 }

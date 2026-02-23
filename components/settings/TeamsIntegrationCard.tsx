@@ -5,6 +5,7 @@ import {
   Loader2, Check, AlertCircle, Link2, Unlink, Hash, Users,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
+import { apiFetch } from '@/lib/api-client';
 
 interface TeamsIntegrationStatus {
   connected: boolean;
@@ -41,7 +42,7 @@ export default function TeamsIntegrationCard({ userId }: TeamsIntegrationCardPro
   const fetchStatus = useCallback(async () => {
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch('/api/integrations/teams', { headers });
+      const res = await apiFetch('/api/integrations/teams', { headers });
       if (res.ok) {
         const data: TeamsIntegrationStatus = await res.json();
         setStatus(data);
@@ -89,7 +90,7 @@ export default function TeamsIntegrationCard({ userId }: TeamsIntegrationCardPro
     setMessage(null);
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch('/api/integrations/teams', {
+      const res = await apiFetch('/api/integrations/teams', {
         method: 'DELETE',
         headers
       });

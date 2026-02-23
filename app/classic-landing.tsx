@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import BugReportButton from '@/components/bug-report-button'
 import CacheGPTLogo from '@/components/CacheGPTLogo'
+import { apiFetch } from '@/lib/api-client'
 
 export default function Home() {
   const { user, loading } = useAuth()
@@ -77,7 +78,7 @@ export default function Home() {
 
   // Fetch public stats
   useEffect(() => {
-    fetch('/api/public-stats')
+    apiFetch('/api/public-stats')
       .then(res => res.json())
       .then(data => setPublicStats(data))
       .catch(err => console.error('Failed to fetch public stats:', err))

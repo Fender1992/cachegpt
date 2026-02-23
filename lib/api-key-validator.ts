@@ -3,6 +3,8 @@
  * Validates format and tests connection for each provider
  */
 
+import { apiFetch } from '@/lib/api-client'
+
 interface ValidationResult {
   valid: boolean
   error?: string
@@ -69,7 +71,7 @@ export const testApiKeyConnection = async (
     }
 
     // Test actual API connection
-    const response = await fetch('/api/test-api-key', {
+    const response = await apiFetch('/api/test-api-key', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ provider, apiKey })

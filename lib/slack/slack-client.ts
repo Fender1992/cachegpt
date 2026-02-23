@@ -8,6 +8,7 @@
  */
 
 import { supabase } from '@/lib/supabase-client';
+import { apiFetch } from '@/lib/api-client';
 
 export interface SlackChannel {
   id: string;
@@ -100,7 +101,7 @@ export class SlackClient {
       this.updateState({ isConnecting: true, error: null });
 
       const headers = await this.getAuthHeader();
-      const statusRes = await fetch('/api/integrations/slack', { headers });
+      const statusRes = await apiFetch('/api/integrations/slack', { headers });
       if (!statusRes.ok) {
         throw new Error('Failed to check Slack status');
       }
@@ -113,7 +114,7 @@ export class SlackClient {
       this.connected = true;
 
       // Fetch channels
-      const channelsRes = await fetch('/api/integrations/slack/channels', { headers });
+      const channelsRes = await apiFetch('/api/integrations/slack/channels', { headers });
       const channelsData = channelsRes.ok ? await channelsRes.json() : { channels: [] };
       const channels: SlackChannel[] = channelsData.channels || [];
 
@@ -181,7 +182,7 @@ export class SlackClient {
 
       // Always fetch fresh messages
       const headers = await this.getAuthHeader();
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/integrations/slack/messages?channelId=${channel.id}&limit=25`,
         { headers }
       );
@@ -209,7 +210,7 @@ export class SlackClient {
 
     try {
       const headers = await this.getAuthHeader();
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/integrations/slack/messages?channelId=${this.state.selectedChannel.id}&limit=25&cursor=${this.state.nextCursor}`,
         { headers }
       );
@@ -240,7 +241,7 @@ export class SlackClient {
 
     try {
       const headers = await this.getAuthHeader();
-      const res = await fetch('/api/integrations/slack/messages', {
+      const res = await apiFetch('/api/integrations/slack/messages', {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({ channelId, text, threadTs }),

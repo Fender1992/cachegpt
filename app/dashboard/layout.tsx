@@ -1,5 +1,5 @@
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+// force-dynamic and revalidate removed for static export compatibility (desktop build)
+// Dashboard data is fetched client-side via apiFetch so no SSR needed
 
 export default function DashboardLayout({
   children,

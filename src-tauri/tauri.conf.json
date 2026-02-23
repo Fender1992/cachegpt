@@ -1,0 +1,69 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicedoc/tauri-schema/2/schema.json",
+  "productName": "CacheGPT",
+  "version": "1.0.0",
+  "identifier": "app.cachegpt.desktop",
+  "build": {
+    "frontendDist": "../out-desktop",
+    "devUrl": "http://localhost:3000",
+    "beforeDevCommand": "yarn dev",
+    "beforeBuildCommand": "yarn build:desktop"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "CacheGPT",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "center": true,
+        "decorations": true,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https://cachegpt.app https://*.supabase.co wss://*.supabase.co https://api.openai.com https://api.anthropic.com;"
+    },
+    "trayIcon": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    },
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": ""
+    },
+    "linux": {
+      "deb": {
+        "depends": []
+      }
+    }
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["cachegpt"]
+      }
+    },
+    "updater": {
+      "endpoints": ["https://cachegpt.app/api/desktop/update/{{target}}/{{arch}}/{{current_version}}"],
+      "pubkey": ""
+    }
+  }
+}

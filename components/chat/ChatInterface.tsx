@@ -18,6 +18,7 @@ import MarkdownMessage from '@/components/chat/MarkdownMessage'
 import FileUpload, { UploadedFile } from '@/components/chat/FileUpload'
 import { error as logError } from '@/lib/logger'
 import { isFeatureEnabled } from '@/lib/featureFlags'
+import { apiFetch } from '@/lib/api-client'
 
 const providerIcons = {
   chatgpt: Bot,
@@ -228,7 +229,7 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
         headers['Authorization'] = `Bearer ${session.access_token}`
       }
 
-      const response = await fetch(`/api/conversations/${convId}/files`, {
+      const response = await apiFetch(`/api/conversations/${convId}/files`, {
         headers,
         credentials: 'include'
       })
@@ -249,7 +250,7 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
 
   const loadFeatureFlags = async () => {
     try {
-      const response = await fetch('/api/feature-flags')
+      const response = await apiFetch('/api/feature-flags')
       if (response.ok) {
         const data = await response.json()
         setShareEnabled(data.flags.share_answer_enabled === true)
@@ -272,7 +273,7 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
     if (!modeSlug) return
 
     try {
-      const response = await fetch('/api/modes')
+      const response = await apiFetch('/api/modes')
       if (response.ok) {
         const data = await response.json()
         const mode = data.modes?.find((m: any) => m.slug === modeSlug)
@@ -281,7 +282,7 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
 
           // Record click for trending
           try {
-            await fetch('/api/modes/click', {
+            await apiFetch('/api/modes/click', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ modeSlug, source: 'share' }),
@@ -332,7 +333,7 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
         console.warn('[CHAT] loadConversations: No access token in session!')
       }
 
-      const response = await fetch(`/api/conversations?limit=20&platform=web`, {
+      const response = await apiFetch(`/api/conversations?limit=20&platform=web`, {
         headers,
         credentials: 'include' // Keep this in case cookies work in the future
       })
@@ -377,7 +378,7 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
         headers['Authorization'] = `Bearer ${session.access_token}`
       }
 
-      const response = await fetch(`/api/conversations/${conversationId}/messages?limit=${limit}`, {
+      const response = await apiFetch(`/api/conversations/${conversationId}/messages?limit=${limit}`, {
         headers,
         credentials: 'include'
       })
@@ -422,7 +423,7 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
         headers['Authorization'] = `Bearer ${session.access_token}`
       }
 
-      const response = await fetch(`/api/conversations?id=${conversationId}`, {
+      const response = await apiFetch(`/api/conversations?id=${conversationId}`, {
         method: 'DELETE',
         headers,
         credentials: 'include'
@@ -475,7 +476,7 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
       }
 
       const oldestMessage = messages[0]
-      const response = await fetch(
+      const response = await apiFetch(
         `/api/conversations/${currentConversationId}/messages?before=${oldestMessage?.created_at}&limit=20`,
         {
           headers,
@@ -593,7 +594,7 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
     if (!msg.cacheId || msg.feedbackGiven) return
 
     try {
-      const response = await fetch('/api/cache-feedback', {
+      const response = await apiFetch('/api/cache-feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -695,7 +696,7 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
       }
 
       // Use streaming endpoint for better UX
-      const response = await fetch('/api/v2/unified-chat-stream', {
+      const response = await apiFetch('/api/v2/unified-chat-stream', {
         method: 'POST',
         headers,
         credentials: 'include',

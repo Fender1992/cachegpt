@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Navigation from '@/components/Navigation';
 import { supabase } from '@/lib/supabase-client';
+import { apiFetch } from '@/lib/api-client';
 
 const PRESET_AMOUNTS = [
   { label: '$5', cents: 500 },
@@ -63,7 +64,7 @@ function DonateContent() {
         headers['Authorization'] = `Bearer ${session.access_token}`;
       }
 
-      const res = await fetch('/api/donate', {
+      const res = await apiFetch('/api/donate', {
         method: 'POST',
         headers,
         body: JSON.stringify({

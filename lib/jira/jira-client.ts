@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '@/lib/supabase-client';
+import { apiFetch } from '@/lib/api-client';
 
 export interface JiraProject {
   id: string;
@@ -110,7 +111,7 @@ export class JiraClient {
       this.updateState({ isConnecting: true, error: null });
 
       const headers = await this.getAuthHeader();
-      const statusRes = await fetch('/api/integrations/jira', { headers });
+      const statusRes = await apiFetch('/api/integrations/jira', { headers });
       if (!statusRes.ok) {
         throw new Error('Failed to check Jira status');
       }
@@ -123,7 +124,7 @@ export class JiraClient {
       this.connected = true;
 
       // Fetch projects
-      const projectsRes = await fetch('/api/integrations/jira/projects', { headers });
+      const projectsRes = await apiFetch('/api/integrations/jira/projects', { headers });
       const projectsData = projectsRes.ok ? await projectsRes.json() : { projects: [] };
 
       this.updateState({
@@ -169,7 +170,7 @@ export class JiraClient {
       });
 
       const headers = await this.getAuthHeader();
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/integrations/jira/issues?projectKey=${encodeURIComponent(project.key)}`,
         { headers }
       );
@@ -190,7 +191,7 @@ export class JiraClient {
     try {
       this.updateState({ selectedIssue: null });
       const headers = await this.getAuthHeader();
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/integrations/jira/issues?issueKey=${encodeURIComponent(issueKey)}`,
         { headers }
       );
@@ -209,7 +210,7 @@ export class JiraClient {
 
     try {
       const headers = await this.getAuthHeader();
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/integrations/jira/issues?jql=${encodeURIComponent(jql)}`,
         { headers }
       );

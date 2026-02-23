@@ -5,6 +5,7 @@ import {
   Loader2, Check, AlertCircle, Link2, Unlink, FileText, BookOpen,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
+import { apiFetch } from '@/lib/api-client';
 
 interface NotionIntegrationStatus {
   connected: boolean;
@@ -41,7 +42,7 @@ export default function NotionIntegrationCard({ userId }: NotionIntegrationCardP
   const fetchStatus = useCallback(async () => {
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch('/api/integrations/notion', { headers });
+      const res = await apiFetch('/api/integrations/notion', { headers });
       if (res.ok) {
         const data: NotionIntegrationStatus = await res.json();
         setStatus(data);
@@ -88,7 +89,7 @@ export default function NotionIntegrationCard({ userId }: NotionIntegrationCardP
     setMessage(null);
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch('/api/integrations/notion', {
+      const res = await apiFetch('/api/integrations/notion', {
         method: 'DELETE',
         headers
       });

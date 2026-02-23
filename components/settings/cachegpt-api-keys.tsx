@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase-client'
+import { apiFetch } from '@/lib/api-client'
 import {
   Key, Plus, Trash2, Copy, Eye, EyeOff, AlertCircle, Check, ExternalLink
 } from 'lucide-react'
@@ -36,7 +37,7 @@ export default function CacheGPTApiKeys() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
 
-      const response = await fetch('/api/api-keys', {
+      const response = await apiFetch('/api/api-keys', {
         headers: {
           'Authorization': `Bearer ${session.access_token}`
         }
@@ -69,7 +70,7 @@ export default function CacheGPTApiKeys() {
         return
       }
 
-      const response = await fetch('/api/api-keys', {
+      const response = await apiFetch('/api/api-keys', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
@@ -109,7 +110,7 @@ export default function CacheGPTApiKeys() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
 
-      const response = await fetch(`/api/api-keys?id=${keyId}`, {
+      const response = await apiFetch(`/api/api-keys?id=${keyId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${session.access_token}`

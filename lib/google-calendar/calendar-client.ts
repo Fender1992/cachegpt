@@ -8,6 +8,7 @@
  */
 
 import { supabase } from '@/lib/supabase-client';
+import { apiFetch } from '@/lib/api-client';
 
 export interface CalendarInfo {
   id: string;
@@ -110,7 +111,7 @@ export class CalendarClient {
       this.updateState({ isConnecting: true, error: null });
 
       const headers = await this.getAuthHeader();
-      const statusRes = await fetch('/api/integrations/google-calendar', { headers });
+      const statusRes = await apiFetch('/api/integrations/google-calendar', { headers });
       if (!statusRes.ok) {
         throw new Error('Failed to check Google Calendar status');
       }
@@ -123,7 +124,7 @@ export class CalendarClient {
       this.connected = true;
 
       // Fetch calendars
-      const calendarsRes = await fetch('/api/integrations/google-calendar/calendars', { headers });
+      const calendarsRes = await apiFetch('/api/integrations/google-calendar/calendars', { headers });
       const calendars: CalendarInfo[] = calendarsRes.ok ? await calendarsRes.json() : [];
 
       // Cache calendars
@@ -134,7 +135,7 @@ export class CalendarClient {
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
       const futureEnd = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate()).toISOString();
 
-      const eventsRes = await fetch(
+      const eventsRes = await apiFetch(
         `/api/integrations/google-calendar/events?timeMin=${encodeURIComponent(todayStart)}&timeMax=${encodeURIComponent(futureEnd)}`,
         { headers }
       );
@@ -209,7 +210,7 @@ export class CalendarClient {
       }
 
       const headers = await this.getAuthHeader();
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/integrations/google-calendar/events?calendarId=${encodeURIComponent(calendar.id)}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`,
         { headers }
       );
@@ -239,7 +240,7 @@ export class CalendarClient {
       if (timeMin) params.set('timeMin', timeMin);
       if (timeMax) params.set('timeMax', timeMax);
 
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/integrations/google-calendar/events?${params}`,
         { headers }
       );
@@ -267,7 +268,7 @@ export class CalendarClient {
       // Fetch 12 months of events
       const futureEnd = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate()).toISOString();
 
-      const eventsRes = await fetch(
+      const eventsRes = await apiFetch(
         `/api/integrations/google-calendar/events?timeMin=${encodeURIComponent(todayStart)}&timeMax=${encodeURIComponent(futureEnd)}`,
         { headers }
       );
@@ -313,7 +314,7 @@ export class CalendarClient {
 
     try {
       const headers = await this.getAuthHeader();
-      const res = await fetch('/api/integrations/google-calendar/events', {
+      const res = await apiFetch('/api/integrations/google-calendar/events', {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify(event),
@@ -346,7 +347,7 @@ export class CalendarClient {
 
     try {
       const headers = await this.getAuthHeader();
-      const res = await fetch('/api/integrations/google-calendar/events', {
+      const res = await apiFetch('/api/integrations/google-calendar/events', {
         method: 'PATCH',
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({ eventId, ...updates }),
@@ -370,7 +371,7 @@ export class CalendarClient {
       const params = new URLSearchParams({ eventId });
       if (calendarId) params.set('calendarId', calendarId);
 
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/integrations/google-calendar/events?${params}`,
         { method: 'DELETE', headers }
       );

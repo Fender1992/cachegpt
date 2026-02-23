@@ -8,6 +8,7 @@
  */
 
 import { supabase } from '@/lib/supabase-client';
+import { apiFetch } from '@/lib/api-client';
 
 export interface TeamsChannel {
   id: string;
@@ -98,7 +99,7 @@ export class TeamsClient {
       this.updateState({ isConnecting: true, error: null });
 
       const headers = await this.getAuthHeader();
-      const statusRes = await fetch('/api/integrations/teams', { headers });
+      const statusRes = await apiFetch('/api/integrations/teams', { headers });
       if (!statusRes.ok) {
         throw new Error('Failed to check Teams status');
       }
@@ -111,7 +112,7 @@ export class TeamsClient {
       this.connected = true;
 
       // Fetch channels
-      const channelsRes = await fetch('/api/integrations/teams/channels', { headers });
+      const channelsRes = await apiFetch('/api/integrations/teams/channels', { headers });
       const channelsData = channelsRes.ok ? await channelsRes.json() : { channels: [] };
       const channels: TeamsChannel[] = channelsData.channels || [];
 
@@ -181,7 +182,7 @@ export class TeamsClient {
 
       // Always fetch fresh messages
       const headers = await this.getAuthHeader();
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/integrations/teams/messages?teamId=${channel.teamId}&channelId=${channel.id}&top=25`,
         { headers }
       );
@@ -210,7 +211,7 @@ export class TeamsClient {
     try {
       const headers = await this.getAuthHeader();
       const channel = this.state.selectedChannel;
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/integrations/teams/messages?teamId=${channel.teamId}&channelId=${channel.id}&top=25`,
         { headers }
       );
@@ -242,7 +243,7 @@ export class TeamsClient {
 
     try {
       const headers = await this.getAuthHeader();
-      const res = await fetch('/api/integrations/teams/messages', {
+      const res = await apiFetch('/api/integrations/teams/messages', {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({ teamId, channelId, text }),

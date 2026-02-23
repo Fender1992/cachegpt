@@ -1,0 +1,15 @@
+{
+  "identifier": "default",
+  "description": "Default capability set for CacheGPT Desktop",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "shell:allow-open",
+    "deep-link:default",
+    "updater:default",
+    "store:default",
+    "notification:default",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-unregister"
+  ]
+}

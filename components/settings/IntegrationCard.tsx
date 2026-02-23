@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
 import type { IntegrationStatus } from '@/lib/integrations/types';
+import { apiFetch } from '@/lib/api-client';
 
 interface IntegrationCardProps {
   provider: 'github';
@@ -30,7 +31,7 @@ export default function IntegrationCard({ provider, userId }: IntegrationCardPro
   const fetchStatus = useCallback(async () => {
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch('/api/integrations/github', { headers });
+      const res = await apiFetch('/api/integrations/github', { headers });
       if (res.ok) {
         const data: IntegrationStatus = await res.json();
         setStatus(data);
@@ -77,7 +78,7 @@ export default function IntegrationCard({ provider, userId }: IntegrationCardPro
     setMessage(null);
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch('/api/integrations/github', { method: 'DELETE', headers });
+      const res = await apiFetch('/api/integrations/github', { method: 'DELETE', headers });
       if (res.ok) {
         setStatus({
           connected: false,

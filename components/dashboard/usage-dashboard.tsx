@@ -19,6 +19,7 @@ import {
   Share2
 } from 'lucide-react';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { apiFetch } from '@/lib/api-client';
 
 interface UsageStats {
   current_month: {
@@ -75,12 +76,12 @@ export default function UsageDashboard() {
   const fetchDashboardData = async () => {
     try {
       const [usageResponse, subscriptionResponse] = await Promise.all([
-        fetch('/api/subscriptions/usage', {
+        apiFetch('/api/subscriptions/usage', {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
         }),
-        fetch('/api/subscriptions/current', {
+        apiFetch('/api/subscriptions/current', {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase-client'
 import { ChevronDown, Check, Crown, Zap, ArrowUpRight } from 'lucide-react'
+import { apiFetch } from '@/lib/api-client'
 
 interface ProviderModel {
   id: string
@@ -79,7 +80,7 @@ export default function ModelSelector({
       setLoading(true)
 
       // Get available models for the current user
-      const response = await fetch('/api/provider-models/user-available', {
+      const response = await apiFetch('/api/provider-models/user-available', {
         method: 'POST'
       })
 
@@ -91,7 +92,7 @@ export default function ModelSelector({
         console.error('Failed to fetch user available models, falling back to backend free providers only')
 
         // Fallback: fetch all models and filter to backend free providers only
-        const fallbackResponse = await fetch('/api/provider-models')
+        const fallbackResponse = await apiFetch('/api/provider-models')
         if (fallbackResponse.ok) {
           const fallbackData = await fallbackResponse.json()
 
@@ -130,7 +131,7 @@ export default function ModelSelector({
 
     // Save user preference
     try {
-      await fetch('/api/user/model-preferences', {
+      await apiFetch('/api/user/model-preferences', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

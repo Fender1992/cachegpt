@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Paperclip, X, File, Image as ImageIcon, Code, FileText } from 'lucide-react'
 import { supabase } from '@/lib/supabase-client'
+import { apiFetch } from '@/lib/api-client'
 
 export interface UploadedFile {
   id: string
@@ -78,7 +79,7 @@ export default function FileUpload({
           ? { 'Authorization': `Bearer ${token}` }
           : {}
 
-        const response = await fetch('/api/upload', {
+        const response = await apiFetch('/api/upload', {
           method: 'POST',
           body: formData,
           headers,

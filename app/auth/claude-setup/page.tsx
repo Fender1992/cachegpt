@@ -16,6 +16,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
 import { Brain, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react'
+import { apiFetch } from '@/lib/api-client'
 
 function ClaudeSetupContent() {
   const router = useRouter()
@@ -69,7 +70,7 @@ function ClaudeSetupContent() {
       }
 
       // Validate the session by making a test request using unified endpoint
-      const testResponse = await fetch('/api/v2/unified-chat', {
+      const testResponse = await apiFetch('/api/v2/unified-chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

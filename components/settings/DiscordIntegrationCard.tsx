@@ -5,6 +5,7 @@ import {
   Loader2, Check, AlertCircle, Link2, Unlink, MessageSquare, Server, Hash, Users,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
+import { apiFetch } from '@/lib/api-client';
 
 interface DiscordIntegrationStatus {
   connected: boolean;
@@ -50,7 +51,7 @@ export default function DiscordIntegrationCard({ userId }: DiscordIntegrationCar
   const fetchStatus = useCallback(async () => {
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch('/api/integrations/discord', { headers });
+      const res = await apiFetch('/api/integrations/discord', { headers });
       if (res.ok) {
         const data: DiscordIntegrationStatus = await res.json();
         setStatus(data);
@@ -108,9 +109,9 @@ export default function DiscordIntegrationCard({ userId }: DiscordIntegrationCar
     setMessage(null);
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch('/api/integrations/discord/sync', { 
-        method: 'POST', 
-        headers 
+      const res = await apiFetch('/api/integrations/discord/sync', {
+        method: 'POST',
+        headers
       });
       
       if (res.ok) {
@@ -133,9 +134,9 @@ export default function DiscordIntegrationCard({ userId }: DiscordIntegrationCar
     setMessage(null);
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch('/api/integrations/discord', { 
-        method: 'DELETE', 
-        headers 
+      const res = await apiFetch('/api/integrations/discord', {
+        method: 'DELETE',
+        headers
       });
       
       if (res.ok) {

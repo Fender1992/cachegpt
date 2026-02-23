@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
 import { cn } from '@/lib/utils';
+import { apiFetch } from '@/lib/api-client';
 
 interface FileItem {
   id: string;
@@ -81,7 +82,7 @@ export default function FilesPanelContent({ isActive }: FilesPanelContentProps) 
     try {
       setError(null);
       const headers = await getAuthHeaders();
-      const res = await fetch('/api/files', { headers });
+      const res = await apiFetch('/api/files', { headers });
 
       if (res.ok) {
         const data = await res.json();
@@ -107,7 +108,7 @@ export default function FilesPanelContent({ isActive }: FilesPanelContentProps) 
   const handleFileSelect = useCallback(async (fileId: string) => {
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch(`/api/files/${fileId}`, { headers });
+      const res = await apiFetch(`/api/files/${fileId}`, { headers });
 
       if (res.ok) {
         const data = await res.json();
@@ -125,7 +126,7 @@ export default function FilesPanelContent({ isActive }: FilesPanelContentProps) 
     setDeleting(true);
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch(`/api/files/${deleteConfirmId}`, {
+      const res = await apiFetch(`/api/files/${deleteConfirmId}`, {
         method: 'DELETE',
         headers,
       });

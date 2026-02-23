@@ -5,6 +5,7 @@ import {
   Loader2, Check, AlertCircle, Link2, Unlink, HardDrive,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
+import { apiFetch } from '@/lib/api-client';
 
 interface DriveIntegrationStatus {
   connected: boolean;
@@ -36,7 +37,7 @@ export default function DriveIntegrationCard({ userId }: DriveIntegrationCardPro
   const fetchStatus = useCallback(async () => {
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch('/api/integrations/google-drive', { headers });
+      const res = await apiFetch('/api/integrations/google-drive', { headers });
       if (res.ok) {
         const data: DriveIntegrationStatus = await res.json();
         setStatus(data);
@@ -83,7 +84,7 @@ export default function DriveIntegrationCard({ userId }: DriveIntegrationCardPro
     setMessage(null);
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch('/api/integrations/google-drive', {
+      const res = await apiFetch('/api/integrations/google-drive', {
         method: 'DELETE',
         headers,
       });

@@ -5,6 +5,7 @@ import {
   Loader2, Check, AlertCircle, Link2, Unlink, Hash, MessageSquare,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
+import { apiFetch } from '@/lib/api-client';
 
 interface SlackIntegrationStatus {
   connected: boolean;
@@ -41,7 +42,7 @@ export default function SlackIntegrationCard({ userId }: SlackIntegrationCardPro
   const fetchStatus = useCallback(async () => {
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch('/api/integrations/slack', { headers });
+      const res = await apiFetch('/api/integrations/slack', { headers });
       if (res.ok) {
         const data: SlackIntegrationStatus = await res.json();
         setStatus(data);
@@ -89,7 +90,7 @@ export default function SlackIntegrationCard({ userId }: SlackIntegrationCardPro
     setMessage(null);
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch('/api/integrations/slack', {
+      const res = await apiFetch('/api/integrations/slack', {
         method: 'DELETE',
         headers
       });
