@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
 import { isDesktop } from '@/lib/api-client'
 import { IS_DESKTOP_BUILD } from '@/hooks/useIsDesktop'
@@ -11,8 +10,6 @@ import { IS_DESKTOP_BUILD } from '@/hooks/useIsDesktop'
  * and sets the Supabase session accordingly.
  */
 export function useDesktopAuth() {
-  const router = useRouter()
-
   const handleDeepLink = useCallback(async (url: string) => {
     try {
       const parsed = new URL(url)
@@ -28,14 +25,15 @@ export function useDesktopAuth() {
         if (error) {
           console.error('Desktop auth session error:', error)
         } else {
-          // Redirect to chat after successful auth
-          router.push('/chat')
+          // Redirect to chat after successful auth (use window.location to avoid
+          // useRouter() in layout-level component which breaks static export)
+          window.location.href = '/chat'
         }
       }
     } catch (err) {
       console.error('Failed to handle desktop auth deep link:', err)
     }
-  }, [router])
+  }, [])
 
   useEffect(() => {
     // Use build-time constant OR runtime check (covers both built app and dev mode)

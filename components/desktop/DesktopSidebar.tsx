@@ -1,12 +1,10 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import { Plus, Settings, BarChart3, LogOut, LogIn, PanelLeftClose, PanelLeft, MessageSquare } from 'lucide-react'
 import ConversationList from '@/components/chat/ConversationList'
 import { useDesktopNavigationOptional } from './DesktopNavigationContext'
 
 export default function DesktopSidebar() {
-  const router = useRouter()
   const nav = useDesktopNavigationOptional()
 
   if (!nav) return null
@@ -29,9 +27,9 @@ export default function DesktopSidebar() {
 
   const handleNavigate = (view: 'chat' | 'settings' | 'dashboard') => {
     setActiveView(view)
-    if (view === 'settings') router.push('/settings')
-    else if (view === 'dashboard') router.push('/dashboard')
-    else router.push('/chat')
+    if (view === 'settings') window.location.href = '/settings'
+    else if (view === 'dashboard') window.location.href = '/dashboard'
+    else window.location.href = '/chat'
   }
 
   return (

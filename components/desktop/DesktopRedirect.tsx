@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
 import { useIsDesktop } from '@/hooks/useIsDesktop'
 
 /** Marketing routes that should redirect to /chat on desktop */
@@ -21,19 +20,19 @@ const MARKETING_ROUTES = [
 
 export default function DesktopRedirect() {
   const isDesktopApp = useIsDesktop()
-  const router = useRouter()
-  const pathname = usePathname()
 
   useEffect(() => {
     if (!isDesktopApp) return
+
+    const pathname = window.location.pathname
 
     const isMarketingRoute = MARKETING_ROUTES.includes(pathname) ||
       pathname.startsWith('/blog/')
 
     if (isMarketingRoute) {
-      router.replace('/chat')
+      window.location.replace('/chat')
     }
-  }, [isDesktopApp, pathname, router])
+  }, [isDesktopApp])
 
   return null
 }
