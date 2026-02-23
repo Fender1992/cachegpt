@@ -11,6 +11,7 @@ const createMockClient = (): SupabaseClient => {
     auth: {
       getUser: () => Promise.reject(new Error(errorMessage)),
       signInWithPassword: () => Promise.reject(new Error(errorMessage)),
+      signInWithOAuth: () => Promise.reject(new Error(errorMessage)),
       signUp: () => Promise.reject(new Error(errorMessage)),
       signOut: () => Promise.reject(new Error(errorMessage)),
       onAuthStateChange: () => ({
