@@ -17,7 +17,7 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
-    "build:desktop": "node -e \"const fs=require('fs');fs.copyFileSync('next.config.js','next.config.js.bak');fs.copyFileSync('next.config.desktop.js','next.config.js')\" && npx next build && node -e \"const fs=require('fs');fs.renameSync('next.config.js.bak','next.config.js')\"",
+    "build:desktop": "node scripts/desktop-build.js",
     "dev:desktop": "cargo tauri dev",
     "tauri:build": "cargo tauri build"
   },

@@ -1,7 +1,7 @@
 use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     menu::{Menu, MenuItem},
-    Manager, AppHandle,
+    Manager,
 };
 
 pub fn create_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {

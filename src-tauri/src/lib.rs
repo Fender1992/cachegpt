@@ -2,6 +2,7 @@ mod tray;
 mod deep_link;
 
 use tauri::Manager;
+use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -27,9 +28,9 @@ pub fn run() {
                 "Ctrl+Shift+C"
             };
 
-            use tauri_plugin_global_shortcut::ShortcutState;
+            use tauri_plugin_global_shortcut::{Shortcut, ShortcutState};
             app.global_shortcut().on_shortcut(
-                shortcut.parse().unwrap(),
+                shortcut.parse::<Shortcut>().unwrap(),
                 move |_app, _shortcut, event| {
                     if event.state == ShortcutState::Pressed {
                         if let Some(window) = app_handle.get_webview_window("main") {

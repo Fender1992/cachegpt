@@ -1,7 +1,7 @@
-// generateStaticParams returns [] so this dynamic route is not pre-rendered
-// but can still be navigated to client-side in the desktop static export
+export const dynamic = 'force-static';
+
 export async function generateStaticParams() {
-  return []
+  return [];
 }
 
-export { default } from '../page'
+export { default } from '../page';

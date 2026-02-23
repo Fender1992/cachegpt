@@ -91,3 +91,5 @@ tmp/.next/
 # Tauri / Desktop
 src-tauri/target/
 out-desktop/
+.desktop-bak-*
+app-icon.png
