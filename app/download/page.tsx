@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Download, Apple, Monitor, Terminal, Clock } from 'lucide-react'
+import { Download, Apple, Monitor, Terminal } from 'lucide-react'
 import Navigation from '@/components/Navigation'
 
 type Platform = 'macos' | 'windows' | 'linux' | 'unknown'
@@ -36,14 +36,14 @@ export default function DownloadPage() {
           <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">Version {VERSION}</p>
         </div>
 
-        {/* Coming Soon Banner */}
-        <div className="mb-8 p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-xl text-center">
+        {/* Available Now Banner */}
+        <div className="mb-8 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl text-center">
           <div className="flex items-center justify-center gap-2 mb-1">
-            <Clock className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-            <span className="font-semibold text-purple-700 dark:text-purple-300">Coming Soon</span>
+            <Download className="w-4 h-4 text-green-600 dark:text-green-400" />
+            <span className="font-semibold text-green-700 dark:text-green-300">Windows Available Now</span>
           </div>
-          <p className="text-sm text-purple-600 dark:text-purple-400">
-            Desktop builds are being prepared. Check back shortly for downloadable installers.
+          <p className="text-sm text-green-600 dark:text-green-400">
+            Download the Windows installer below. macOS and Linux builds are coming soon.
           </p>
         </div>
 
@@ -78,14 +78,14 @@ export default function DownloadPage() {
           >
             <Monitor className="w-12 h-12" />
             <h2 className="text-xl font-semibold">Windows</h2>
-            <button
-              disabled
-              className="inline-flex items-center gap-2 bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-6 py-3 rounded-lg font-medium cursor-not-allowed"
+            <a
+              href={`https://github.com/Fender1992/cachegpt/releases/download/v${VERSION}/CacheGPT_${VERSION}_x64-setup.exe`}
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:opacity-90 text-white px-6 py-3 rounded-lg font-medium transition-opacity"
             >
               <Download className="w-4 h-4" />
               Download .exe
-            </button>
-            <p className="text-xs text-gray-500 dark:text-gray-400 text-center">Windows 10+</p>
+            </a>
+            <p className="text-xs text-gray-500 dark:text-gray-400 text-center">Windows 10+ (x64) &bull; {VERSION}</p>
           </div>
 
           {/* Linux */}
