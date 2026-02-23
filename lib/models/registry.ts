@@ -304,6 +304,59 @@ const DEFAULT_MODELS: ModelEntry[] = [
     isActive: true,
     lastVerified: LAST_VERIFIED,
   },
+
+  // ── Cerebras ─────────────────────────────────────────────
+  {
+    id: 'qwen-3-235b-a22b-instruct-2507',
+    name: 'Qwen 3 235B Instruct',
+    provider: 'cerebras',
+    tier: 'balanced',
+    maxContextTokens: 128000,
+    maxOutputTokens: 4096,
+    supportsStreaming: true,
+    supportsVision: false,
+    supportsFunctions: false,
+    costPerMillionInput: 0,
+    costPerMillionOutput: 0,
+    isDefault: true,
+    isActive: true,
+    lastVerified: LAST_VERIFIED,
+  },
+  {
+    id: 'llama3.1-8b',
+    name: 'Llama 3.1 8B (Cerebras)',
+    provider: 'cerebras',
+    tier: 'fast',
+    maxContextTokens: 128000,
+    maxOutputTokens: 4096,
+    supportsStreaming: true,
+    supportsVision: false,
+    supportsFunctions: false,
+    costPerMillionInput: 0,
+    costPerMillionOutput: 0,
+    isDefault: false,
+    isActive: true,
+    lastVerified: LAST_VERIFIED,
+  },
+
+  // ── SambaNova ────────────────────────────────────────────
+  {
+    id: 'Meta-Llama-3.3-70B-Instruct',
+    name: 'Llama 3.3 70B (SambaNova)',
+    provider: 'sambanova',
+    tier: 'balanced',
+    maxContextTokens: 128000,
+    maxOutputTokens: 4096,
+    supportsStreaming: true,
+    supportsVision: false,
+    supportsFunctions: false,
+    costPerMillionInput: 0,
+    costPerMillionOutput: 0,
+    isDefault: true,
+    isActive: true,
+    lastVerified: LAST_VERIFIED,
+  },
+
 ];
 
 // Fallback defaults keyed by provider — used when nothing else matches
@@ -316,6 +369,8 @@ const FALLBACK_MODEL_IDS: Record<string, string> = {
   openrouter: 'meta-llama/llama-4-maverick:free',
   huggingface: 'meta-llama/Llama-3.3-70B-Instruct',
   grok: 'x-ai/grok-2-1212',
+  cerebras: 'qwen-3-235b-a22b-instruct-2507',
+  sambanova: 'Meta-Llama-3.3-70B-Instruct',
 };
 
 const FALLBACK_MAX_OUTPUT = 4096;

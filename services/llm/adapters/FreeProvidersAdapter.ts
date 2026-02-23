@@ -1,7 +1,7 @@
 /**
  * Free Providers Adapter
  *
- * Adapter for free external providers (Groq, OpenRouter, HuggingFace).
+ * Adapter for free external providers (Cerebras, Groq, SambaNova, OpenRouter, HuggingFace).
  * Supports streaming, timeouts, rate limit awareness, and Self-MoA quality mode.
  */
 
@@ -17,6 +17,7 @@ interface ProviderConfig {
   apiKey: string;
   endpoint: string;
   model: string;
+  priority: number; // Lower = better quality, tried first
 }
 
 export class FreeProvidersAdapter implements LLMAdapter {
@@ -36,15 +37,14 @@ export class FreeProvidersAdapter implements LLMAdapter {
   }
 
   async *chatStream(params: LLMChatParams): AsyncGenerator<StreamChunk> {
-    const providers = this.getProviders();
-    const shuffledProviders = [...providers].sort(() => Math.random() - 0.5);
+    const providers = this.getPrioritizedProviders();
 
     const messagesWithSystem = params.systemPrompt
       ? [{ role: 'system' as const, content: params.systemPrompt }, ...params.messages]
       : params.messages;
 
-    // Try each provider until one streams successfully
-    for (const provider of shuffledProviders) {
+    // Try each provider in priority order until one streams successfully
+    for (const provider of providers) {
       try {
         yield* this.streamFromProvider(provider, messagesWithSystem, params.temperature, params.maxTokens);
         return; // Success — exit after first working provider
@@ -138,10 +138,9 @@ export class FreeProvidersAdapter implements LLMAdapter {
     temperature?: number,
     maxTokens?: number
   ): Promise<LLMChatResponse> {
-    const providers = this.getProviders();
-    const shuffledProviders = [...providers].sort(() => Math.random() - 0.5);
+    const providers = this.getPrioritizedProviders();
 
-    for (const provider of shuffledProviders) {
+    for (const provider of providers) {
       try {
         const result = await this.callProvider(provider, messages, temperature, maxTokens);
         return { ...result, qualityMode: 'fast' };
@@ -213,8 +212,37 @@ export class FreeProvidersAdapter implements LLMAdapter {
     }
   }
 
+  /**
+   * Returns providers sorted by priority (best first).
+   * Same-priority providers are shuffled for load balancing.
+   */
+  private getPrioritizedProviders(): ProviderConfig[] {
+    const providers = this.getProviders();
+    return [...providers].sort((a, b) => {
+      if (a.priority !== b.priority) return a.priority - b.priority;
+      return Math.random() - 0.5; // Shuffle within same priority tier
+    });
+  }
+
   private getProviders(): ProviderConfig[] {
     const providers: ProviderConfig[] = [];
+
+    // Priority guide (lower = tried first):
+    // 1 = Cerebras (Qwen 3 235B — largest free model, ultra-fast)
+    // 2 = Groq (Llama 3.3 70B — fast inference, reliable)
+    // 3 = SambaNova (Llama 3.3 70B — custom hardware, fast)
+    // 4 = OpenRouter (Llama 4 Maverick — good free model)
+    // 5 = HuggingFace (variable reliability, good diversity)
+
+    if (LLM_CONFIG.free.cerebras?.enabled) {
+      providers.push({
+        name: 'cerebras',
+        apiKey: LLM_CONFIG.free.cerebras.apiKey,
+        endpoint: 'https://api.cerebras.ai/v1/chat/completions',
+        model: getDefaultModelId('cerebras'),
+        priority: 1,
+      });
+    }
 
     if (LLM_CONFIG.free.groq.enabled) {
       providers.push({
@@ -222,6 +250,17 @@ export class FreeProvidersAdapter implements LLMAdapter {
         apiKey: LLM_CONFIG.free.groq.apiKey,
         endpoint: 'https://api.groq.com/openai/v1/chat/completions',
         model: getDefaultModelId('groq'),
+        priority: 2,
+      });
+    }
+
+    if (LLM_CONFIG.free.sambanova?.enabled) {
+      providers.push({
+        name: 'sambanova',
+        apiKey: LLM_CONFIG.free.sambanova.apiKey,
+        endpoint: 'https://api.sambanova.ai/v1/chat/completions',
+        model: getDefaultModelId('sambanova'),
+        priority: 3,
       });
     }
 
@@ -231,6 +270,7 @@ export class FreeProvidersAdapter implements LLMAdapter {
         apiKey: LLM_CONFIG.free.openrouter.apiKey,
         endpoint: 'https://openrouter.ai/api/v1/chat/completions',
         model: getDefaultModelId('openrouter'),
+        priority: 4,
       });
     }
 
@@ -242,6 +282,7 @@ export class FreeProvidersAdapter implements LLMAdapter {
           apiKey: LLM_CONFIG.free.huggingface.apiKey,
           endpoint: 'https://router.huggingface.co/v1/chat/completions',
           model,
+          priority: 5,
         });
       });
     }
@@ -254,14 +295,15 @@ export class FreeProvidersAdapter implements LLMAdapter {
   }
 
   private selectDiverseProviders(providers: ProviderConfig[], count: number): ProviderConfig[] {
-    const large = providers.find(p => p.model.includes('70') || p.name === 'groq');
-    const medium = providers.find(p => p.model.includes('8B'));
-    const small = providers.find(p => p.model.includes('7B') || p.model.includes('Qwen'));
+    // Pick the best model (Cerebras 235B), a strong 70B, and a different architecture
+    const huge = providers.find(p => p.name === 'cerebras');
+    const large = providers.find(p => (p.model.includes('70') || p.name === 'groq') && p.name !== 'cerebras');
+    const other = providers.find(p => p.name === 'openrouter') || providers.find(p => p.model.includes('7B') || p.model.includes('8B'));
 
     const selected: ProviderConfig[] = [];
+    if (huge) selected.push(huge);
     if (large) selected.push(large);
-    if (medium) selected.push(medium);
-    if (small && !selected.includes(small)) selected.push(small);
+    if (other && !selected.includes(other)) selected.push(other);
 
     while (selected.length < count && selected.length < providers.length) {
       const remaining = providers.filter(p => !selected.includes(p));

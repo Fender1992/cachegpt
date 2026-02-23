@@ -37,6 +37,14 @@ export interface FreeProvidersConfig {
     apiKey: string;
     models?: string[]; // Optional: specify which models to use
   };
+  cerebras: {
+    enabled: boolean;
+    apiKey: string;
+  };
+  sambanova: {
+    enabled: boolean;
+    apiKey: string;
+  };
 }
 
 export interface PremiumProviderConfig {
@@ -94,7 +102,7 @@ function parseBoolean(value: string | undefined, defaultValue: boolean): boolean
  * 5. 503 Service Unavailable
  */
 export const LLM_CONFIG: LLMConfigType = {
-  // Default provider: free providers (Groq/OpenRouter/HuggingFace)
+  // Default provider: free providers (Cerebras/Groq/SambaNova/OpenRouter/HuggingFace)
   // Note: 'internal' refers to server-managed free providers, not a separate service
   defaultProvider: (process.env.LLM_PROVIDER || 'free') as ProviderName,
 
@@ -129,6 +137,14 @@ export const LLM_CONFIG: LLMConfigType = {
         'Qwen/Qwen2.5-7B-Instruct',               // Excellent for coding - 7B parameters
         'mistralai/Mistral-7B-Instruct-v0.3',     // Good general purpose - 7B parameters
       ],
+    },
+    cerebras: {
+      enabled: !!process.env.CEREBRAS_API_KEY,
+      apiKey: process.env.CEREBRAS_API_KEY || '',
+    },
+    sambanova: {
+      enabled: !!process.env.SAMBANOVA_API_KEY,
+      apiKey: process.env.SAMBANOVA_API_KEY || '',
     },
   },
 
@@ -232,7 +248,7 @@ export function validateLLMConfig(): { valid: boolean; errors: string[] } {
   if (LLM_CONFIG.defaultProvider === 'free') {
     const hasFreeProvider = Object.values(LLM_CONFIG.free).some(p => p.enabled);
     if (!hasFreeProvider) {
-      errors.push('At least one free provider (Groq, OpenRouter, HuggingFace) must be configured');
+      errors.push('At least one free provider (Cerebras, Groq, SambaNova, OpenRouter, HuggingFace) must be configured');
     }
   }
 

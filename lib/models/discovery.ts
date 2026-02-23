@@ -239,6 +239,47 @@ async function discoverHuggingFace(apiKey: string): Promise<DiscoveredModel[]> {
     }));
 }
 
+async function discoverCerebras(apiKey: string): Promise<DiscoveredModel[]> {
+  const res = await fetch('https://api.cerebras.ai/v1/models', {
+    headers: { Authorization: `Bearer ${apiKey}` },
+    signal: timeoutSignal(DISCOVERY_TIMEOUT_MS),
+  });
+
+  if (!res.ok) throw new Error(`Cerebras API ${res.status}`);
+
+  const json = await res.json();
+  const models: any[] = json.data ?? [];
+
+  return models.map((m: any) => ({
+    id: m.id,
+    name: m.id,
+    provider: 'cerebras',
+    createdAt: m.created ? new Date(m.created * 1000).toISOString() : undefined,
+    supportsStreaming: true,
+    supportsVision: false,
+  }));
+}
+
+async function discoverSambaNova(apiKey: string): Promise<DiscoveredModel[]> {
+  const res = await fetch('https://api.sambanova.ai/v1/models', {
+    headers: { Authorization: `Bearer ${apiKey}` },
+    signal: timeoutSignal(DISCOVERY_TIMEOUT_MS),
+  });
+
+  if (!res.ok) throw new Error(`SambaNova API ${res.status}`);
+
+  const json = await res.json();
+  const models: any[] = json.data ?? [];
+
+  return models.map((m: any) => ({
+    id: m.id,
+    name: m.id,
+    provider: 'sambanova',
+    supportsStreaming: true,
+    supportsVision: false,
+  }));
+}
+
 function discoverAnthropic(): DiscoveredModel[] {
   return ANTHROPIC_KNOWN_MODELS;
 }
@@ -277,6 +318,10 @@ export async function discoverModels(
         return discoverAnthropic();
       case 'perplexity':
         return discoverPerplexity();
+      case 'cerebras':
+        return await discoverCerebras(apiKey);
+      case 'sambanova':
+        return await discoverSambaNova(apiKey);
       default:
         console.warn(`[discovery] Unknown provider: ${provider}`);
         return [];
@@ -304,6 +349,8 @@ export async function discoverAllModels(
     groq: LLM_CONFIG.free.groq.apiKey,
     openrouter: LLM_CONFIG.free.openrouter.apiKey,
     huggingface: LLM_CONFIG.free.huggingface.apiKey,
+    cerebras: LLM_CONFIG.free.cerebras.apiKey,
+    sambanova: LLM_CONFIG.free.sambanova.apiKey,
   };
 
   const providers = Object.keys(keys).filter((p) => keys[p]);
