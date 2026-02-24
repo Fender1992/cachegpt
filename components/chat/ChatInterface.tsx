@@ -950,8 +950,8 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
   }
 
   const handleSettings = () => {
-    if (isDesktopApp && desktopNav) {
-      desktopNav.setActiveView('settings')
+    if (isDesktopApp) {
+      window.location.href = '/settings'
     } else {
       router.push('/settings')
     }
@@ -978,12 +978,7 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
       onDeleteConversation: (id: string, e: React.MouseEvent) => desktopCallbackRefs.current?.deleteConversation(id, e),
       onLogout: () => desktopCallbackRefs.current?.handleLogout(),
       onLogin: () => {
-        if (isDesktopApp) {
-          // On desktop, sign out to trigger the auth form to re-render
-          supabase.auth.signOut()
-        } else {
-          router.push('/login')
-        }
+        window.location.href = '/login'
       },
     })
   }, [isDesktopApp, desktopNav, router])
@@ -1106,7 +1101,7 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
                     type: 'info'
                   })
                   // Redirect to login after short delay so user sees the toast
-                  setTimeout(() => router.push('/login'), 1500)
+                  setTimeout(() => { window.location.href = '/login' }, 1500)
                 } else {
                   setShowHistory(!showHistory)
                 }
@@ -1150,7 +1145,7 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
             )}
             {isAnonymous ? (
               <button
-                onClick={() => router.push('/login')}
+                onClick={() => { window.location.href = '/login' }}
                 className="flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
                 title="Sign In"
                 aria-label="Sign in to save your chats"
@@ -1187,7 +1182,7 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
               loadConversationFiles(id)
             }}
             onDeleteConversation={deleteConversation}
-            onLogin={() => router.push('/login')}
+            onLogin={() => { window.location.href = '/login' }}
           />
         )}
 

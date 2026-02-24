@@ -1,11 +1,17 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { Plus, Settings, BarChart3, LogOut, LogIn, PanelLeftClose, PanelLeft, MessageSquare } from 'lucide-react'
 import ConversationList from '@/components/chat/ConversationList'
 import { useDesktopNavigationOptional } from './DesktopNavigationContext'
 
 export default function DesktopSidebar() {
   const nav = useDesktopNavigationOptional()
+  const [currentPath, setCurrentPath] = useState('/chat')
+
+  useEffect(() => {
+    setCurrentPath(window.location.pathname)
+  }, [])
 
   if (!nav) return null
 
@@ -16,8 +22,6 @@ export default function DesktopSidebar() {
     currentConversationId,
     isAnonymous,
     userEmail,
-    activeView,
-    setActiveView,
     onNewChat,
     onSelectConversation,
     onDeleteConversation,
@@ -26,7 +30,13 @@ export default function DesktopSidebar() {
   } = nav
 
   const handleNavigate = (view: 'chat' | 'settings' | 'dashboard') => {
-    setActiveView(view)
+    if (view === 'chat') {
+      window.location.href = '/chat'
+    } else if (view === 'settings') {
+      window.location.href = '/settings'
+    } else if (view === 'dashboard') {
+      window.location.href = '/dashboard'
+    }
   }
 
   return (
@@ -88,7 +98,7 @@ export default function DesktopSidebar() {
         <button
           onClick={() => handleNavigate('settings')}
           className={`flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg transition-colors ${
-            activeView === 'settings'
+            currentPath === '/settings'
               ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
               : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
           } ${sidebarCollapsed ? 'justify-center px-0' : ''}`}
@@ -100,7 +110,7 @@ export default function DesktopSidebar() {
         <button
           onClick={() => handleNavigate('dashboard')}
           className={`flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg transition-colors ${
-            activeView === 'dashboard'
+            currentPath === '/dashboard'
               ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
               : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
           } ${sidebarCollapsed ? 'justify-center px-0' : ''}`}
