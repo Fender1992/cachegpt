@@ -1,4 +1,5 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
+import { SupabaseClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
@@ -18,6 +19,7 @@ const createMockClient = (): SupabaseClient => {
         data: { subscription: { unsubscribe: () => {} } }
       }),
       getSession: () => Promise.reject(new Error(errorMessage)),
+      setSession: () => Promise.reject(new Error(errorMessage)),
     },
     from: () => ({
       select: () => Promise.reject(new Error(errorMessage)),
@@ -29,9 +31,10 @@ const createMockClient = (): SupabaseClient => {
   } as any
 }
 
-// Create client or mock based on environment variables
+// Use createBrowserClient from @supabase/ssr for proper Next.js compatibility.
+// This works reliably in both SSR/dev and static-export (Tauri desktop) builds.
 export const supabase: SupabaseClient = supabaseUrl && supabaseAnonKey
-  ? createClient(supabaseUrl, supabaseAnonKey)
+  ? createBrowserClient(supabaseUrl, supabaseAnonKey)
   : createMockClient()
 
 // Log error in development/client side only

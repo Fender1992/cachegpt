@@ -163,27 +163,26 @@ export function AuthForm({ isFromCLI = false, callbackPort }: AuthFormProps) {
 
 
       if (isDesktopApp) {
-        // On desktop, prevent the webview from navigating to the OAuth provider.
-        // Instead, get the URL and open it in the system browser.
-        const { data, error } = await supabase.auth.signInWithOAuth({
+        // On desktop, construct the OAuth URL manually and open in system browser.
+        // We avoid supabase.auth.signInWithOAuth() because it may not be available
+        // in the statically-exported Tauri bundle.
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+        if (!supabaseUrl) throw new Error('Supabase URL is not configured')
+
+        const oauthParams = new URLSearchParams({
           provider,
-          options: {
-            redirectTo: baseUrl,
-            skipBrowserRedirect: true,
-            queryParams: {
-              access_type: 'offline',
-              prompt: 'consent',
-            },
-            scopes: provider === 'github' ? 'read:user user:email' : undefined,
-          },
+          redirect_to: baseUrl,
+          access_type: 'offline',
+          prompt: 'consent',
         })
-
-        if (error) throw error
-
-        if (data?.url) {
-          const { open } = await import('@tauri-apps/plugin-shell')
-          await open(data.url)
+        if (provider === 'github') {
+          oauthParams.set('scopes', 'read:user user:email')
         }
+
+        const oauthUrl = `${supabaseUrl}/auth/v1/authorize?${oauthParams.toString()}`
+
+        const { open } = await import('@tauri-apps/plugin-shell')
+        await open(oauthUrl)
       } else {
         const { error } = await supabase.auth.signInWithOAuth({
           provider,
