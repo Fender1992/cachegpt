@@ -1,5 +1,4 @@
-import { createBrowserClient } from '@supabase/ssr'
-import { SupabaseClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
@@ -31,10 +30,10 @@ const createMockClient = (): SupabaseClient => {
   } as any
 }
 
-// Use createBrowserClient from @supabase/ssr for proper Next.js compatibility.
-// This works reliably in both SSR/dev and static-export (Tauri desktop) builds.
+// Use createClient which stores sessions in localStorage (works in Tauri WebView).
+// createBrowserClient from @supabase/ssr uses cookies which fail in Tauri WebView2.
 export const supabase: SupabaseClient = supabaseUrl && supabaseAnonKey
-  ? createBrowserClient(supabaseUrl, supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseAnonKey)
   : createMockClient()
 
 // Log error in development/client side only
