@@ -52,11 +52,12 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: Build static frontend
-        run: |
-          cp next.config.js next.config.js.bak
-          cp next.config.desktop.js next.config.js
-          yarn build
-          mv next.config.js.bak next.config.js
+        run: node scripts/desktop-build.js
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_IS_DESKTOP: 'true'
+          NEXT_PUBLIC_API_BASE_URL: 'https://cachegpt.app'
 
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version "^2"
