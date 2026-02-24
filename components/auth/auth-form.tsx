@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { supabase } from '@/lib/supabase-client'
+import { supabase, supabaseUrl, supabaseAnonKey } from '@/lib/supabase-client'
 import { isDesktop } from '@/lib/api-client'
 import {
   Mail, Lock, Eye, EyeOff, Sparkles, ArrowRight,
@@ -11,8 +11,8 @@ import {
 // Direct Supabase Auth REST API fallback for desktop builds where the SDK
 // auth module may not bundle correctly in static exports.
 async function supabaseAuthREST(action: 'signin' | 'signup', email: string, password: string) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const url = supabaseUrl
+  const key = supabaseAnonKey
   if (!url || !key) throw new Error('Supabase is not configured')
 
   const endpoint = action === 'signup'
@@ -220,7 +220,6 @@ export function AuthForm({ isFromCLI = false, callbackPort }: AuthFormProps) {
         // On desktop, construct the OAuth URL manually and open in system browser.
         // We avoid supabase.auth.signInWithOAuth() because it may not be available
         // in the statically-exported Tauri bundle.
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
         if (!supabaseUrl) throw new Error('Supabase URL is not configured')
 
         const oauthParams = new URLSearchParams({
