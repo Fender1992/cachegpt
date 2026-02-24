@@ -1685,7 +1685,7 @@
   dependencies:
     tslib "^2.8.0"
 
-"@tauri-apps/api@^2":
+"@tauri-apps/api@^2", "@tauri-apps/api@^2.10.1":
   version "2.10.1"
   resolved "https://registry.yarnpkg.com/@tauri-apps/api/-/api-2.10.1.tgz#57c1bae6114ec33d977eb2b50dfefc25fa84fc93"
   integrity sha512-hKL/jWf293UDSUN09rR69hrToyIXBb8CjGaWC7gfinvnQrBVvnLr08FeFi38gxtugAVyVcTa5/FD/Xnkb1siBw==
@@ -1761,6 +1761,20 @@
     "@tauri-apps/cli-win32-arm64-msvc" "2.10.0"
     "@tauri-apps/cli-win32-ia32-msvc" "2.10.0"
     "@tauri-apps/cli-win32-x64-msvc" "2.10.0"
+
+"@tauri-apps/plugin-deep-link@^2.4.7":
+  version "2.4.7"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/plugin-deep-link/-/plugin-deep-link-2.4.7.tgz#6d5b60e11d1bc668ed0116a45afb7d54f2fd6226"
+  integrity sha512-K0FQlLM6BoV7Ws2xfkh+Tnwi5VZVdkI4Vw/3AGLSf0Xvu2y86AMBzd9w/SpzKhw9ai2B6ES8di/OoGDCExkOzg==
+  dependencies:
+    "@tauri-apps/api" "^2.10.1"
+
+"@tauri-apps/plugin-shell@^2.3.5":
+  version "2.3.5"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/plugin-shell/-/plugin-shell-2.3.5.tgz#ec7b5c2aedaae9e4641cd3ccf1106e443e193919"
+  integrity sha512-jewtULhiQ7lI7+owCKAjc8tYLJr92U16bPOeAa472LHJdgaibLP83NcfAF2e+wkEcA53FxKQAZ7byDzs2eeizg==
+  dependencies:
+    "@tauri-apps/api" "^2.10.1"
 
 "@testing-library/dom@^10.4.1":
   version "10.4.1"

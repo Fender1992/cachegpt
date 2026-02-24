@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useIsDesktop } from '@/hooks/useIsDesktop'
 import ChatInterface from '@/components/chat/ChatInterface'
 import CommandPalette from '@/components/chat/CommandPalette'
 import { DiscordProvider } from '@/contexts/DiscordContext'
@@ -18,6 +19,7 @@ import QuickReplyToast from '@/components/chat/QuickReplyToast'
 
 function ChatPageWithDiscord(props: any) {
   const router = useRouter();
+  const isDesktopApp = useIsDesktop();
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [isPanelPinned, setIsPanelPinned] = useState(false);
   const [activeTab, setActiveTab] = useState<IntegrationTab>('discord');
@@ -89,14 +91,14 @@ function ChatPageWithDiscord(props: any) {
   }, [router]);
 
   return (
-    <DiscordProvider autoConnect={true}>
-      <GmailProvider autoConnect={true}>
-        <CalendarProvider autoConnect={true}>
-          <SlackProvider autoConnect={true}>
-            <TeamsProvider autoConnect={true}>
-              <NotionProvider autoConnect={true}>
-                <DriveProvider autoConnect={true}>
-                  <JiraProvider autoConnect={true}>
+    <DiscordProvider autoConnect={!isDesktopApp}>
+      <GmailProvider autoConnect={!isDesktopApp}>
+        <CalendarProvider autoConnect={!isDesktopApp}>
+          <SlackProvider autoConnect={!isDesktopApp}>
+            <TeamsProvider autoConnect={!isDesktopApp}>
+              <NotionProvider autoConnect={!isDesktopApp}>
+                <DriveProvider autoConnect={!isDesktopApp}>
+                  <JiraProvider autoConnect={!isDesktopApp}>
                     <div className="relative">
                       <ChatInterface {...props} onShowHistoryChange={setIsHistoryOpen} isPanelPinned={isPanelPinned && isPanelOpen} />
                       <IntegrationDockButton

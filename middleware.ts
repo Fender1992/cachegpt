@@ -5,14 +5,20 @@ import { getApiVersion, addVersionHeaders } from './middleware/api-version'
 
 export async function middleware(request: NextRequest) {
   const origin = request.headers.get('origin') || ''
-  const isTauriOrigin = origin === 'tauri://localhost' || origin === 'https://tauri.localhost'
+  const userAgent = request.headers.get('user-agent') || ''
+  // Tauri sends different origins depending on platform: macOS uses tauri://localhost,
+  // Windows uses https://tauri.localhost, Linux WebKitGTK uses http://tauri.localhost or http://localhost
+  const tauriOrigins = ['tauri://localhost', 'https://tauri.localhost', 'http://tauri.localhost', 'http://localhost']
+  const isTauriOrigin = tauriOrigins.includes(origin) || (!origin && userAgent.includes('Tauri'))
+  // Use the actual origin for CORS header, or fallback for empty-origin Tauri requests
+  const corsOrigin = origin || 'tauri://localhost'
 
   // Handle CORS preflight for Tauri desktop app
   if (isTauriOrigin && request.method === 'OPTIONS') {
     return new NextResponse(null, {
       status: 204,
       headers: {
-        'Access-Control-Allow-Origin': origin,
+        'Access-Control-Allow-Origin': corsOrigin,
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-user-timezone, x-timezone-offset',
         'Access-Control-Allow-Credentials': 'true',
@@ -92,7 +98,7 @@ export async function middleware(request: NextRequest) {
 
   // Add CORS headers for Tauri desktop app
   if (isTauriOrigin) {
-    response.headers.set('Access-Control-Allow-Origin', origin)
+    response.headers.set('Access-Control-Allow-Origin', corsOrigin)
     response.headers.set('Access-Control-Allow-Credentials', 'true')
   }
 

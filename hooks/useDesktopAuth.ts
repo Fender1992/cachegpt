@@ -47,13 +47,10 @@ export function useDesktopAuth() {
     // Check if app was opened via deep link (cold start)
     const checkInitialDeepLink = async () => {
       try {
-        // Try both Tauri v2 global patterns
-        const tauri = (window as any).__TAURI__ || (window as any).__TAURI_INTERNALS__
-        if (tauri?.deepLink?.getCurrent) {
-          const urls = await tauri.deepLink.getCurrent()
-          if (urls && urls.length > 0) {
-            handleDeepLink(urls[0])
-          }
+        const { getCurrent } = await import('@tauri-apps/plugin-deep-link')
+        const urls = await getCurrent()
+        if (urls && urls.length > 0) {
+          handleDeepLink(urls[0])
         }
       } catch {
         // Deep link plugin not available or no initial URL

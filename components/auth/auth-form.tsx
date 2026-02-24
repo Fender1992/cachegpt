@@ -162,21 +162,45 @@ export function AuthForm({ isFromCLI = false, callbackPort }: AuthFormProps) {
       }
 
 
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: baseUrl,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
+      if (isDesktopApp) {
+        // On desktop, prevent the webview from navigating to the OAuth provider.
+        // Instead, get the URL and open it in the system browser.
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider,
+          options: {
+            redirectTo: baseUrl,
+            skipBrowserRedirect: true,
+            queryParams: {
+              access_type: 'offline',
+              prompt: 'consent',
+            },
+            scopes: provider === 'github' ? 'read:user user:email' : undefined,
           },
-          scopes: provider === 'github' ? 'read:user user:email' : undefined,
-        },
-      })
+        })
 
-      if (error) throw error
+        if (error) throw error
 
-      // The user will be redirected to the OAuth provider
+        if (data?.url) {
+          const { open } = await import('@tauri-apps/plugin-shell')
+          await open(data.url)
+        }
+      } else {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider,
+          options: {
+            redirectTo: baseUrl,
+            queryParams: {
+              access_type: 'offline',
+              prompt: 'consent',
+            },
+            scopes: provider === 'github' ? 'read:user user:email' : undefined,
+          },
+        })
+
+        if (error) throw error
+      }
+
+      // The user will be redirected to the OAuth provider (web) or system browser (desktop)
     } catch (error: any) {
       setMessage({ type: 'error', text: error.message })
       setIsLoading(false)

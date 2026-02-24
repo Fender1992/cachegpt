@@ -27,9 +27,6 @@ export default function DesktopSidebar() {
 
   const handleNavigate = (view: 'chat' | 'settings' | 'dashboard') => {
     setActiveView(view)
-    if (view === 'settings') window.location.href = '/settings'
-    else if (view === 'dashboard') window.location.href = '/dashboard'
-    else window.location.href = '/chat'
   }
 
   return (

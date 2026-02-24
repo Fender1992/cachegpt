@@ -276,7 +276,12 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
 
   const loadFeatureFlags = async () => {
     try {
-      const response = await apiFetch('/api/feature-flags')
+      const headers: HeadersInit = {}
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+      }
+      const response = await apiFetch('/api/feature-flags', { headers })
       if (response.ok) {
         const data = await response.json()
         setShareEnabled(data.flags.share_answer_enabled === true)
@@ -299,7 +304,12 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
     if (!modeSlug) return
 
     try {
-      const response = await apiFetch('/api/modes')
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: HeadersInit = {}
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+      }
+      const response = await apiFetch('/api/modes', { headers })
       if (response.ok) {
         const data = await response.json()
         const mode = data.modes?.find((m: any) => m.slug === modeSlug)
@@ -310,7 +320,7 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
           try {
             await apiFetch('/api/modes/click', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { ...headers, 'Content-Type': 'application/json' },
               body: JSON.stringify({ modeSlug, source: 'share' }),
             })
           } catch (err) {
@@ -886,8 +896,10 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
     setReferencedConversationIds([]) // Clear referenced conversations
     setUploadedFiles([]) // Clear uploaded files for fresh start
     setShowHistory(false)
-    // Navigate to base /chat URL for new conversation
-    router.push('/chat')
+    // Navigate to base /chat URL for new conversation (skip on desktop — no router navigation)
+    if (!isDesktopApp) {
+      router.push('/chat')
+    }
   }
 
   const handleConversationReference = (conversationId: string, title: string) => {
@@ -910,11 +922,26 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    router.push('/login')
+    if (isDesktopApp) {
+      // On desktop, reset state in-place instead of navigating
+      setMessages([])
+      setCurrentConversationId(null)
+      setActiveConversationId(null)
+      setConversations([])
+      setUserProfile(null)
+      setIsAnonymous(true)
+      loadUserProfile()
+    } else {
+      router.push('/login')
+    }
   }
 
   const handleSettings = () => {
-    router.push('/settings')
+    if (isDesktopApp && desktopNav) {
+      desktopNav.setActiveView('settings')
+    } else {
+      router.push('/settings')
+    }
   }
 
   // Assign latest callback references for desktop bridging (ref declared earlier in component)
@@ -937,7 +964,14 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
       },
       onDeleteConversation: (id: string, e: React.MouseEvent) => desktopCallbackRefs.current?.deleteConversation(id, e),
       onLogout: () => desktopCallbackRefs.current?.handleLogout(),
-      onLogin: () => router.push('/login'),
+      onLogin: () => {
+        if (isDesktopApp) {
+          // On desktop, sign out to trigger the auth form to re-render
+          supabase.auth.signOut()
+        } else {
+          router.push('/login')
+        }
+      },
     })
   }, [isDesktopApp, desktopNav, router])
 
