@@ -8,6 +8,28 @@ import {
   User, Shield, Zap, CheckCircle2
 } from 'lucide-react'
 
+// Direct Supabase Auth REST API fallback for desktop builds where the SDK
+// auth module may not bundle correctly in static exports.
+async function supabaseAuthREST(action: 'signin' | 'signup', email: string, password: string) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!url || !key) throw new Error('Supabase is not configured')
+
+  const endpoint = action === 'signup'
+    ? `${url}/auth/v1/signup`
+    : `${url}/auth/v1/token?grant_type=password`
+
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: key },
+    body: JSON.stringify({ email, password }),
+  })
+
+  const body = await res.json()
+  if (!res.ok) throw new Error(body.error_description || body.msg || body.error || 'Authentication failed')
+  return body // { access_token, refresh_token, user, ... }
+}
+
 interface AuthFormProps {
   isFromCLI?: boolean
   callbackPort?: string
@@ -28,30 +50,40 @@ export function AuthForm({ isFromCLI = false, callbackPort }: AuthFormProps) {
 
     try {
       if (isSignUp) {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              full_name: email.split('@')[0], // Default name from email
-            },
-            emailRedirectTo: `${isDesktop() ? 'https://cachegpt.app' : window.location.origin}/auth/callback`
+        // Try SDK first, fall back to REST API for desktop builds
+        let user: any = null
+        try {
+          const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: { full_name: email.split('@')[0] },
+              emailRedirectTo: `${isDesktop() ? 'https://cachegpt.app' : window.location.origin}/auth/callback`
+            }
+          })
+          if (error) throw error
+          user = data.user
+        } catch (sdkErr: any) {
+          // If SDK method is broken (static export), use REST API
+          if (sdkErr instanceof TypeError || sdkErr?.message?.includes('is not a function')) {
+            const body = await supabaseAuthREST('signup', email, password)
+            user = body.user || body
+            // Set session on client if tokens are returned (auto-confirmed)
+            if (body.access_token && body.refresh_token) {
+              try { await supabase.auth.setSession({ access_token: body.access_token, refresh_token: body.refresh_token }) } catch {}
+            }
+          } else {
+            throw sdkErr
           }
-        })
-
-        // Signup response handled
-        if (error) throw error
+        }
 
         // Create user profile manually to ensure it exists
-        if (data.user) {
-          // Try multiple methods to ensure profile is created
-
-          // Method 1: Direct insert
+        if (user) {
           const { error: profileError } = await supabase
             .from('user_profiles')
             .insert({
-              id: data.user.id,
-              email: data.user.email!,
+              id: user.id,
+              email: user.email!,
               provider: 'email',
               email_verified: false,
               created_at: new Date().toISOString(),
@@ -60,24 +92,24 @@ export function AuthForm({ isFromCLI = false, callbackPort }: AuthFormProps) {
             .select()
 
           if (profileError && profileError.code !== '23505') {
-            // Method 2: Try RPC function if direct insert fails
             try {
               await supabase.rpc('create_profile_if_missing', {
-                user_id: data.user.id,
-                user_email: data.user.email
+                user_id: user.id,
+                user_email: user.email
               })
             } catch (rpcError) {
               // Profile creation fallback failed, continuing anyway
             }
           }
 
-          // Store signup event
-          await supabase.from('usage').insert({
-            user_id: data.user.id,
-            endpoint: '/auth/signup',
-            method: 'POST',
-            metadata: { provider: 'email', event: 'signup' }
-          })
+          try {
+            await supabase.from('usage').insert({
+              user_id: user.id,
+              endpoint: '/auth/signup',
+              method: 'POST',
+              metadata: { provider: 'email', event: 'signup' }
+            })
+          } catch {}
         }
 
         setMessage({
@@ -85,18 +117,40 @@ export function AuthForm({ isFromCLI = false, callbackPort }: AuthFormProps) {
           text: 'Account created! Please check your email (including spam folder) for a confirmation link. If you don\'t receive it within 5 minutes, try signing up again or contact support.'
         })
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        })
-        if (error) throw error
+        // Try SDK first, fall back to REST API for desktop builds
+        let session: any = null
+        let user: any = null
+        try {
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          })
+          if (error) throw error
+          session = data.session
+          user = data.user
+        } catch (sdkErr: any) {
+          // If SDK method is broken (static export), use REST API
+          if (sdkErr instanceof TypeError || sdkErr?.message?.includes('is not a function')) {
+            const body = await supabaseAuthREST('signin', email, password)
+            user = body.user
+            session = body
+            // Set session on client so subsequent calls work
+            if (body.access_token && body.refresh_token) {
+              try { await supabase.auth.setSession({ access_token: body.access_token, refresh_token: body.refresh_token }) } catch {}
+            }
+          } else {
+            throw sdkErr
+          }
+        }
 
         // Update last login
-        if (data.user) {
-          await supabase
-            .from('user_profiles')
-            .update({ last_login_at: new Date().toISOString() })
-            .eq('id', data.user.id)
+        if (user) {
+          try {
+            await supabase
+              .from('user_profiles')
+              .update({ last_login_at: new Date().toISOString() })
+              .eq('id', user.id)
+          } catch {}
         }
 
         // Redirect to success page with CLI parameters if from CLI

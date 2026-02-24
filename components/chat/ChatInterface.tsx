@@ -554,10 +554,15 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
   }, [message])
 
   const loadUserProfile = async () => {
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-
-    if (sessionError) {
-      console.error('[CHAT] Session error:', sessionError)
+    let session = null
+    try {
+      const { data, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError) {
+        console.error('[CHAT] Session error:', sessionError)
+      }
+      session = data?.session ?? null
+    } catch (err) {
+      console.error('[CHAT] Failed to get session:', err)
     }
 
     // Allow anonymous chatting - no redirect if no session
