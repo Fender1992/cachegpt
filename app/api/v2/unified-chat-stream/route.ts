@@ -182,8 +182,34 @@ async function saveChatHistoryAsync(
   }
 }
 
+/** Build CORS headers if the request comes from the Tauri desktop app */
+function getCorsHeaders(request: NextRequest): Record<string, string> {
+  const origin = request.headers.get('origin') || '';
+  const tauriOrigins = ['tauri://localhost', 'https://tauri.localhost', 'http://tauri.localhost', 'http://localhost'];
+  if (tauriOrigins.includes(origin)) {
+    return {
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Credentials': 'true',
+    };
+  }
+  return {};
+}
+
+export async function OPTIONS(request: NextRequest) {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      ...getCorsHeaders(request),
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-user-timezone, x-timezone-offset',
+      'Access-Control-Max-Age': '86400',
+    },
+  });
+}
+
 export async function POST(request: NextRequest) {
   const requestId = generateRequestId();
+  const cors = getCorsHeaders(request);
 
   try {
     // Read body once upfront (NextRequest body can only be consumed once)
@@ -206,7 +232,7 @@ export async function POST(request: NextRequest) {
     if (!userMessage) {
       return new Response(
         JSON.stringify({ error: 'No message provided' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+        { status: 400, headers: { 'Content-Type': 'application/json', ...cors } }
       );
     }
 
@@ -235,7 +261,7 @@ export async function POST(request: NextRequest) {
         if (usageLimitCheck === false) {
           return new Response(
             JSON.stringify({ error: 'Monthly request limit exceeded' }),
-            { status: 429, headers: { 'Content-Type': 'application/json' } }
+            { status: 429, headers: { 'Content-Type': 'application/json', ...cors } }
           );
         }
 
@@ -553,7 +579,7 @@ export async function POST(request: NextRequest) {
       if (error instanceof ProviderResolutionError) {
         return new Response(
           JSON.stringify({ error: error.message }),
-          { status: error.statusCode, headers: { 'Content-Type': 'application/json' } }
+          { status: error.statusCode, headers: { 'Content-Type': 'application/json', ...cors } }
         );
       }
       throw error;
@@ -849,6 +875,7 @@ export async function POST(request: NextRequest) {
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
         'X-Request-Id': requestId,
+        ...cors,
       },
     });
 
@@ -858,7 +885,7 @@ export async function POST(request: NextRequest) {
       JSON.stringify({ error: 'Streaming request failed' }),
       {
         status: 500,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json', ...cors }
       }
     );
   }

@@ -396,8 +396,12 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
 
   const loadConversationMessages = async (conversationId: string, limit = MAX_MESSAGES_IN_MEMORY) => {
     try {
-      // Get session for authentication
-      const { data: { session } } = await supabase.auth.getSession()
+      // Get session for authentication (may fail in desktop builds)
+      let session: any = null
+      try {
+        const { data } = await supabase.auth.getSession()
+        session = data?.session ?? null
+      } catch {}
 
       // Detect user's timezone
       const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -696,8 +700,12 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
     }
 
     try {
-      // Get session for authentication
-      const { data: { session } } = await supabase.auth.getSession()
+      // Get session for authentication (may fail in desktop builds)
+      let session: any = null
+      try {
+        const { data } = await supabase.auth.getSession()
+        session = data?.session ?? null
+      } catch {}
 
       // Detect user's timezone
       const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
