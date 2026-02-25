@@ -198,7 +198,7 @@ export function AuthForm({ isFromCLI = false, callbackPort }: AuthFormProps) {
       const isDesktopApp = isDesktop()
       const origin = isDesktopApp ? 'https://cachegpt.app' : window.location.origin
       let baseUrl = isDesktopApp
-        ? `${origin}/api/auth/desktop-callback`
+        ? `${origin}/auth/desktop-callback`
         : `${origin}/auth/callback`
 
       // Try to pass params in URL as backup to localStorage
