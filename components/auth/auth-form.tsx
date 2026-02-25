@@ -50,14 +50,28 @@ export function AuthForm({ isFromCLI = false, callbackPort }: AuthFormProps) {
 
     try {
       if (isSignUp) {
-        let user: any = null
         if (isDesktop()) {
-          // Desktop: use REST API directly (SDK hangs in Tauri WebView)
+          // Desktop: use REST API directly, skip ALL SDK calls (SDK hangs in Tauri WebView)
           const body = await supabaseAuthREST('signup', email, password)
-          user = body.user || body
           if (body.access_token && body.refresh_token) {
-            try { await supabase.auth.setSession({ access_token: body.access_token, refresh_token: body.refresh_token }) } catch {}
+            // Auto-confirmed signup — store session and redirect
+            const storageKey = `sb-${new URL(supabaseUrl).hostname.split('.')[0]}-auth-token`
+            localStorage.setItem(storageKey, JSON.stringify({
+              access_token: body.access_token,
+              refresh_token: body.refresh_token,
+              expires_at: body.expires_at,
+              expires_in: body.expires_in,
+              token_type: body.token_type || 'bearer',
+              user: body.user,
+            }))
+            window.location.href = '/chat'
+            return
           }
+          // Email confirmation required
+          setMessage({
+            type: 'success',
+            text: 'Account created! Please check your email (including spam folder) for a confirmation link.'
+          })
         } else {
           const { data, error } = await supabase.auth.signUp({
             email,
@@ -68,92 +82,95 @@ export function AuthForm({ isFromCLI = false, callbackPort }: AuthFormProps) {
             }
           })
           if (error) throw error
-          user = data.user
-        }
+          const user = data.user
 
-        // Create user profile manually to ensure it exists
-        if (user) {
-          const { error: profileError } = await supabase
-            .from('user_profiles')
-            .insert({
-              id: user.id,
-              email: user.email!,
-              provider: 'email',
-              email_verified: false,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            })
-            .select()
-
-          if (profileError && profileError.code !== '23505') {
-            try {
-              await supabase.rpc('create_profile_if_missing', {
-                user_id: user.id,
-                user_email: user.email
+          // Create user profile manually to ensure it exists
+          if (user) {
+            const { error: profileError } = await supabase
+              .from('user_profiles')
+              .insert({
+                id: user.id,
+                email: user.email!,
+                provider: 'email',
+                email_verified: false,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
               })
-            } catch (rpcError) {
-              // Profile creation fallback failed, continuing anyway
+              .select()
+
+            if (profileError && profileError.code !== '23505') {
+              try {
+                await supabase.rpc('create_profile_if_missing', {
+                  user_id: user.id,
+                  user_email: user.email
+                })
+              } catch (rpcError) {
+                // Profile creation fallback failed, continuing anyway
+              }
             }
+
+            try {
+              await supabase.from('usage').insert({
+                user_id: user.id,
+                endpoint: '/auth/signup',
+                method: 'POST',
+                metadata: { provider: 'email', event: 'signup' }
+              })
+            } catch {}
           }
 
-          try {
-            await supabase.from('usage').insert({
-              user_id: user.id,
-              endpoint: '/auth/signup',
-              method: 'POST',
-              metadata: { provider: 'email', event: 'signup' }
-            })
-          } catch {}
+          setMessage({
+            type: 'success',
+            text: 'Account created! Please check your email (including spam folder) for a confirmation link. If you don\'t receive it within 5 minutes, try signing up again or contact support.'
+          })
         }
-
-        setMessage({
-          type: 'success',
-          text: 'Account created! Please check your email (including spam folder) for a confirmation link. If you don\'t receive it within 5 minutes, try signing up again or contact support.'
-        })
       } else {
-        let session: any = null
-        let user: any = null
         if (isDesktop()) {
-          // Desktop: use REST API directly (SDK hangs in Tauri WebView)
+          // Desktop: use REST API directly and skip ALL SDK calls (SDK hangs in Tauri WebView)
           const body = await supabaseAuthREST('signin', email, password)
-          user = body.user
-          session = body
           if (body.access_token && body.refresh_token) {
-            try { await supabase.auth.setSession({ access_token: body.access_token, refresh_token: body.refresh_token }) } catch {}
+            // Store session directly in localStorage for Supabase client to pick up
+            const storageKey = `sb-${new URL(supabaseUrl).hostname.split('.')[0]}-auth-token`
+            localStorage.setItem(storageKey, JSON.stringify({
+              access_token: body.access_token,
+              refresh_token: body.refresh_token,
+              expires_at: body.expires_at,
+              expires_in: body.expires_in,
+              token_type: body.token_type || 'bearer',
+              user: body.user,
+            }))
           }
+          window.location.href = '/chat'
         } else {
           const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password,
           })
           if (error) throw error
-          session = data.session
-          user = data.user
-        }
 
-        // Update last login
-        if (user) {
-          try {
-            await supabase
-              .from('user_profiles')
-              .update({ last_login_at: new Date().toISOString() })
-              .eq('id', user.id)
-          } catch {}
-        }
-
-        // Redirect to success page with CLI parameters if from CLI
-        let redirectUrl = isDesktop() ? '/chat' : '/'
-        if (isFromCLI) {
-          const params = new URLSearchParams({
-            source: 'cli',
-            return_to: 'terminal'
-          })
-          if (callbackPort) {
-            params.set('callback_port', callbackPort)
+          // Update last login
+          if (data.user) {
+            try {
+              await supabase
+                .from('user_profiles')
+                .update({ last_login_at: new Date().toISOString() })
+                .eq('id', data.user.id)
+            } catch {}
           }
-          redirectUrl = `/auth/success?${params.toString()}`
+
+          let redirectUrl = '/'
+          if (isFromCLI) {
+            const params = new URLSearchParams({
+              source: 'cli',
+              return_to: 'terminal'
+            })
+            if (callbackPort) {
+              params.set('callback_port', callbackPort)
+            }
+            redirectUrl = `/auth/success?${params.toString()}`
+          }
+          window.location.href = redirectUrl
         }
-        window.location.href = redirectUrl
       }
     } catch (error: any) {
       setMessage({ type: 'error', text: error.message })
