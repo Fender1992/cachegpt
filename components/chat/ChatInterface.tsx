@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { supabase } from '@/lib/supabase-client'
+import { supabase, supabaseUrl } from '@/lib/supabase-client'
 import { Send, Bot, Brain, Sparkles, Zap, Settings, LogOut, LogIn, History, RefreshCw, Loader2, Home, Trash2, ThumbsUp, ThumbsDown, AlertTriangle, Rocket, Gauge, Plus } from 'lucide-react'
 import MessageActionBar from '@/components/chat/MessageActionBar'
 import BugReportButton from '@/components/bug-report-button'
@@ -934,17 +934,13 @@ function ChatPageContent({ params, onShowHistoryChange, isPanelPinned }: { param
   }
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
     if (isDesktopApp) {
-      // On desktop, reset state in-place instead of navigating
-      setMessages([])
-      setCurrentConversationId(null)
-      setActiveConversationId(null)
-      setConversations([])
-      setUserProfile(null)
-      setIsAnonymous(true)
-      loadUserProfile()
+      // Desktop: clear localStorage directly (SDK signOut hangs in Tauri WebView)
+      const storageKey = `sb-${new URL(supabaseUrl).hostname.split('.')[0]}-auth-token`
+      localStorage.removeItem(storageKey)
+      window.location.href = '/login'
     } else {
+      await supabase.auth.signOut()
       router.push('/login')
     }
   }

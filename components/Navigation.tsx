@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Menu, X, Home, MessageSquare, Zap, Settings, User, LogOut, Download } from 'lucide-react';
-import { supabase } from '@/lib/supabase-client';
+import { supabase, supabaseUrl } from '@/lib/supabase-client';
+import { isDesktop } from '@/lib/api-client';
 import CacheGPTLogo from '@/components/CacheGPTLogo';
 
 export default function Navigation() {
@@ -22,9 +23,15 @@ export default function Navigation() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    router.push('/');
+    if (isDesktop()) {
+      const storageKey = `sb-${new URL(supabaseUrl).hostname.split('.')[0]}-auth-token`;
+      localStorage.removeItem(storageKey);
+      window.location.href = '/login';
+    } else {
+      await supabase.auth.signOut();
+      setUser(null);
+      router.push('/');
+    }
   };
 
   return (
