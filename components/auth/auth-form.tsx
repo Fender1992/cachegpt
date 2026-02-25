@@ -222,14 +222,21 @@ export function AuthForm({ isFromCLI = false, callbackPort }: AuthFormProps) {
 
 
       if (isDesktopApp) {
-        // On desktop, construct the OAuth URL manually and open in system browser.
-        // We avoid supabase.auth.signInWithOAuth() because it may not be available
-        // in the statically-exported Tauri bundle.
+        // Desktop OAuth: open browser, then poll for tokens via server exchange.
+        // Deep links (cachegpt://) are unreliable on Windows, so we use a polling
+        // approach: generate a random state, pass it through the OAuth redirect,
+        // the callback page POSTs tokens to /api/auth/desktop-exchange, and we poll.
         if (!supabaseUrl) throw new Error('Supabase URL is not configured')
+
+        const state = crypto.randomUUID()
+
+        // Append state to the redirect URL
+        const redirectUrl = new URL(baseUrl)
+        redirectUrl.searchParams.set('state', state)
 
         const oauthParams = new URLSearchParams({
           provider,
-          redirect_to: baseUrl,
+          redirect_to: redirectUrl.toString(),
           access_type: 'offline',
           prompt: 'consent',
         })
@@ -241,6 +248,40 @@ export function AuthForm({ isFromCLI = false, callbackPort }: AuthFormProps) {
 
         const { open } = await import('@tauri-apps/plugin-shell')
         await open(oauthUrl)
+
+        // Poll for tokens (the callback page will POST them)
+        const pollInterval = setInterval(async () => {
+          try {
+            const res = await fetch(`https://cachegpt.app/api/auth/desktop-exchange?state=${state}`)
+            const data = await res.json()
+            if (data.tokens) {
+              clearInterval(pollInterval)
+              const { access_token, refresh_token, expires_at, expires_in, token_type } = data.tokens
+              // Store session directly in localStorage
+              const storageKey = `sb-${new URL(supabaseUrl).hostname.split('.')[0]}-auth-token`
+              localStorage.setItem(storageKey, JSON.stringify({
+                access_token, refresh_token, expires_at, expires_in,
+                token_type: token_type || 'bearer',
+              }))
+              window.location.href = '/chat'
+            } else if (data.error) {
+              clearInterval(pollInterval)
+              setMessage({ type: 'error', text: data.error })
+              setIsLoading(false)
+            }
+          } catch {
+            // Network error, keep polling
+          }
+        }, 2000)
+
+        // Stop polling after 5 minutes
+        setTimeout(() => {
+          clearInterval(pollInterval)
+          setIsLoading(false)
+          setMessage({ type: 'error', text: 'Sign-in timed out. Please try again.' })
+        }, 5 * 60 * 1000)
+
+        return // Don't fall through to setIsLoading(false)
       } else {
         const { error } = await supabase.auth.signInWithOAuth({
           provider,

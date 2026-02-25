@@ -3,43 +3,87 @@
 import { useEffect, useState } from 'react'
 
 /**
- * Client-side desktop OAuth callback page.
+ * Client-side desktop OAuth callback page (runs on cachegpt.app).
  *
  * Supabase implicit-flow OAuth redirects here with tokens in the URL hash
- * fragment (e.g. #access_token=...&refresh_token=...).  Hash fragments are
- * never sent to the server, so a server-side API route cannot read them.
- *
- * This page reads the fragment, builds a cachegpt:// deep link with the
- * tokens, and redirects the system browser to it so the Tauri app can
- * capture the session.
+ * fragment (#access_token=...&refresh_token=...). This page reads those
+ * tokens and POSTs them to /api/auth/desktop-exchange keyed by the `state`
+ * query param. The desktop Tauri app polls that endpoint to retrieve them.
  */
 export default function DesktopCallbackPage() {
-  const [error, setError] = useState<string | null>(null)
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
+  const [errorMsg, setErrorMsg] = useState('')
 
   useEffect(() => {
-    const hash = window.location.hash.substring(1) // strip leading #
-    const params = new URLSearchParams(hash)
+    async function exchangeTokens() {
+      const hash = window.location.hash.substring(1)
+      const hashParams = new URLSearchParams(hash)
+      const queryParams = new URLSearchParams(window.location.search)
 
-    const accessToken = params.get('access_token')
-    const refreshToken = params.get('refresh_token')
+      const accessToken = hashParams.get('access_token')
+      const refreshToken = hashParams.get('refresh_token')
+      const state = queryParams.get('state')
 
-    if (!accessToken || !refreshToken) {
-      setError('Missing tokens in OAuth response. Please try signing in again.')
-      return
+      if (!accessToken || !refreshToken) {
+        setStatus('error')
+        setErrorMsg('Missing tokens in OAuth response. Please try again.')
+        return
+      }
+
+      if (!state) {
+        setStatus('error')
+        setErrorMsg('Missing state parameter. Please try again from the desktop app.')
+        return
+      }
+
+      try {
+        const res = await fetch('/api/auth/desktop-exchange', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            state,
+            tokens: {
+              access_token: accessToken,
+              refresh_token: refreshToken,
+              expires_at: hashParams.get('expires_at'),
+              expires_in: hashParams.get('expires_in'),
+              token_type: hashParams.get('token_type') || 'bearer',
+            },
+          }),
+        })
+
+        if (!res.ok) throw new Error('Failed to store tokens')
+
+        setStatus('success')
+      } catch (err) {
+        setStatus('error')
+        setErrorMsg('Failed to complete sign-in. Please try again.')
+      }
     }
 
-    // Build deep link and redirect
-    const deepLink = `cachegpt://auth?access_token=${encodeURIComponent(accessToken)}&refresh_token=${encodeURIComponent(refreshToken)}`
-    window.location.href = deepLink
+    exchangeTokens()
   }, [])
 
-  if (error) {
+  if (status === 'error') {
     return (
       <div style={{ fontFamily: 'system-ui, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', margin: 0, background: '#f9fafb' }}>
         <div style={{ textAlign: 'center', maxWidth: 400 }}>
-          <p style={{ color: '#dc2626', fontWeight: 600 }}>{error}</p>
+          <p style={{ color: '#dc2626', fontWeight: 600 }}>{errorMsg}</p>
           <p style={{ marginTop: '1rem', fontSize: '0.875rem', color: '#6b7280' }}>
             Close this window and try again from the desktop app.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  if (status === 'success') {
+    return (
+      <div style={{ fontFamily: 'system-ui, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', margin: 0, background: '#f9fafb' }}>
+        <div style={{ textAlign: 'center' }}>
+          <p style={{ fontWeight: 600, color: '#16a34a' }}>Sign-in successful!</p>
+          <p style={{ marginTop: '1rem', fontSize: '0.875rem', color: '#6b7280' }}>
+            You can close this browser tab and return to the CacheGPT app.
           </p>
         </div>
       </div>
@@ -49,10 +93,7 @@ export default function DesktopCallbackPage() {
   return (
     <div style={{ fontFamily: 'system-ui, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', margin: 0, background: '#f9fafb' }}>
       <div style={{ textAlign: 'center' }}>
-        <p>Signing you in...</p>
-        <p style={{ marginTop: '1rem', fontSize: '0.875rem', color: '#6b7280' }}>
-          If the app doesn&apos;t open automatically, you can close this window.
-        </p>
+        <p>Completing sign-in...</p>
       </div>
     </div>
   )
