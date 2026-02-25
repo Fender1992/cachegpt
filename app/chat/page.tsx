@@ -99,7 +99,7 @@ function ChatPageWithDiscord(props: any) {
               <NotionProvider autoConnect={!isDesktopApp}>
                 <DriveProvider autoConnect={!isDesktopApp}>
                   <JiraProvider autoConnect={!isDesktopApp}>
-                    <div className="relative h-dvh">
+                    <div className={`relative ${isDesktopApp ? 'h-full' : 'h-dvh'}`}>
                       <ChatInterface {...props} onShowHistoryChange={setIsHistoryOpen} isPanelPinned={isPanelPinned && isPanelOpen} />
                       <IntegrationDockButton
                         onClick={() => setIsPanelOpen(prev => !prev)}

@@ -18,9 +18,9 @@ export default function DesktopLayoutWrapper({ children }: DesktopLayoutWrapperP
 
   return (
     <DesktopNavigationProvider>
-      <div className="flex h-screen">
+      <div className="flex h-screen overflow-hidden">
         <DesktopSidebar />
-        <main className="flex-1 h-screen overflow-y-auto">
+        <main className="flex-1 min-h-0 overflow-y-auto">
           {children}
         </main>
       </div>
