@@ -50,31 +50,25 @@ export function AuthForm({ isFromCLI = false, callbackPort }: AuthFormProps) {
 
     try {
       if (isSignUp) {
-        // Try SDK first, fall back to REST API for desktop builds
         let user: any = null
-        try {
+        if (isDesktop()) {
+          // Desktop: use REST API directly (SDK hangs in Tauri WebView)
+          const body = await supabaseAuthREST('signup', email, password)
+          user = body.user || body
+          if (body.access_token && body.refresh_token) {
+            try { await supabase.auth.setSession({ access_token: body.access_token, refresh_token: body.refresh_token }) } catch {}
+          }
+        } else {
           const { data, error } = await supabase.auth.signUp({
             email,
             password,
             options: {
               data: { full_name: email.split('@')[0] },
-              emailRedirectTo: `${isDesktop() ? 'https://cachegpt.app' : window.location.origin}/auth/callback`
+              emailRedirectTo: `${window.location.origin}/auth/callback`
             }
           })
           if (error) throw error
           user = data.user
-        } catch (sdkErr: any) {
-          // If SDK method is broken (static export), use REST API
-          if (sdkErr instanceof TypeError || sdkErr?.message?.includes('is not a function')) {
-            const body = await supabaseAuthREST('signup', email, password)
-            user = body.user || body
-            // Set session on client if tokens are returned (auto-confirmed)
-            if (body.access_token && body.refresh_token) {
-              try { await supabase.auth.setSession({ access_token: body.access_token, refresh_token: body.refresh_token }) } catch {}
-            }
-          } else {
-            throw sdkErr
-          }
         }
 
         // Create user profile manually to ensure it exists
@@ -117,10 +111,17 @@ export function AuthForm({ isFromCLI = false, callbackPort }: AuthFormProps) {
           text: 'Account created! Please check your email (including spam folder) for a confirmation link. If you don\'t receive it within 5 minutes, try signing up again or contact support.'
         })
       } else {
-        // Try SDK first, fall back to REST API for desktop builds
         let session: any = null
         let user: any = null
-        try {
+        if (isDesktop()) {
+          // Desktop: use REST API directly (SDK hangs in Tauri WebView)
+          const body = await supabaseAuthREST('signin', email, password)
+          user = body.user
+          session = body
+          if (body.access_token && body.refresh_token) {
+            try { await supabase.auth.setSession({ access_token: body.access_token, refresh_token: body.refresh_token }) } catch {}
+          }
+        } else {
           const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password,
@@ -128,19 +129,6 @@ export function AuthForm({ isFromCLI = false, callbackPort }: AuthFormProps) {
           if (error) throw error
           session = data.session
           user = data.user
-        } catch (sdkErr: any) {
-          // If SDK method is broken (static export), use REST API
-          if (sdkErr instanceof TypeError || sdkErr?.message?.includes('is not a function')) {
-            const body = await supabaseAuthREST('signin', email, password)
-            user = body.user
-            session = body
-            // Set session on client so subsequent calls work
-            if (body.access_token && body.refresh_token) {
-              try { await supabase.auth.setSession({ access_token: body.access_token, refresh_token: body.refresh_token }) } catch {}
-            }
-          } else {
-            throw sdkErr
-          }
         }
 
         // Update last login
