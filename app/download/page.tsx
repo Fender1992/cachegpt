@@ -16,6 +16,7 @@ function detectPlatform(): Platform {
 }
 
 const VERSION = '1.0.0'
+const BASE = `https://github.com/Fender1992/cachegpt/releases/download/v${VERSION}`
 
 export default function DownloadPage() {
   const [platform, setPlatform] = useState<Platform>('unknown')
@@ -23,6 +24,9 @@ export default function DownloadPage() {
   useEffect(() => {
     setPlatform(detectPlatform())
   }, [])
+
+  const linkClass = "inline-flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:opacity-90 text-white px-6 py-3 rounded-lg font-medium transition-opacity"
+  const secondaryClass = "inline-flex items-center justify-center gap-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
@@ -36,17 +40,6 @@ export default function DownloadPage() {
           <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">Version {VERSION}</p>
         </div>
 
-        {/* Available Now Banner */}
-        <div className="mb-8 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl text-center">
-          <div className="flex items-center justify-center gap-2 mb-1">
-            <Download className="w-4 h-4 text-green-600 dark:text-green-400" />
-            <span className="font-semibold text-green-700 dark:text-green-300">Windows Available Now</span>
-          </div>
-          <p className="text-sm text-green-600 dark:text-green-400">
-            Download the Windows installer below. macOS and Linux builds are coming soon.
-          </p>
-        </div>
-
         <div className="grid md:grid-cols-3 gap-6 mb-12">
           {/* macOS */}
           <div
@@ -58,13 +51,14 @@ export default function DownloadPage() {
           >
             <Apple className="w-12 h-12" />
             <h2 className="text-xl font-semibold">macOS</h2>
-            <button
-              disabled
-              className="inline-flex items-center gap-2 bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-6 py-3 rounded-lg font-medium cursor-not-allowed"
-            >
+            <a href={`${BASE}/CacheGPT_${VERSION}_aarch64.dmg`} className={linkClass}>
               <Download className="w-4 h-4" />
-              Download .dmg
-            </button>
+              Apple Silicon .dmg
+            </a>
+            <a href={`${BASE}/CacheGPT_${VERSION}_x64.dmg`} className={secondaryClass}>
+              <Download className="w-4 h-4" />
+              Intel .dmg
+            </a>
             <p className="text-xs text-gray-500 dark:text-gray-400 text-center">macOS 10.15+ (Apple Silicon &amp; Intel)</p>
           </div>
 
@@ -78,14 +72,15 @@ export default function DownloadPage() {
           >
             <Monitor className="w-12 h-12" />
             <h2 className="text-xl font-semibold">Windows</h2>
-            <a
-              href={`https://github.com/Fender1992/cachegpt/releases/download/v${VERSION}/CacheGPT_${VERSION}_x64-setup.exe`}
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:opacity-90 text-white px-6 py-3 rounded-lg font-medium transition-opacity"
-            >
+            <a href={`${BASE}/CacheGPT_${VERSION}_x64-setup.exe`} className={linkClass}>
               <Download className="w-4 h-4" />
               Download .exe
             </a>
-            <p className="text-xs text-gray-500 dark:text-gray-400 text-center">Windows 10+ (x64) &bull; {VERSION}</p>
+            <a href={`${BASE}/CacheGPT_${VERSION}_x64_en-US.msi`} className={secondaryClass}>
+              <Download className="w-4 h-4" />
+              Download .msi
+            </a>
+            <p className="text-xs text-gray-500 dark:text-gray-400 text-center">Windows 10+ (x64)</p>
           </div>
 
           {/* Linux */}
@@ -98,22 +93,14 @@ export default function DownloadPage() {
           >
             <Terminal className="w-12 h-12" />
             <h2 className="text-xl font-semibold">Linux</h2>
-            <div className="flex flex-col gap-2 w-full">
-              <button
-                disabled
-                className="inline-flex items-center justify-center gap-2 bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-4 py-2 rounded-lg text-sm font-medium cursor-not-allowed"
-              >
-                <Download className="w-4 h-4" />
-                .deb (Debian/Ubuntu)
-              </button>
-              <button
-                disabled
-                className="inline-flex items-center justify-center gap-2 bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-4 py-2 rounded-lg text-sm font-medium cursor-not-allowed"
-              >
-                <Download className="w-4 h-4" />
-                .AppImage (Universal)
-              </button>
-            </div>
+            <a href={`${BASE}/CacheGPT_${VERSION}_amd64.AppImage`} className={linkClass}>
+              <Download className="w-4 h-4" />
+              Download .AppImage
+            </a>
+            <a href={`${BASE}/CacheGPT_${VERSION}_amd64.deb`} className={secondaryClass}>
+              <Download className="w-4 h-4" />
+              .deb (Debian/Ubuntu)
+            </a>
             <p className="text-xs text-gray-500 dark:text-gray-400 text-center">Ubuntu 20.04+, Fedora 36+, or equivalent</p>
           </div>
         </div>
