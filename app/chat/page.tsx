@@ -91,14 +91,14 @@ function ChatPageWithDiscord(props: any) {
   }, [router]);
 
   return (
-    <DiscordProvider autoConnect={!isDesktopApp}>
-      <GmailProvider autoConnect={!isDesktopApp}>
-        <CalendarProvider autoConnect={!isDesktopApp}>
-          <SlackProvider autoConnect={!isDesktopApp}>
-            <TeamsProvider autoConnect={!isDesktopApp}>
-              <NotionProvider autoConnect={!isDesktopApp}>
-                <DriveProvider autoConnect={!isDesktopApp}>
-                  <JiraProvider autoConnect={!isDesktopApp}>
+    <DiscordProvider autoConnect>
+      <GmailProvider autoConnect>
+        <CalendarProvider autoConnect>
+          <SlackProvider autoConnect>
+            <TeamsProvider autoConnect>
+              <NotionProvider autoConnect>
+                <DriveProvider autoConnect>
+                  <JiraProvider autoConnect>
                     <div className={`relative ${isDesktopApp ? 'h-full' : 'h-dvh'}`}>
                       <ChatInterface {...props} onShowHistoryChange={setIsHistoryOpen} isPanelPinned={isPanelPinned && isPanelOpen} />
                       <IntegrationDockButton
