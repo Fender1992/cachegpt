@@ -5,7 +5,8 @@ import {
   Loader2, Check, AlertCircle, Link2, Unlink, Mail, Tag,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch, isDesktop } from '@/lib/api-client';
+import { useDesktopIntegrationOAuth } from '@/hooks/useDesktopIntegrationOAuth';
 
 interface GmailIntegrationStatus {
   connected: boolean;
@@ -29,6 +30,7 @@ export default function GmailIntegrationCard({ userId }: GmailIntegrationCardPro
   const [loading, setLoading] = useState(true);
   const [disconnecting, setDisconnecting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const { startOAuth, connecting: desktopConnecting, cleanup: cleanupDesktopOAuth } = useDesktopIntegrationOAuth();
 
   const getAuthHeaders = useCallback(async (): Promise<HeadersInit> => {
     const { data } = await supabase.auth.getSession();
@@ -75,8 +77,21 @@ export default function GmailIntegrationCard({ userId }: GmailIntegrationCardPro
 
   const handleConnect = () => {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    const redirectUri = `${window.location.origin}/api/integrations/gmail/callback`;
     const scope = 'https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/userinfo.email';
+
+    if (isDesktop()) {
+      const redirectUri = 'https://cachegpt.app/api/integrations/gmail/callback';
+      const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}&access_type=offline&prompt=consent`;
+      startOAuth(oauthUrl, userId, 'gmail', () => {
+        setMessage({ type: 'success', text: 'Gmail connected successfully!' });
+        fetchStatus();
+      }, (error) => {
+        setMessage({ type: 'error', text: error });
+      });
+      return;
+    }
+
+    const redirectUri = `${window.location.origin}/api/integrations/gmail/callback`;
 
     // Store user ID in cookie for callback
     document.cookie = `gmail_oauth_uid=${userId}; path=/; max-age=600; SameSite=Lax; Secure`;
@@ -221,10 +236,15 @@ export default function GmailIntegrationCard({ userId }: GmailIntegrationCardPro
           </p>
           <button
             onClick={handleConnect}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 transition"
+            disabled={desktopConnecting}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Link2 className="w-4 h-4" />
-            Connect Gmail
+            {desktopConnecting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Link2 className="w-4 h-4" />
+            )}
+            {desktopConnecting ? 'Connecting...' : 'Connect Gmail'}
           </button>
         </>
       )}

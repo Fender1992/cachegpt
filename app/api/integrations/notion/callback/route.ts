@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { decodeDesktopState, validateDesktopUserId, postDesktopIntegrationResult, desktopCallbackHtml } from '@/lib/desktop-integration-state';
 
 const NOTION_CLIENT_ID = process.env.NOTION_CLIENT_ID!;
 const NOTION_CLIENT_SECRET = process.env.NOTION_CLIENT_SECRET!;
@@ -16,31 +17,50 @@ const supabase = createClient(
 );
 
 export async function GET(req: NextRequest) {
+  let desktopState: ReturnType<typeof decodeDesktopState> = null;
+
   try {
     const searchParams = req.nextUrl.searchParams;
     const code = searchParams.get('code');
     const error = searchParams.get('error');
 
+    const stateParam = searchParams.get('state');
+    desktopState = decodeDesktopState(stateParam);
+
     if (error) {
+      if (desktopState) {
+        await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'notion', error });
+        return new NextResponse(desktopCallbackHtml('Notion', false, error), { status: 400, headers: { 'Content-Type': 'text/html' } });
+      }
       return NextResponse.redirect(
         new URL(`/settings?notion_error=${error}`, req.url)
       );
     }
 
     if (!code) {
+      if (desktopState) {
+        await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'notion', error: 'no_code' });
+        return new NextResponse(desktopCallbackHtml('Notion', false, 'No code received'), { status: 400, headers: { 'Content-Type': 'text/html' } });
+      }
       return NextResponse.redirect(
         new URL('/settings?notion_error=no_code', req.url)
       );
     }
 
-    // Get user ID from cookie
-    const cookieStore = await cookies();
-    const userId = cookieStore.get('notion_oauth_uid')?.value;
-
-    if (!userId) {
-      return NextResponse.redirect(
-        new URL('/settings?notion_error=no_user', req.url)
-      );
+    // Get user ID from cookie or desktop state
+    let userId: string | null = null;
+    if (desktopState) {
+      userId = await validateDesktopUserId(desktopState.u);
+      if (!userId) {
+        await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'notion', error: 'invalid_user' });
+        return new NextResponse(desktopCallbackHtml('Notion', false, 'Invalid user'), { status: 400, headers: { 'Content-Type': 'text/html' } });
+      }
+    } else {
+      const cookieStore = await cookies();
+      userId = cookieStore.get('notion_oauth_uid')?.value || null;
+      if (!userId) {
+        return NextResponse.redirect(new URL('/settings?notion_error=no_user', req.url));
+      }
     }
 
     // Exchange code for access token
@@ -62,6 +82,10 @@ export async function GET(req: NextRequest) {
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.text();
       console.error('[Notion OAuth] Token exchange failed:', errorData);
+      if (desktopState) {
+        await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'notion', error: 'token_exchange_failed' });
+        return new NextResponse(desktopCallbackHtml('Notion', false, 'Token exchange failed'), { status: 400, headers: { 'Content-Type': 'text/html' } });
+      }
       return NextResponse.redirect(
         new URL('/settings?notion_error=token_exchange_failed', req.url)
       );
@@ -131,6 +155,11 @@ export async function GET(req: NextRequest) {
         .insert(integrationData);
     }
 
+    if (desktopState) {
+      await postDesktopIntegrationResult(desktopState.s, { success: true, provider: 'notion' });
+      return new NextResponse(desktopCallbackHtml('Notion', true), { headers: { 'Content-Type': 'text/html' } });
+    }
+
     // Clear the cookie
     const response = NextResponse.redirect(
       new URL('/settings?notion_connected=true', req.url)
@@ -140,6 +169,10 @@ export async function GET(req: NextRequest) {
     return response;
   } catch (error) {
     console.error('[Notion OAuth Callback] Error:', error);
+    if (desktopState) {
+      await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'notion', error: 'unexpected' });
+      return new NextResponse(desktopCallbackHtml('Notion', false, 'Unexpected error'), { status: 500, headers: { 'Content-Type': 'text/html' } });
+    }
     return NextResponse.redirect(
       new URL('/settings?notion_error=unexpected', req.url)
     );

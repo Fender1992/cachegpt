@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { decodeDesktopState, validateDesktopUserId, postDesktopIntegrationResult, desktopCallbackHtml } from '@/lib/desktop-integration-state';
 
 const TEAMS_CLIENT_ID = process.env.NEXT_PUBLIC_TEAMS_CLIENT_ID!;
 const TEAMS_CLIENT_SECRET = process.env.TEAMS_CLIENT_SECRET!;
@@ -16,31 +17,51 @@ const supabase = createClient(
 );
 
 export async function GET(req: NextRequest) {
+  let desktopState: ReturnType<typeof decodeDesktopState> = null;
+
   try {
     const searchParams = req.nextUrl.searchParams;
     const code = searchParams.get('code');
     const error = searchParams.get('error');
 
+    // Check for desktop OAuth state
+    const stateParam = searchParams.get('state');
+    desktopState = decodeDesktopState(stateParam);
+
     if (error) {
+      if (desktopState) {
+        await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'teams', error: error });
+        return new NextResponse(desktopCallbackHtml('Microsoft Teams', false, error), { status: 400, headers: { 'Content-Type': 'text/html' } });
+      }
       return NextResponse.redirect(
         new URL(`/settings?teams_error=${error}`, req.url)
       );
     }
 
     if (!code) {
+      if (desktopState) {
+        await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'teams', error: 'no_code' });
+        return new NextResponse(desktopCallbackHtml('Microsoft Teams', false, 'No authorization code'), { status: 400, headers: { 'Content-Type': 'text/html' } });
+      }
       return NextResponse.redirect(
         new URL('/settings?teams_error=no_code', req.url)
       );
     }
 
-    // Get user ID from cookie
-    const cookieStore = await cookies();
-    const userId = cookieStore.get('teams_oauth_uid')?.value;
-
-    if (!userId) {
-      return NextResponse.redirect(
-        new URL('/settings?teams_error=no_user', req.url)
-      );
+    // Get user ID — desktop uses state param, web uses cookie
+    let userId: string | null = null;
+    if (desktopState) {
+      userId = await validateDesktopUserId(desktopState.u);
+      if (!userId) {
+        await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'teams', error: 'invalid_user' });
+        return new NextResponse(desktopCallbackHtml('Microsoft Teams', false, 'Invalid user'), { status: 400, headers: { 'Content-Type': 'text/html' } });
+      }
+    } else {
+      const cookieStore = await cookies();
+      userId = cookieStore.get('teams_oauth_uid')?.value || null;
+      if (!userId) {
+        return NextResponse.redirect(new URL('/settings?teams_error=no_user', req.url));
+      }
     }
 
     const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin}/api/integrations/teams/callback`;
@@ -65,6 +86,10 @@ export async function GET(req: NextRequest) {
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.text();
       console.error('[Teams OAuth] Token exchange failed:', errorData);
+      if (desktopState) {
+        await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'teams', error: 'token_exchange_failed' });
+        return new NextResponse(desktopCallbackHtml('Microsoft Teams', false, 'Token exchange failed'), { status: 400, headers: { 'Content-Type': 'text/html' } });
+      }
       return NextResponse.redirect(
         new URL('/settings?teams_error=token_exchange_failed', req.url)
       );
@@ -74,6 +99,10 @@ export async function GET(req: NextRequest) {
 
     if (tokenData.error) {
       console.error('[Teams OAuth] Token response error:', tokenData.error);
+      if (desktopState) {
+        await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'teams', error: tokenData.error });
+        return new NextResponse(desktopCallbackHtml('Microsoft Teams', false, tokenData.error), { status: 400, headers: { 'Content-Type': 'text/html' } });
+      }
       return NextResponse.redirect(
         new URL(`/settings?teams_error=${tokenData.error}`, req.url)
       );
@@ -151,15 +180,21 @@ export async function GET(req: NextRequest) {
         .insert(integrationData);
     }
 
-    // Clear the cookie
-    const response = NextResponse.redirect(
-      new URL('/settings?teams_connected=true', req.url)
-    );
-    response.cookies.delete('teams_oauth_uid');
+    if (desktopState) {
+      await postDesktopIntegrationResult(desktopState.s, { success: true, provider: 'teams' });
+      return new NextResponse(desktopCallbackHtml('Microsoft Teams', true), { headers: { 'Content-Type': 'text/html' } });
+    }
 
+    // Clear the cookie
+    const response = NextResponse.redirect(new URL('/settings?teams_connected=true', req.url));
+    response.cookies.delete('teams_oauth_uid');
     return response;
   } catch (error) {
     console.error('[Teams OAuth Callback] Error:', error);
+    if (desktopState) {
+      await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'teams', error: 'unexpected' });
+      return new NextResponse(desktopCallbackHtml('Microsoft Teams', false, 'Unexpected error'), { status: 500, headers: { 'Content-Type': 'text/html' } });
+    }
     return NextResponse.redirect(
       new URL('/settings?teams_error=unexpected', req.url)
     );

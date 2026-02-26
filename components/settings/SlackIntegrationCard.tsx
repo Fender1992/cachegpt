@@ -5,7 +5,8 @@ import {
   Loader2, Check, AlertCircle, Link2, Unlink, Hash, MessageSquare,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch, isDesktop } from '@/lib/api-client';
+import { useDesktopIntegrationOAuth } from '@/hooks/useDesktopIntegrationOAuth';
 
 interface SlackIntegrationStatus {
   connected: boolean;
@@ -29,6 +30,7 @@ export default function SlackIntegrationCard({ userId }: SlackIntegrationCardPro
   const [loading, setLoading] = useState(true);
   const [disconnecting, setDisconnecting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const { startOAuth, connecting: desktopConnecting, cleanup: cleanupDesktopOAuth } = useDesktopIntegrationOAuth();
 
   const getAuthHeaders = useCallback(async (): Promise<HeadersInit> => {
     const { data } = await supabase.auth.getSession();
@@ -75,8 +77,21 @@ export default function SlackIntegrationCard({ userId }: SlackIntegrationCardPro
 
   const handleConnect = () => {
     const clientId = process.env.NEXT_PUBLIC_SLACK_CLIENT_ID;
-    const redirectUri = `${window.location.origin}/api/integrations/slack/callback`;
     const scope = 'channels:read,channels:history,chat:write,users:read,groups:read,groups:history';
+
+    if (isDesktop()) {
+      const redirectUri = 'https://cachegpt.app/api/integrations/slack/callback';
+      const oauthUrl = `https://slack.com/oauth/v2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&user_scope=search:read`;
+      startOAuth(oauthUrl, userId, 'slack', () => {
+        setMessage({ type: 'success', text: 'Slack connected successfully!' });
+        fetchStatus();
+      }, (error) => {
+        setMessage({ type: 'error', text: error });
+      });
+      return;
+    }
+
+    const redirectUri = `${window.location.origin}/api/integrations/slack/callback`;
 
     // Store user ID in cookie for callback
     document.cookie = `slack_oauth_uid=${userId}; path=/; max-age=600; SameSite=Lax; Secure`;
@@ -222,10 +237,15 @@ export default function SlackIntegrationCard({ userId }: SlackIntegrationCardPro
           </p>
           <button
             onClick={handleConnect}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600 transition"
+            disabled={desktopConnecting}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Link2 className="w-4 h-4" />
-            Connect Slack
+            {desktopConnecting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Link2 className="w-4 h-4" />
+            )}
+            {desktopConnecting ? 'Connecting...' : 'Connect Slack'}
           </button>
         </>
       )}

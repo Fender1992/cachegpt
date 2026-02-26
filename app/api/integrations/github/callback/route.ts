@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { resolveAuthentication, isAuthError, getUserId } from '@/lib/unified-auth-resolver';
 import type { UnifiedSession } from '@/lib/unified-auth-resolver';
+import { decodeDesktopState, validateDesktopUserId, postDesktopIntegrationResult, desktopCallbackHtml } from '@/lib/desktop-integration-state';
 
 function getSupabaseAdmin() {
   return createClient(
@@ -46,17 +47,37 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code');
   const error = searchParams.get('error');
 
+  const stateParam = searchParams.get('state');
+  const desktopState = decodeDesktopState(stateParam);
+
   if (error) {
+    if (desktopState) {
+      await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'github', error: 'access_denied' });
+      return new NextResponse(desktopCallbackHtml('GitHub', false, 'Access denied'), { status: 400, headers: { 'Content-Type': 'text/html' } });
+    }
     return NextResponse.redirect(new URL('/settings?github_error=access_denied', request.url));
   }
 
   if (!code) {
+    if (desktopState) {
+      await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'github', error: 'no_code' });
+      return new NextResponse(desktopCallbackHtml('GitHub', false, 'No authorization code received'), { status: 400, headers: { 'Content-Type': 'text/html' } });
+    }
     return NextResponse.redirect(new URL('/settings?github_error=no_code', request.url));
   }
 
-  const userId = await resolveUserId(request);
-  if (!userId) {
-    return NextResponse.redirect(new URL('/login?redirect=/settings', request.url));
+  let userId: string | null = null;
+  if (desktopState) {
+    userId = await validateDesktopUserId(desktopState.u);
+    if (!userId) {
+      await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'github', error: 'invalid_user' });
+      return new NextResponse(desktopCallbackHtml('GitHub', false, 'Invalid user'), { status: 400, headers: { 'Content-Type': 'text/html' } });
+    }
+  } else {
+    userId = await resolveUserId(request);
+    if (!userId) {
+      return NextResponse.redirect(new URL('/login?redirect=/settings', request.url));
+    }
   }
 
   try {
@@ -77,6 +98,10 @@ export async function GET(request: NextRequest) {
     const tokenData = await tokenResponse.json();
 
     if (tokenData.error) {
+      if (desktopState) {
+        await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'github', error: tokenData.error });
+        return new NextResponse(desktopCallbackHtml('GitHub', false, `Token error: ${tokenData.error}`), { status: 400, headers: { 'Content-Type': 'text/html' } });
+      }
       return NextResponse.redirect(
         new URL(`/settings?github_error=${tokenData.error}`, request.url)
       );
@@ -116,7 +141,16 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (upsertError || !integration) {
+      if (desktopState) {
+        await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'github', error: 'save_failed' });
+        return new NextResponse(desktopCallbackHtml('GitHub', false, 'Failed to save integration'), { status: 500, headers: { 'Content-Type': 'text/html' } });
+      }
       return NextResponse.redirect(new URL('/settings?github_error=save_failed', request.url));
+    }
+
+    if (desktopState) {
+      await postDesktopIntegrationResult(desktopState.s, { success: true, provider: 'github' });
+      return new NextResponse(desktopCallbackHtml('GitHub', true), { headers: { 'Content-Type': 'text/html' } });
     }
 
     // Clear the oauth cookie and redirect
@@ -125,6 +159,10 @@ export async function GET(request: NextRequest) {
     return response;
   } catch (err: any) {
     console.error('[GitHub Callback] Error:', err);
+    if (desktopState) {
+      await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'github', error: 'unknown' });
+      return new NextResponse(desktopCallbackHtml('GitHub', false, 'Unexpected error'), { status: 500, headers: { 'Content-Type': 'text/html' } });
+    }
     return NextResponse.redirect(new URL('/settings?github_error=unknown', request.url));
   }
 }

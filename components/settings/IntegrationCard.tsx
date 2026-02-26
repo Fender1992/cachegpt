@@ -6,7 +6,8 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
 import type { IntegrationStatus } from '@/lib/integrations/types';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch, isDesktop } from '@/lib/api-client';
+import { useDesktopIntegrationOAuth } from '@/hooks/useDesktopIntegrationOAuth';
 
 interface IntegrationCardProps {
   provider: 'github';
@@ -18,6 +19,7 @@ export default function IntegrationCard({ provider, userId }: IntegrationCardPro
   const [loading, setLoading] = useState(true);
   const [disconnecting, setDisconnecting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const { startOAuth, connecting: desktopConnecting, cleanup: cleanupDesktopOAuth } = useDesktopIntegrationOAuth();
 
   const getAuthHeaders = useCallback(async (): Promise<HeadersInit> => {
     const { data } = await supabase.auth.getSession();
@@ -65,8 +67,21 @@ export default function IntegrationCard({ provider, userId }: IntegrationCardPro
 
   const handleConnect = () => {
     const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
-    const redirectUri = `${window.location.origin}/api/integrations/github/callback`;
     const scope = 'repo,read:user';
+
+    if (isDesktop()) {
+      const redirectUri = 'https://cachegpt.app/api/integrations/github/callback';
+      const oauthUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}`;
+      startOAuth(oauthUrl, userId, 'github', () => {
+        setMessage({ type: 'success', text: 'GitHub connected!' });
+        fetchStatus();
+      }, (error) => {
+        setMessage({ type: 'error', text: error });
+      });
+      return;
+    }
+
+    const redirectUri = `${window.location.origin}/api/integrations/github/callback`;
     // Store user ID in a cookie so the callback can identify the user
     // after the GitHub redirect (Supabase session cookies may not survive the redirect)
     document.cookie = `github_oauth_uid=${userId}; path=/; max-age=600; SameSite=Lax; Secure`;
@@ -175,10 +190,15 @@ export default function IntegrationCard({ provider, userId }: IntegrationCardPro
           </p>
           <button
             onClick={handleConnect}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-900 text-white rounded-lg hover:bg-gray-800 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100 transition"
+            disabled={desktopConnecting}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-900 text-white rounded-lg hover:bg-gray-800 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Link2 className="w-4 h-4" />
-            Connect GitHub
+            {desktopConnecting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Link2 className="w-4 h-4" />
+            )}
+            {desktopConnecting ? 'Connecting...' : 'Connect GitHub'}
           </button>
         </>
       )}

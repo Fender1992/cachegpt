@@ -5,7 +5,8 @@ import {
   Loader2, Check, AlertCircle, Link2, Unlink, MessageSquare, Server, Hash, Users,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch, isDesktop } from '@/lib/api-client';
+import { useDesktopIntegrationOAuth } from '@/hooks/useDesktopIntegrationOAuth';
 
 interface DiscordIntegrationStatus {
   connected: boolean;
@@ -38,6 +39,7 @@ export default function DiscordIntegrationCard({ userId }: DiscordIntegrationCar
   const [syncing, setSyncing] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const { startOAuth, connecting: desktopConnecting, cleanup: cleanupDesktopOAuth } = useDesktopIntegrationOAuth();
 
   const getAuthHeaders = useCallback(async (): Promise<HeadersInit> => {
     const { data } = await supabase.auth.getSession();
@@ -94,8 +96,22 @@ export default function DiscordIntegrationCard({ userId }: DiscordIntegrationCar
 
   const handleConnect = () => {
     const clientId = process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID;
-    const redirectUri = `${window.location.origin}/api/integrations/discord/callback`;
     const scope = 'identify guilds guilds.members.read messages.read';
+
+    if (isDesktop()) {
+      const redirectUri = 'https://cachegpt.app/api/integrations/discord/callback';
+      const oauthUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}`;
+      startOAuth(oauthUrl, userId, 'discord', () => {
+        setMessage({ type: 'success', text: 'Discord connected successfully!' });
+        setSyncing(true);
+        fetchStatus();
+      }, (error) => {
+        setMessage({ type: 'error', text: error });
+      });
+      return;
+    }
+
+    const redirectUri = `${window.location.origin}/api/integrations/discord/callback`;
 
     // Store user ID in cookie for callback
     document.cookie = `discord_oauth_uid=${userId}; path=/; max-age=600; SameSite=Lax; Secure`;
@@ -346,10 +362,15 @@ export default function DiscordIntegrationCard({ userId }: DiscordIntegrationCar
           </p>
           <button
             onClick={handleConnect}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 transition"
+            disabled={desktopConnecting}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Link2 className="w-4 h-4" />
-            Connect Discord
+            {desktopConnecting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Link2 className="w-4 h-4" />
+            )}
+            {desktopConnecting ? 'Connecting...' : 'Connect Discord'}
           </button>
         </>
       )}

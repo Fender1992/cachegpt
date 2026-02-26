@@ -5,7 +5,8 @@ import {
   Loader2, Check, AlertCircle, Link2, Unlink, Calendar, Hash,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch, isDesktop } from '@/lib/api-client';
+import { useDesktopIntegrationOAuth } from '@/hooks/useDesktopIntegrationOAuth';
 
 interface CalendarIntegrationStatus {
   connected: boolean;
@@ -27,6 +28,7 @@ export default function CalendarIntegrationCard({ userId }: CalendarIntegrationC
   const [loading, setLoading] = useState(true);
   const [disconnecting, setDisconnecting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const { startOAuth, connecting: desktopConnecting, cleanup: cleanupDesktopOAuth } = useDesktopIntegrationOAuth();
 
   const getAuthHeaders = useCallback(async (): Promise<HeadersInit> => {
     const { data } = await supabase.auth.getSession();
@@ -73,8 +75,21 @@ export default function CalendarIntegrationCard({ userId }: CalendarIntegrationC
 
   const handleConnect = () => {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    const redirectUri = `${window.location.origin}/api/integrations/google-calendar/callback`;
     const scope = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.email';
+
+    if (isDesktop()) {
+      const redirectUri = 'https://cachegpt.app/api/integrations/google-calendar/callback';
+      const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}&access_type=offline&prompt=consent`;
+      startOAuth(oauthUrl, userId, 'google_calendar', () => {
+        setMessage({ type: 'success', text: 'Google Calendar connected successfully!' });
+        fetchStatus();
+      }, (error) => {
+        setMessage({ type: 'error', text: error });
+      });
+      return;
+    }
+
+    const redirectUri = `${window.location.origin}/api/integrations/google-calendar/callback`;
 
     // Store user ID in cookie for callback
     document.cookie = `calendar_oauth_uid=${userId}; path=/; max-age=600; SameSite=Lax; Secure`;
@@ -209,10 +224,15 @@ export default function CalendarIntegrationCard({ userId }: CalendarIntegrationC
           </p>
           <button
             onClick={handleConnect}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition"
+            disabled={desktopConnecting}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Link2 className="w-4 h-4" />
-            Connect Google Calendar
+            {desktopConnecting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Link2 className="w-4 h-4" />
+            )}
+            {desktopConnecting ? 'Connecting...' : 'Connect Google Calendar'}
           </button>
         </>
       )}

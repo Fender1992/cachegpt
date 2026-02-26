@@ -5,7 +5,8 @@ import {
   Loader2, Check, AlertCircle, Link2, Unlink, Hash, Users,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch, isDesktop } from '@/lib/api-client';
+import { useDesktopIntegrationOAuth } from '@/hooks/useDesktopIntegrationOAuth';
 
 interface TeamsIntegrationStatus {
   connected: boolean;
@@ -29,6 +30,7 @@ export default function TeamsIntegrationCard({ userId }: TeamsIntegrationCardPro
   const [loading, setLoading] = useState(true);
   const [disconnecting, setDisconnecting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const { startOAuth, connecting: desktopConnecting, cleanup: cleanupDesktopOAuth } = useDesktopIntegrationOAuth();
 
   const getAuthHeaders = useCallback(async (): Promise<HeadersInit> => {
     const { data } = await supabase.auth.getSession();
@@ -75,8 +77,21 @@ export default function TeamsIntegrationCard({ userId }: TeamsIntegrationCardPro
 
   const handleConnect = () => {
     const clientId = process.env.NEXT_PUBLIC_TEAMS_CLIENT_ID;
-    const redirectUri = `${window.location.origin}/api/integrations/teams/callback`;
     const scope = 'User.Read Team.ReadBasic.All Channel.ReadBasic.All ChannelMessage.Read.All ChannelMessage.Send Chat.Read ChatMessage.Send offline_access';
+
+    if (isDesktop()) {
+      const redirectUri = 'https://cachegpt.app/api/integrations/teams/callback';
+      const oauthUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&response_type=code&response_mode=query`;
+      startOAuth(oauthUrl, userId, 'teams', () => {
+        setMessage({ type: 'success', text: 'Microsoft Teams connected successfully!' });
+        fetchStatus();
+      }, (error) => {
+        setMessage({ type: 'error', text: error });
+      });
+      return;
+    }
+
+    const redirectUri = `${window.location.origin}/api/integrations/teams/callback`;
 
     // Store user ID in cookie for callback
     document.cookie = `teams_oauth_uid=${userId}; path=/; max-age=600; SameSite=Lax; Secure`;

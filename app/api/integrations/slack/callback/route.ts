@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { decodeDesktopState, validateDesktopUserId, postDesktopIntegrationResult, desktopCallbackHtml } from '@/lib/desktop-integration-state';
 
 const SLACK_CLIENT_ID = process.env.SLACK_CLIENT_ID!;
 const SLACK_CLIENT_SECRET = process.env.SLACK_CLIENT_SECRET!;
@@ -16,31 +17,53 @@ const supabase = createClient(
 );
 
 export async function GET(req: NextRequest) {
+  let desktopState: ReturnType<typeof decodeDesktopState> = null;
+
   try {
     const searchParams = req.nextUrl.searchParams;
     const code = searchParams.get('code');
     const error = searchParams.get('error');
 
+    // Check for desktop OAuth state
+    const stateParam = searchParams.get('state');
+    desktopState = decodeDesktopState(stateParam);
+
     if (error) {
+      if (desktopState) {
+        await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'slack', error: error });
+        return new NextResponse(desktopCallbackHtml('Slack', false, error), { status: 400, headers: { 'Content-Type': 'text/html' } });
+      }
       return NextResponse.redirect(
         new URL(`/settings?slack_error=${error}`, req.url)
       );
     }
 
     if (!code) {
+      if (desktopState) {
+        await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'slack', error: 'no_code' });
+        return new NextResponse(desktopCallbackHtml('Slack', false, 'No authorization code'), { status: 400, headers: { 'Content-Type': 'text/html' } });
+      }
       return NextResponse.redirect(
         new URL('/settings?slack_error=no_code', req.url)
       );
     }
 
-    // Get user ID from cookie
-    const cookieStore = await cookies();
-    const userId = cookieStore.get('slack_oauth_uid')?.value;
-
-    if (!userId) {
-      return NextResponse.redirect(
-        new URL('/settings?slack_error=no_user', req.url)
-      );
+    // Get user ID — desktop uses state param, web uses cookie
+    let userId: string | null = null;
+    if (desktopState) {
+      userId = await validateDesktopUserId(desktopState.u);
+      if (!userId) {
+        await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'slack', error: 'invalid_user' });
+        return new NextResponse(desktopCallbackHtml('Slack', false, 'Invalid user'), { status: 400, headers: { 'Content-Type': 'text/html' } });
+      }
+    } else {
+      const cookieStore = await cookies();
+      userId = cookieStore.get('slack_oauth_uid')?.value || null;
+      if (!userId) {
+        return NextResponse.redirect(
+          new URL('/settings?slack_error=no_user', req.url)
+        );
+      }
     }
 
     // Exchange code for access token
@@ -58,6 +81,10 @@ export async function GET(req: NextRequest) {
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.text();
       console.error('[Slack OAuth] Token exchange failed:', errorData);
+      if (desktopState) {
+        await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'slack', error: 'token_exchange_failed' });
+        return new NextResponse(desktopCallbackHtml('Slack', false, 'Token exchange failed'), { status: 400, headers: { 'Content-Type': 'text/html' } });
+      }
       return NextResponse.redirect(
         new URL('/settings?slack_error=token_exchange_failed', req.url)
       );
@@ -67,6 +94,10 @@ export async function GET(req: NextRequest) {
 
     if (!tokenData.ok) {
       console.error('[Slack OAuth] Token response error:', tokenData.error);
+      if (desktopState) {
+        await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'slack', error: tokenData.error });
+        return new NextResponse(desktopCallbackHtml('Slack', false, tokenData.error), { status: 400, headers: { 'Content-Type': 'text/html' } });
+      }
       return NextResponse.redirect(
         new URL(`/settings?slack_error=${tokenData.error}`, req.url)
       );
@@ -142,6 +173,11 @@ export async function GET(req: NextRequest) {
         .insert(integrationData);
     }
 
+    if (desktopState) {
+      await postDesktopIntegrationResult(desktopState.s, { success: true, provider: 'slack' });
+      return new NextResponse(desktopCallbackHtml('Slack', true), { headers: { 'Content-Type': 'text/html' } });
+    }
+
     // Clear the cookie
     const response = NextResponse.redirect(
       new URL('/settings?slack_connected=true', req.url)
@@ -151,6 +187,10 @@ export async function GET(req: NextRequest) {
     return response;
   } catch (error) {
     console.error('[Slack OAuth Callback] Error:', error);
+    if (desktopState) {
+      await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'slack', error: 'unexpected' });
+      return new NextResponse(desktopCallbackHtml('Slack', false, 'Unexpected error'), { status: 500, headers: { 'Content-Type': 'text/html' } });
+    }
     return NextResponse.redirect(
       new URL('/settings?slack_error=unexpected', req.url)
     );

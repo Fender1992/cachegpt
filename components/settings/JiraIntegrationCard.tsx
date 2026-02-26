@@ -5,7 +5,8 @@ import {
   Loader2, Check, AlertCircle, Link2, Unlink, Bug,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch, isDesktop } from '@/lib/api-client';
+import { useDesktopIntegrationOAuth } from '@/hooks/useDesktopIntegrationOAuth';
 
 interface JiraIntegrationStatus {
   connected: boolean;
@@ -25,6 +26,7 @@ export default function JiraIntegrationCard({ userId }: JiraIntegrationCardProps
   const [loading, setLoading] = useState(true);
   const [disconnecting, setDisconnecting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const { startOAuth, connecting: desktopConnecting, cleanup: cleanupDesktopOAuth } = useDesktopIntegrationOAuth();
 
   const getAuthHeaders = useCallback(async (): Promise<HeadersInit> => {
     const { data } = await supabase.auth.getSession();
@@ -71,8 +73,21 @@ export default function JiraIntegrationCard({ userId }: JiraIntegrationCardProps
 
   const handleConnect = () => {
     const clientId = process.env.NEXT_PUBLIC_JIRA_CLIENT_ID;
-    const redirectUri = `${window.location.origin}/api/integrations/jira/callback`;
     const scope = 'read:jira-work read:jira-user offline_access';
+
+    if (isDesktop()) {
+      const redirectUri = 'https://cachegpt.app/api/integrations/jira/callback';
+      const oauthUrl = `https://auth.atlassian.com/authorize?audience=api.atlassian.com&client_id=${clientId}&scope=${encodeURIComponent(scope)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&prompt=consent`;
+      startOAuth(oauthUrl, userId, 'jira', () => {
+        setMessage({ type: 'success', text: 'Jira connected successfully!' });
+        fetchStatus();
+      }, (error) => {
+        setMessage({ type: 'error', text: error });
+      });
+      return;
+    }
+
+    const redirectUri = `${window.location.origin}/api/integrations/jira/callback`;
 
     // Store user ID in cookie for callback
     document.cookie = `jira_oauth_uid=${userId}; path=/; max-age=600; SameSite=Lax; Secure`;
@@ -199,10 +214,15 @@ export default function JiraIntegrationCard({ userId }: JiraIntegrationCardProps
           </p>
           <button
             onClick={handleConnect}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition"
+            disabled={desktopConnecting}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Link2 className="w-4 h-4" />
-            Connect Jira
+            {desktopConnecting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Link2 className="w-4 h-4" />
+            )}
+            {desktopConnecting ? 'Connecting...' : 'Connect Jira'}
           </button>
         </>
       )}

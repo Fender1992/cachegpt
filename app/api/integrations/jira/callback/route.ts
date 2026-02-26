@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { decodeDesktopState, validateDesktopUserId, postDesktopIntegrationResult, desktopCallbackHtml } from '@/lib/desktop-integration-state';
 
 const JIRA_CLIENT_ID = process.env.JIRA_CLIENT_ID!;
 const JIRA_CLIENT_SECRET = process.env.JIRA_CLIENT_SECRET!;
@@ -16,31 +17,52 @@ const supabase = createClient(
 );
 
 export async function GET(req: NextRequest) {
+  let desktopState: ReturnType<typeof decodeDesktopState> = null;
+
   try {
     const searchParams = req.nextUrl.searchParams;
     const code = searchParams.get('code');
     const error = searchParams.get('error');
 
+    const stateParam = searchParams.get('state');
+    desktopState = decodeDesktopState(stateParam);
+
     if (error) {
+      if (desktopState) {
+        await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'jira', error });
+        return new NextResponse(desktopCallbackHtml('Jira', false, error), { status: 400, headers: { 'Content-Type': 'text/html' } });
+      }
       return NextResponse.redirect(
         new URL(`/settings?jira_error=${error}`, req.url)
       );
     }
 
     if (!code) {
+      if (desktopState) {
+        await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'jira', error: 'no_code' });
+        return new NextResponse(desktopCallbackHtml('Jira', false, 'No authorization code'), { status: 400, headers: { 'Content-Type': 'text/html' } });
+      }
       return NextResponse.redirect(
         new URL('/settings?jira_error=no_code', req.url)
       );
     }
 
-    // Get user ID from cookie
-    const cookieStore = await cookies();
-    const userId = cookieStore.get('jira_oauth_uid')?.value;
-
-    if (!userId) {
-      return NextResponse.redirect(
-        new URL('/settings?jira_error=no_user', req.url)
-      );
+    // Get user ID from desktop state or cookie
+    let userId: string | null = null;
+    if (desktopState) {
+      userId = await validateDesktopUserId(desktopState.u);
+      if (!userId) {
+        await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'jira', error: 'invalid_user' });
+        return new NextResponse(desktopCallbackHtml('Jira', false, 'Invalid user'), { status: 400, headers: { 'Content-Type': 'text/html' } });
+      }
+    } else {
+      const cookieStore = await cookies();
+      userId = cookieStore.get('jira_oauth_uid')?.value || null;
+      if (!userId) {
+        return NextResponse.redirect(
+          new URL('/settings?jira_error=no_user', req.url)
+        );
+      }
     }
 
     // Exchange code for access token
@@ -59,6 +81,10 @@ export async function GET(req: NextRequest) {
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.text();
       console.error('[Jira OAuth] Token exchange failed:', errorData);
+      if (desktopState) {
+        await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'jira', error: 'token_exchange_failed' });
+        return new NextResponse(desktopCallbackHtml('Jira', false, 'Token exchange failed'), { status: 500, headers: { 'Content-Type': 'text/html' } });
+      }
       return NextResponse.redirect(
         new URL('/settings?jira_error=token_exchange_failed', req.url)
       );
@@ -76,6 +102,10 @@ export async function GET(req: NextRequest) {
     );
 
     if (!resourcesResponse.ok) {
+      if (desktopState) {
+        await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'jira', error: 'resources_fetch_failed' });
+        return new NextResponse(desktopCallbackHtml('Jira', false, 'Failed to fetch resources'), { status: 500, headers: { 'Content-Type': 'text/html' } });
+      }
       return NextResponse.redirect(
         new URL('/settings?jira_error=resources_fetch_failed', req.url)
       );
@@ -84,6 +114,10 @@ export async function GET(req: NextRequest) {
     const resources = await resourcesResponse.json();
 
     if (!resources || resources.length === 0) {
+      if (desktopState) {
+        await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'jira', error: 'no_sites' });
+        return new NextResponse(desktopCallbackHtml('Jira', false, 'No Jira sites found'), { status: 400, headers: { 'Content-Type': 'text/html' } });
+      }
       return NextResponse.redirect(
         new URL('/settings?jira_error=no_sites', req.url)
       );
@@ -152,15 +186,24 @@ export async function GET(req: NextRequest) {
         .insert(integrationData);
     }
 
+    // Desktop: post success result and return HTML
+    if (desktopState) {
+      await postDesktopIntegrationResult(desktopState.s, { success: true, provider: 'jira' });
+      return new NextResponse(desktopCallbackHtml('Jira', true), { headers: { 'Content-Type': 'text/html' } });
+    }
+
     // Clear the cookie
     const response = NextResponse.redirect(
       new URL('/settings?jira_connected=true', req.url)
     );
     response.cookies.delete('jira_oauth_uid');
-
     return response;
   } catch (error) {
     console.error('[Jira OAuth Callback] Error:', error);
+    if (desktopState) {
+      await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'jira', error: 'unexpected' });
+      return new NextResponse(desktopCallbackHtml('Jira', false, 'Unexpected error'), { status: 500, headers: { 'Content-Type': 'text/html' } });
+    }
     return NextResponse.redirect(
       new URL('/settings?jira_error=unexpected', req.url)
     );

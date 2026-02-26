@@ -5,7 +5,8 @@ import {
   Loader2, Check, AlertCircle, Link2, Unlink, FileText, BookOpen,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch, isDesktop } from '@/lib/api-client';
+import { useDesktopIntegrationOAuth } from '@/hooks/useDesktopIntegrationOAuth';
 
 interface NotionIntegrationStatus {
   connected: boolean;
@@ -29,6 +30,7 @@ export default function NotionIntegrationCard({ userId }: NotionIntegrationCardP
   const [loading, setLoading] = useState(true);
   const [disconnecting, setDisconnecting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const { startOAuth, connecting: desktopConnecting, cleanup: cleanupDesktopOAuth } = useDesktopIntegrationOAuth();
 
   const getAuthHeaders = useCallback(async (): Promise<HeadersInit> => {
     const { data } = await supabase.auth.getSession();
@@ -75,6 +77,19 @@ export default function NotionIntegrationCard({ userId }: NotionIntegrationCardP
 
   const handleConnect = () => {
     const clientId = process.env.NEXT_PUBLIC_NOTION_CLIENT_ID;
+
+    if (isDesktop()) {
+      const redirectUri = 'https://cachegpt.app/api/integrations/notion/callback';
+      const oauthUrl = `https://api.notion.com/v1/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&owner=user`;
+      startOAuth(oauthUrl, userId, 'notion', () => {
+        setMessage({ type: 'success', text: 'Notion connected successfully!' });
+        fetchStatus();
+      }, (error) => {
+        setMessage({ type: 'error', text: error });
+      });
+      return;
+    }
+
     const redirectUri = `${window.location.origin}/api/integrations/notion/callback`;
 
     // Store user ID in cookie for callback
@@ -212,10 +227,15 @@ export default function NotionIntegrationCard({ userId }: NotionIntegrationCardP
           </p>
           <button
             onClick={handleConnect}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-900 text-white rounded-lg hover:bg-gray-800 dark:bg-gray-200 dark:text-gray-900 dark:hover:bg-gray-300 transition"
+            disabled={desktopConnecting}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-900 text-white rounded-lg hover:bg-gray-800 dark:bg-gray-200 dark:text-gray-900 dark:hover:bg-gray-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Link2 className="w-4 h-4" />
-            Connect Notion
+            {desktopConnecting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Link2 className="w-4 h-4" />
+            )}
+            {desktopConnecting ? 'Connecting...' : 'Connect Notion'}
           </button>
         </>
       )}
