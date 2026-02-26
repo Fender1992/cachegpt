@@ -81,6 +81,7 @@ export default function JiraIntegrationCard({ userId }: JiraIntegrationCardProps
       startOAuth(oauthUrl, userId, 'jira', () => {
         setMessage({ type: 'success', text: 'Jira connected successfully!' });
         fetchStatus();
+        setTimeout(fetchStatus, 2000);
       }, (error) => {
         setMessage({ type: 'error', text: error });
       });

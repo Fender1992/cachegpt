@@ -148,15 +148,17 @@ export async function GET(req: NextRequest) {
       updated_at: new Date().toISOString(),
     };
 
-    if (existingIntegration) {
-      await supabase
-        .from('user_integrations')
-        .update(integrationData)
-        .eq('id', existingIntegration.id);
-    } else {
-      await supabase
-        .from('user_integrations')
-        .insert(integrationData);
+    const dbResult = existingIntegration
+      ? await supabase.from('user_integrations').update(integrationData).eq('id', existingIntegration.id)
+      : await supabase.from('user_integrations').insert(integrationData);
+
+    if (dbResult.error) {
+      console.error('[Gmail OAuth] Failed to save integration:', dbResult.error);
+      if (desktopState) {
+        await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'gmail', error: 'db_error' });
+        return new NextResponse(desktopCallbackHtml('Gmail', false, 'Failed to save integration'), { status: 500, headers: { 'Content-Type': 'text/html' } });
+      }
+      return NextResponse.redirect(new URL('/settings?gmail_error=db_error', req.url));
     }
 
     if (desktopState) {

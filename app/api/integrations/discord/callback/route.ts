@@ -163,24 +163,20 @@ export async function GET(req: NextRequest) {
       updated_at: new Date().toISOString(),
     };
 
-    let integrationId: string;
+    const dbResult = existingIntegration
+      ? await supabase.from('user_integrations').update(integrationData).eq('id', existingIntegration.id).select().single()
+      : await supabase.from('user_integrations').insert(integrationData).select().single();
 
-    if (existingIntegration) {
-      const { data: updated } = await supabase
-        .from('user_integrations')
-        .update(integrationData)
-        .eq('id', existingIntegration.id)
-        .select()
-        .single();
-      integrationId = updated.id;
-    } else {
-      const { data: created } = await supabase
-        .from('user_integrations')
-        .insert(integrationData)
-        .select()
-        .single();
-      integrationId = created.id;
+    if (dbResult.error) {
+      console.error('[Discord OAuth] Failed to save integration:', dbResult.error);
+      if (desktopState) {
+        await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'discord', error: 'db_error' });
+        return new NextResponse(desktopCallbackHtml('Discord', false, 'Failed to save integration'), { status: 500, headers: { 'Content-Type': 'text/html' } });
+      }
+      return NextResponse.redirect(new URL('/settings?discord_error=db_error', req.url));
     }
+
+    const integrationId: string = dbResult.data.id;
 
     // Store guild metadata for the guilds we have access to
     if (guilds.length > 0 && integrationId) {

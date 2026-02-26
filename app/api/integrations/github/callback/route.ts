@@ -117,35 +117,40 @@ export async function GET(request: NextRequest) {
 
     const supabase = getSupabaseAdmin();
 
-    // Upsert integration record
-    const { data: integration, error: upsertError } = await supabase
+    // Check if integration already exists
+    const { data: existingIntegration } = await supabase
       .from('user_integrations')
-      .upsert(
-        {
-          user_id: userId,
-          provider: 'github',
-          provider_user_id: githubUser.login,
-          access_token: accessToken,
-          status: 'active',
-          provider_data: {
-            avatar_url: githubUser.avatar_url,
-            name: githubUser.name,
-            bio: githubUser.bio,
-            public_repos: githubUser.public_repos,
-          },
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'user_id,provider' }
-      )
-      .select()
+      .select('id')
+      .eq('user_id', userId)
+      .eq('provider', 'github')
       .single();
 
-    if (upsertError || !integration) {
+    const integrationData = {
+      user_id: userId,
+      provider: 'github' as const,
+      provider_user_id: githubUser.login,
+      access_token: accessToken,
+      status: 'active' as const,
+      provider_data: {
+        avatar_url: githubUser.avatar_url,
+        name: githubUser.name,
+        bio: githubUser.bio,
+        public_repos: githubUser.public_repos,
+      },
+      updated_at: new Date().toISOString(),
+    };
+
+    const dbResult = existingIntegration
+      ? await supabase.from('user_integrations').update(integrationData).eq('id', existingIntegration.id)
+      : await supabase.from('user_integrations').insert(integrationData);
+
+    if (dbResult.error) {
+      console.error('[GitHub OAuth] Failed to save integration:', dbResult.error);
       if (desktopState) {
-        await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'github', error: 'save_failed' });
+        await postDesktopIntegrationResult(desktopState.s, { success: false, provider: 'github', error: 'db_error' });
         return new NextResponse(desktopCallbackHtml('GitHub', false, 'Failed to save integration'), { status: 500, headers: { 'Content-Type': 'text/html' } });
       }
-      return NextResponse.redirect(new URL('/settings?github_error=save_failed', request.url));
+      return NextResponse.redirect(new URL('/settings?github_error=db_error', request.url));
     }
 
     if (desktopState) {

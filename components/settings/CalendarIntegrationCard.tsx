@@ -83,6 +83,7 @@ export default function CalendarIntegrationCard({ userId }: CalendarIntegrationC
       startOAuth(oauthUrl, userId, 'google_calendar', () => {
         setMessage({ type: 'success', text: 'Google Calendar connected successfully!' });
         fetchStatus();
+        setTimeout(fetchStatus, 2000);
       }, (error) => {
         setMessage({ type: 'error', text: error });
       });

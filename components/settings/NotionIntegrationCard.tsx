@@ -84,6 +84,7 @@ export default function NotionIntegrationCard({ userId }: NotionIntegrationCardP
       startOAuth(oauthUrl, userId, 'notion', () => {
         setMessage({ type: 'success', text: 'Notion connected successfully!' });
         fetchStatus();
+        setTimeout(fetchStatus, 2000);
       }, (error) => {
         setMessage({ type: 'error', text: error });
       });

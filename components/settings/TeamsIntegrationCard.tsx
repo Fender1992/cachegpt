@@ -85,6 +85,7 @@ export default function TeamsIntegrationCard({ userId }: TeamsIntegrationCardPro
       startOAuth(oauthUrl, userId, 'teams', () => {
         setMessage({ type: 'success', text: 'Microsoft Teams connected successfully!' });
         fetchStatus();
+        setTimeout(fetchStatus, 2000);
       }, (error) => {
         setMessage({ type: 'error', text: error });
       });

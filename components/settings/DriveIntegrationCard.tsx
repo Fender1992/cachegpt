@@ -80,6 +80,7 @@ export default function DriveIntegrationCard({ userId }: DriveIntegrationCardPro
       startOAuth(oauthUrl, userId, 'google_drive', () => {
         setMessage({ type: 'success', text: 'Google Drive connected successfully!' });
         fetchStatus();
+        setTimeout(fetchStatus, 2000);
       }, (error) => {
         setMessage({ type: 'error', text: error });
       });

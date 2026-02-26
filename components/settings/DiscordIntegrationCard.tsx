@@ -105,6 +105,7 @@ export default function DiscordIntegrationCard({ userId }: DiscordIntegrationCar
         setMessage({ type: 'success', text: 'Discord connected successfully!' });
         setSyncing(true);
         fetchStatus();
+        setTimeout(fetchStatus, 2000);
       }, (error) => {
         setMessage({ type: 'error', text: error });
       });

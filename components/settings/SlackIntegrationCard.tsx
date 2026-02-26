@@ -85,6 +85,7 @@ export default function SlackIntegrationCard({ userId }: SlackIntegrationCardPro
       startOAuth(oauthUrl, userId, 'slack', () => {
         setMessage({ type: 'success', text: 'Slack connected successfully!' });
         fetchStatus();
+        setTimeout(fetchStatus, 2000);
       }, (error) => {
         setMessage({ type: 'error', text: error });
       });

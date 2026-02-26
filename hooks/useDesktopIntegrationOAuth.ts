@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { isDesktop } from '@/lib/api-client'
 
 const PRODUCTION_URL = 'https://cachegpt.app'
@@ -41,6 +41,14 @@ export function useDesktopIntegrationOAuth() {
       timeoutRef.current = null
     }
     setConnecting(false)
+  }, [])
+
+  // Cleanup polling/timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current)
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+    }
   }, [])
 
   /**

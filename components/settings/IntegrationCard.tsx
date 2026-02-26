@@ -75,6 +75,7 @@ export default function IntegrationCard({ provider, userId }: IntegrationCardPro
       startOAuth(oauthUrl, userId, 'github', () => {
         setMessage({ type: 'success', text: 'GitHub connected!' });
         fetchStatus();
+        setTimeout(fetchStatus, 2000);
       }, (error) => {
         setMessage({ type: 'error', text: error });
       });

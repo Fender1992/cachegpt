@@ -85,6 +85,7 @@ export default function GmailIntegrationCard({ userId }: GmailIntegrationCardPro
       startOAuth(oauthUrl, userId, 'gmail', () => {
         setMessage({ type: 'success', text: 'Gmail connected successfully!' });
         fetchStatus();
+        setTimeout(fetchStatus, 2000);
       }, (error) => {
         setMessage({ type: 'error', text: error });
       });
