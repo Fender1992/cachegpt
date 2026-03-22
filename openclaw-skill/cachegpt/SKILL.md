@@ -27,7 +27,7 @@ CacheGPT sits between you and your LLM providers. It caches responses using sema
 3. **Set environment variables:**
 
 ```bash
-export CACHEGPT_API_URL="https://cachegpt.app/api/v1"
+export CACHEGPT_API_URL="https://cachegpt.app/api"
 export CACHEGPT_API_KEY="your-api-key-here"
 ```
 
@@ -76,7 +76,7 @@ All settings can be configured in `config.json` or via environment variables:
 
 | Setting | Env Var | Default | Description |
 |---------|---------|---------|-------------|
-| `cachegpt_api_url` | `CACHEGPT_API_URL` | `https://cachegpt.app/api/v1` | CacheGPT API endpoint |
+| `cachegpt_api_url` | `CACHEGPT_API_URL` | `https://cachegpt.app/api` | CacheGPT API endpoint |
 | `cachegpt_api_key` | `CACHEGPT_API_KEY` | (required) | Your CacheGPT API key |
 | `similarity_threshold` | `CACHEGPT_THRESHOLD` | `0.85` | Minimum similarity score for cache hits (0.0-1.0) |
 | `default_ttl_seconds` | `CACHEGPT_TTL` | `3600` | Cache entry time-to-live in seconds |

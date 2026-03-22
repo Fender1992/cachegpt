@@ -60,7 +60,7 @@ cp ~/.openclaw/workspace/skills/cachegpt/config.json.example \
    ~/.openclaw/workspace/skills/cachegpt/config.json
 
 # Set your API key
-export CACHEGPT_API_URL="https://cachegpt.app/api/v1"
+export CACHEGPT_API_URL="https://cachegpt.app/api"
 export CACHEGPT_API_KEY="your-api-key-here"
 ```
 
@@ -70,7 +70,7 @@ Copy `config.json.example` to `config.json` and edit. Environment variables over
 
 | Setting | Env Var | Default | Description |
 |---------|---------|---------|-------------|
-| `cachegpt_api_url` | `CACHEGPT_API_URL` | `https://cachegpt.app/api/v1` | CacheGPT API endpoint |
+| `cachegpt_api_url` | `CACHEGPT_API_URL` | `https://cachegpt.app/api` | CacheGPT API endpoint |
 | `cachegpt_api_key` | `CACHEGPT_API_KEY` | *(required)* | Your API key from cachegpt.app |
 | `similarity_threshold` | `CACHEGPT_THRESHOLD` | `0.85` | Min similarity for cache hits (0.0-1.0) |
 | `default_ttl_seconds` | `CACHEGPT_TTL` | `3600` | Cache entry time-to-live |

@@ -21,7 +21,7 @@
 (none yet — document issues as they arise)
 
 ## Configuration
-- CacheGPT API URL: https://cachegpt.app/api/v1
+- CacheGPT API URL: https://cachegpt.app/api
 - Test prompt for synthetic checks: "What is semantic caching and how does it save money on LLM API calls?"
 - Alert escalation: 15 min threshold
 - Timezone: America/Chicago (CT)

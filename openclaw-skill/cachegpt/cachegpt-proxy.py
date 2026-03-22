@@ -29,7 +29,7 @@ except ImportError:
     sys.exit(1)
 
 # ── Defaults ──────────────────────────────────────────────────
-DEFAULT_API_URL = "https://cachegpt.app/api/v1"
+DEFAULT_API_URL = "https://cachegpt.app/api"
 DEFAULT_THRESHOLD = 0.85
 DEFAULT_TTL = 3600
 DEFAULT_TIMEOUT_MS = 2000
