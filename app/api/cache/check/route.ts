@@ -69,8 +69,8 @@ export async function POST(request: NextRequest) {
     const latencyMs = Date.now() - startTime
 
     if (error) {
-      console.error('[CACHE-CHECK] RPC error:', error)
-      // Fallback: try direct table query
+      console.error('[CACHE-CHECK] RPC error:', JSON.stringify(error))
+      // Return error details for debugging
       return NextResponse.json({
         hit: false,
         response: null,
@@ -79,6 +79,7 @@ export async function POST(request: NextRequest) {
         tier: null,
         metadata: null,
         latency_ms: latencyMs,
+        _debug: { rpc_error: error.message, code: error.code },
       })
     }
 
