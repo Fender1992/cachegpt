@@ -1,30 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 import { validateApiKey, extractApiKey } from '@/lib/api-key-auth'
-import { TierBasedCache } from '@/lib/tier-based-cache'
+import { generateEmbedding } from '@/lib/embeddings'
 
-const tierCache = new TierBasedCache()
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY!
+)
 
 /**
  * POST /api/cache/put
  *
  * Store a new response in the semantic cache.
- * Used by the OpenClaw CacheGPT skill and external integrations.
- *
- * Auth: Bearer cgpt_sk_... or x-api-key header
- *
- * Body: {
- *   prompt: string,
- *   response: string,
- *   model: string,
- *   ttl_seconds?: number (default 3600),
- *   prompt_hash?: string (optional, for logging)
- * }
- *
- * Returns: {
- *   stored: boolean,
- *   id?: string,
- *   tier?: string
- * }
+ * Uses OpenAI text-embedding-3-small (1536 dims) for proper pgvector storage.
  */
 export async function POST(request: NextRequest) {
   const startTime = Date.now()
@@ -51,65 +39,67 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json()
-    const { prompt, response, model, ttl_seconds } = body
+    const { prompt, response, model } = body
 
     if (!prompt || typeof prompt !== 'string') {
-      return NextResponse.json(
-        { error: 'Missing required field: prompt' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Missing required field: prompt' }, { status: 400 })
     }
-
     if (!response || typeof response !== 'string') {
-      return NextResponse.json(
-        { error: 'Missing required field: response' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Missing required field: response' }, { status: 400 })
     }
-
     if (!model || typeof model !== 'string') {
-      return NextResponse.json(
-        { error: 'Missing required field: model' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Missing required field: model' }, { status: 400 })
     }
-
-    // Don't cache empty or very short responses
     if (response.trim().length < 5) {
-      return NextResponse.json(
-        { error: 'Response too short to cache (minimum 5 characters)' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Response too short to cache' }, { status: 400 })
     }
 
-    // Infer provider from model name
     const provider = inferProvider(model)
 
-    // Store in cache
-    const responseId = await tierCache.storeResponse(
-      prompt,
-      response,
-      model,
-      provider,
-      session.user.id,
-      Date.now() - startTime
-    )
+    // Generate 1536-dim embedding via OpenAI
+    const embedding = await generateEmbedding(prompt)
+    const embeddingStr = '[' + embedding.join(',') + ']'
+
+    const now = new Date().toISOString()
+
+    const { data, error } = await supabase
+      .from('cached_responses')
+      .insert({
+        query: prompt,
+        response,
+        model,
+        provider,
+        embedding: embeddingStr,
+        user_id: session.user.id,
+        access_count: 1,
+        popularity_score: 50,
+        tier: 'cool',
+        cost_saved: 0.01,
+        is_archived: false,
+        created_at: now,
+        last_accessed: now,
+        last_score_update: now,
+      })
+      .select('id')
+      .single()
 
     const latencyMs = Date.now() - startTime
 
-    if (responseId) {
+    if (error) {
+      console.error('[CACHE-PUT] Insert error:', error)
       return NextResponse.json({
-        stored: true,
-        id: responseId,
+        stored: false,
+        error: 'Failed to store response',
+        details: error.message,
         latency_ms: latencyMs,
-      }, { status: 201 })
+      }, { status: 500 })
     }
 
     return NextResponse.json({
-      stored: false,
-      error: 'Failed to store response in cache',
+      stored: true,
+      id: data.id,
       latency_ms: latencyMs,
-    }, { status: 500 })
+    }, { status: 201 })
 
   } catch (error) {
     console.error('[CACHE-PUT] Error:', error)

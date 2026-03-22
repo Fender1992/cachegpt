@@ -1,32 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 import { validateApiKey, extractApiKey } from '@/lib/api-key-auth'
-import { TierBasedCache } from '@/lib/tier-based-cache'
+import { generateEmbedding } from '@/lib/embeddings'
 
-const tierCache = new TierBasedCache()
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY!
+)
 
 /**
  * POST /api/cache/check
  *
  * Check the semantic cache for a matching response.
- * Used by the OpenClaw CacheGPT skill and external integrations.
- *
- * Auth: Bearer cgpt_sk_... or x-api-key header
- *
- * Body: {
- *   prompt: string,
- *   model: string,
- *   similarity_threshold?: number (default 0.85),
- *   prompt_hash?: string (optional, for logging)
- * }
- *
- * Returns: {
- *   hit: boolean,
- *   response?: string,
- *   similarity_score?: number,
- *   cache_age_seconds?: number,
- *   tier?: string,
- *   metadata?: { id, accessCount, popularityScore }
- * }
+ * Uses OpenAI embeddings + pgvector cosine similarity via find_similar_cached_response RPC.
  */
 export async function POST(request: NextRequest) {
   const startTime = Date.now()
@@ -53,52 +39,76 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json()
-    const { prompt, model, similarity_threshold, prompt_hash } = body
+    const { prompt, model, similarity_threshold } = body
 
     if (!prompt || typeof prompt !== 'string') {
-      return NextResponse.json(
-        { error: 'Missing required field: prompt' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Missing required field: prompt' }, { status: 400 })
     }
-
     if (!model || typeof model !== 'string') {
-      return NextResponse.json(
-        { error: 'Missing required field: model' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Missing required field: model' }, { status: 400 })
     }
 
-    // Infer provider from model name
     const provider = inferProvider(model)
-
-    // Search the cache
     const threshold = typeof similarity_threshold === 'number'
       ? Math.min(Math.max(similarity_threshold, 0), 1)
       : 0.85
 
-    const result = await tierCache.findSimilarResponse(prompt, model, provider, {
-      similarityThreshold: threshold,
+    // Generate 1536-dim embedding via OpenAI
+    const embedding = await generateEmbedding(prompt)
+    const embeddingStr = '[' + embedding.join(',') + ']'
+
+    // Use pgvector RPC for cosine similarity search
+    const { data, error } = await supabase.rpc('find_similar_cached_response', {
+      query_embedding: embeddingStr,
+      similarity_threshold: threshold,
+      result_limit: 1,
+      provider_filter: null,
+      model_filter: null,
     })
 
     const latencyMs = Date.now() - startTime
 
-    if (result) {
-      // Cache HIT
-      const cacheAgeSeconds = result.metadata.lastAccessed
-        ? Math.floor((Date.now() - new Date(result.metadata.lastAccessed).getTime()) / 1000)
+    if (error) {
+      console.error('[CACHE-CHECK] RPC error:', error)
+      // Fallback: try direct table query
+      return NextResponse.json({
+        hit: false,
+        response: null,
+        similarity_score: null,
+        cache_age_seconds: null,
+        tier: null,
+        metadata: null,
+        latency_ms: latencyMs,
+      })
+    }
+
+    if (data && data.length > 0) {
+      const hit = data[0]
+      const cacheAgeSeconds = hit.created_at
+        ? Math.floor((Date.now() - new Date(hit.created_at).getTime()) / 1000)
         : 0
+
+      // Update access count asynchronously
+      supabase
+        .from('cached_responses')
+        .update({
+          access_count: (hit.access_count || 0) + 1,
+          last_accessed: new Date().toISOString(),
+        })
+        .eq('id', hit.id)
+        .then(() => {}, err => console.error('[CACHE-CHECK] Access update error:', err))
 
       return NextResponse.json({
         hit: true,
-        response: result.response,
-        similarity_score: Math.round(result.similarity * 1000) / 1000,
+        response: hit.response,
+        similarity_score: Math.round(hit.similarity * 1000) / 1000,
         cache_age_seconds: cacheAgeSeconds,
-        tier: result.tier,
+        tier: hit.tier || null,
         metadata: {
-          id: result.metadata.id,
-          accessCount: result.metadata.accessCount,
-          popularityScore: result.metadata.popularityScore,
+          id: hit.id,
+          accessCount: hit.access_count,
+          model: hit.model,
+          provider: hit.provider,
         },
         latency_ms: latencyMs,
       })
