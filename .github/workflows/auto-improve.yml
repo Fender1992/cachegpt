@@ -99,48 +99,57 @@ jobs:
           git checkout -b $BRANCH
           echo "branch=$BRANCH" >> $GITHUB_OUTPUT
 
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
       - name: Claude Code Implement
-        uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          model: claude-sonnet-4-6
-          prompt: |
-            You are implementing an autonomous improvement to CacheGPT based on the following spec.
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          cat > /tmp/implement-prompt.txt << 'PROMPT_EOF'
+          You are implementing an autonomous improvement to CacheGPT based on the following spec.
 
-            SPEC:
-            ${{ steps.read_spec.outputs.spec }}
+          CRITICAL RULES:
+          1. You MUST NOT modify any protected files:
+             - lib/supabase/auth*, app/api/auth/**, middleware.ts
+             - lib/stripe/**, app/api/stripe/**, app/api/donate/**, app/api/webhook/**
+             - supabase/migrations/**, *.sql
+             - .env*, vercel.json
+             - .github/workflows/**
+             - auto-pipeline-config.json
+             - lib/cache/semantic-cache.ts, lib/cache/embeddings.ts
 
-            CRITICAL RULES:
-            1. You MUST NOT modify any protected files:
-               - lib/supabase/auth*, app/api/auth/**, middleware.ts
-               - lib/stripe/**, app/api/stripe/**, app/api/donate/**, app/api/webhook/**
-               - supabase/migrations/**, *.sql
-               - .env*, vercel.json
-               - .github/workflows/**
-               - auto-pipeline-config.json
-               - lib/cache/semantic-cache.ts, lib/cache/embeddings.ts
+          2. If the spec requires changes to protected files, create a file called NEEDS_HUMAN.md explaining what's needed and exit.
 
-            2. If the spec requires changes to protected files, create a file called NEEDS_HUMAN.md explaining what's needed and exit.
+          3. Maximum 10 files changed, 300 lines changed total. If the spec is larger, implement ONLY the highest priority item that fits within these limits.
 
-            3. Maximum 10 files changed, 300 lines changed total. If the spec is larger, implement ONLY the highest priority item that fits within these limits.
+          4. EVERY new provider must include:
+             - API route: app/api/[provider]/route.ts
+             - Provider class: lib/providers/[provider].ts
+             - At least one test file: __tests__/providers/[provider].test.ts
+             - Update to the model selector component to include the new provider
 
-            4. EVERY new provider must include:
-               - API route: app/api/[provider]/route.ts
-               - Provider class: lib/providers/[provider].ts
-               - At least one test file: __tests__/providers/[provider].test.ts
-               - Update to the model selector component to include the new provider
+          5. EVERY change must include or update tests. Do not reduce test coverage.
 
-            5. EVERY change must include or update tests. Do not reduce test coverage.
+          6. After implementing, run: yarn lint && yarn build
+             If any fail, fix them before committing.
 
-            6. After implementing, run: yarn lint && yarn build
-               If any fail, fix them before committing.
+          7. Write a clear commit message following: feat(auto): [description of change]
 
-            7. Write a clear commit message following: feat(auto): [description of change]
+          8. Do NOT commit node_modules, .env files, or build artifacts.
 
-            8. Do NOT commit node_modules, .env files, or build artifacts.
+          9. Use yarn for all package management, never npm.
+          PROMPT_EOF
 
-            9. Use yarn for all package management, never npm.
-          allowed_tools: "Bash(git:*), Bash(yarn:*), Bash(npx:*), View, GlobTool, GrepTool, Edit, Write"
+          SPEC_CONTENT=$(cat "${{ steps.spec.outputs.spec_file }}")
+
+          claude --print --model claude-sonnet-4-6 --permission-mode bypassPermissions \
+            "$(cat /tmp/implement-prompt.txt)
+
+          SPEC:
+          ${SPEC_CONTENT}
+
+          Implement this spec now. Create the files, write tests, run lint/build, and commit with a feat(auto): message."
 
       - name: Check for human-needed flag
         id: check_human
@@ -271,80 +280,56 @@ jobs:
           echo "$STAT" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
       - name: Independent Claude Code Review
         id: review
-        uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          model: claude-sonnet-4-6
-          prompt: |
-            You are an INDEPENDENT code reviewer for CacheGPT. You did NOT write this code.
-            Your job is to find reasons to BLOCK this deployment, not approve it.
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          DIFF_STAT=$(git diff origin/main --stat)
+          DIFF_CONTENT=$(git diff origin/main)
 
-            This code was generated autonomously by an AI agent and will be deployed
-            to production (cachegpt.app) WITHOUT human review if you approve it.
-            YOU are the last line of defense. Be paranoid.
+          REVIEW_OUTPUT=$(claude --print --model claude-sonnet-4-6 --permission-mode bypassPermissions \
+            "You are an INDEPENDENT code reviewer for CacheGPT. You did NOT write this code.
+          Your job is to find reasons to BLOCK this deployment, not approve it.
 
-            Review the changes on this branch against main.
+          This code was generated autonomously and will be deployed to production WITHOUT human review if you approve.
+          YOU are the last line of defense. Be paranoid.
 
-            AUTOMATIC BLOCKERS (any = reject):
+          DIFF STAT:
+          ${DIFF_STAT}
 
-            1. SECURITY:
-               - Hardcoded secrets, API keys, tokens, or credentials
-               - New fetch/HTTP calls to domains not already in the codebase
-               - eval(), Function(), or dynamic code execution
-               - Changes to auth or authorization logic
-               - Changes to CORS, CSP, or security headers
-               - New dependencies with known vulnerabilities
-               - File reads/writes outside expected project directories
+          FULL DIFF:
+          ${DIFF_CONTENT}
 
-            2. DATA SAFETY:
-               - Raw SQL queries (must use Supabase client or parameterized queries)
-               - DELETE or DROP statements
-               - Changes to database schema or migrations
-               - Changes to the caching pipeline
-               - User data modification without proper auth checks
+          AUTOMATIC BLOCKERS (any = reject):
+          1. SECURITY: hardcoded secrets, eval(), new external HTTP calls, auth changes, CORS changes
+          2. DATA SAFETY: raw SQL, DELETE/DROP, schema changes, caching pipeline changes
+          3. STABILITY: removed error handling, infinite loops, missing input validation, memory leaks, console.log
+          4. INTEGRATION: doesn't follow existing patterns, missing types, missing tests, fake tests
+          5. DEPLOYMENT: breaks Vercel, undocumented env vars, bad import paths, files >1MB
 
-            3. STABILITY:
-               - Removed or weakened error handling
-               - Infinite loops or unbounded recursion
-               - API routes missing input validation
-               - Async operations without proper await or error handling
-               - Memory leaks (event listeners not cleaned up)
-               - console.log in production code
+          OUTPUT FORMAT (use EXACTLY):
+          ---REVIEW_START---
+          DECISION: APPROVE | BLOCK | REQUEST_CHANGES
+          BLOCKERS:
+          - [list or 'none']
+          WARNINGS:
+          - [list]
+          SUMMARY:
+          [2-3 sentences]
+          ---REVIEW_END---")
 
-            4. INTEGRATION:
-               - New provider doesn't follow existing patterns
-               - Missing TypeScript types or 'any' used where specific types exist
-               - Tests missing for new functionality
-               - Tests that always pass (no real assertions)
-
-            5. DEPLOYMENT:
-               - Changes that break Vercel serverless deployment
-               - New env vars referenced but not documented
-               - Import paths that break in production vs development
-               - Files larger than 1MB added
-
-            OUTPUT FORMAT (use this EXACT format):
-
-            ---REVIEW_START---
-            DECISION: APPROVE | BLOCK | REQUEST_CHANGES
-
-            BLOCKERS:
-            - [list each blocker with file:line and explanation, or "none"]
-
-            WARNINGS:
-            - [list each warning]
-
-            SUMMARY:
-            [2-3 sentence assessment]
-            ---REVIEW_END---
-          allowed_tools: "View, GlobTool, GrepTool, Bash(git:*), Bash(yarn:audit)"
+          echo "review_output<<EOF" >> $GITHUB_OUTPUT
+          echo "$REVIEW_OUTPUT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Parse review decision
         id: review_decision
         run: |
-          REVIEW_OUTPUT="${{ steps.review.outputs.result }}"
+          REVIEW_OUTPUT="${{ steps.review.outputs.review_output }}"
 
           if echo "$REVIEW_OUTPUT" | grep -q "DECISION: BLOCK"; then
             echo "approved=false" >> $GITHUB_OUTPUT
