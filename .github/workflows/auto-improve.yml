@@ -44,6 +44,8 @@ jobs:
       branch_name: ${{ steps.branch.outputs.branch }}
       files_changed: ${{ steps.validate.outputs.files_changed }}
       lines_changed: ${{ steps.validate.outputs.lines_changed }}
+      spec_file: ${{ steps.spec.outputs.spec_file }}
+      spec_content: ${{ steps.read_spec.outputs.spec }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -562,3 +564,101 @@ jobs:
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -H "Content-Type: application/json" \
             -d "{\"chat_id\": \"${{ secrets.TELEGRAM_CHAT_ID }}\", \"text\": \"✅ CacheGPT Auto-Improvement Deployed\n\nChanges are live on cachegpt.app.\nFiles changed: ${{ needs.implement.outputs.files_changed }}\nLines changed: ${{ needs.implement.outputs.lines_changed }}\"}"
+
+  # Step 5: Log the result of every pipeline run
+  log-result:
+    needs: [implement, code-review, auto-merge-staging, smoke-test-preview, promote-to-production]
+    if: always() && needs.implement.result != 'skipped'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "CacheGPT Auto-Pipeline"
+          git config user.email "auto@cachegpt.app"
+
+      - name: Determine outcome
+        id: outcome
+        run: |
+          IMPLEMENT="${{ needs.implement.result }}"
+          REVIEW="${{ needs.code-review.result }}"
+          REVIEW_APPROVED="${{ needs.code-review.outputs.approved }}"
+          MERGE="${{ needs.auto-merge-staging.result }}"
+          SMOKE="${{ needs.smoke-test-preview.result }}"
+          PROMOTE="${{ needs.promote-to-production.result }}"
+
+          if [ "$IMPLEMENT" == "failure" ]; then
+            echo "status=FAILED — Implementation" >> $GITHUB_OUTPUT
+            echo "emoji=❌" >> $GITHUB_OUTPUT
+            echo "reason=Claude Code implementation step failed (lint, build, blast radius, or protected file violation)" >> $GITHUB_OUTPUT
+          elif [ "$REVIEW" == "failure" ] || [ "$REVIEW_APPROVED" == "false" ]; then
+            echo "status=BLOCKED — Code Review" >> $GITHUB_OUTPUT
+            echo "emoji=🔴" >> $GITHUB_OUTPUT
+            BLOCKERS="${{ needs.code-review.outputs.blockers }}"
+            echo "reason=Independent AI reviewer blocked deployment. Blockers: ${BLOCKERS:-unknown}" >> $GITHUB_OUTPUT
+          elif [ "$MERGE" == "failure" ]; then
+            echo "status=FAILED — Staging Merge" >> $GITHUB_OUTPUT
+            echo "emoji=❌" >> $GITHUB_OUTPUT
+            echo "reason=Auto-merge to staging branch failed" >> $GITHUB_OUTPUT
+          elif [ "$SMOKE" == "failure" ]; then
+            echo "status=BLOCKED — Smoke Tests" >> $GITHUB_OUTPUT
+            echo "emoji=⚠️" >> $GITHUB_OUTPUT
+            echo "reason=Smoke tests failed on staging preview deployment" >> $GITHUB_OUTPUT
+          elif [ "$PROMOTE" == "failure" ]; then
+            echo "status=FAILED — Production Deploy" >> $GITHUB_OUTPUT
+            echo "emoji=🔴" >> $GITHUB_OUTPUT
+            echo "reason=Production health check failed — change was auto-reverted" >> $GITHUB_OUTPUT
+          elif [ "$PROMOTE" == "success" ]; then
+            echo "status=DEPLOYED" >> $GITHUB_OUTPUT
+            echo "emoji=✅" >> $GITHUB_OUTPUT
+            echo "reason=Successfully deployed to production" >> $GITHUB_OUTPUT
+          else
+            echo "status=UNKNOWN" >> $GITHUB_OUTPUT
+            echo "emoji=❓" >> $GITHUB_OUTPUT
+            echo "reason=Pipeline ended in unexpected state (implement=$IMPLEMENT review=$REVIEW merge=$MERGE smoke=$SMOKE promote=$PROMOTE)" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Append to log
+        env:
+          BRANCH: ${{ needs.implement.outputs.branch_name }}
+          SPEC: ${{ needs.implement.outputs.spec_file }}
+          FILES: ${{ needs.implement.outputs.files_changed }}
+          LINES: ${{ needs.implement.outputs.lines_changed }}
+          STATUS: ${{ steps.outcome.outputs.status }}
+          EMOJI: ${{ steps.outcome.outputs.emoji }}
+          REASON: ${{ steps.outcome.outputs.reason }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          DATE=$(date -u +"%Y-%m-%d %H:%M UTC")
+          SPEC_SUMMARY=$(head -5 "$SPEC" 2>/dev/null | tail -3 || echo "Spec not available on this branch")
+          {
+            echo ""
+            echo "## ${EMOJI} ${DATE} — ${STATUS}"
+            echo ""
+            echo "- **Spec:** \`${SPEC}\`"
+            echo "- **Branch:** \`${BRANCH}\`"
+            echo "- **Files changed:** ${FILES:-n/a}"
+            echo "- **Lines changed:** ${LINES:-n/a}"
+            echo "- **Run:** [View](${RUN_URL})"
+            echo ""
+            echo "**What happened:** ${REASON}"
+            echo ""
+            echo "**Spec summary:** ${SPEC_SUMMARY}"
+            echo ""
+            echo "---"
+          } >> auto-pipeline-log.md
+
+      - name: Commit log
+        run: |
+          git add auto-pipeline-log.md
+          if git diff --staged --quiet; then
+            echo "No log changes to commit"
+          else
+            git commit -m "chore(auto): log pipeline run — ${{ steps.outcome.outputs.status }}"
+            git push origin main
+          fi
