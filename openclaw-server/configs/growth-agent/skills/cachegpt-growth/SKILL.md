@@ -98,9 +98,27 @@ For opportunities scoring 7+, draft a response that:
 
 6. **Flags subreddit rules.** If the subreddit has known self-promotion restrictions (r/MachineLearning, r/artificial), flag it in the opportunity with a note: "⚠️ Self-promotion rules — review subreddit guidelines before posting."
 
-## Opportunity Log
+## Opportunity Logging
 
-Store all found opportunities in `/var/log/openclaw/growth-opportunities.jsonl` (JSON Lines format):
+**IMPORTANT:** Every opportunity MUST be logged using the structured logger script. This is mandatory for reporting and analytics.
+
+**Use the logger script for all entries:**
+```bash
+python3 /home/openclaw/agent-config/scripts/growth-logger.py log \
+  --post-id "reddit_abc123" \
+  --subreddit "r/LocalLLaMA" \
+  --title "My API bill is insane — any way to reduce costs?" \
+  --url "https://reddit.com/r/LocalLLaMA/comments/abc123" \
+  --author "u/username" \
+  --score 8 \
+  --age-hours 4.2 \
+  --comments 12 \
+  --keywords "API bill,reduce costs" \
+  --sentiment "frustrated, seeking solutions" \
+  --draft "I ran into the same thing last month..."
+```
+
+**Or write directly** to `/var/log/openclaw/growth-opportunities.jsonl` in JSON Lines format:
 
 ```json
 {
@@ -120,6 +138,10 @@ Store all found opportunities in `/var/log/openclaw/growth-opportunities.jsonl` 
   "reported": true
 }
 ```
+
+**De-duplication:** The logger tracks seen post IDs in `seen-posts.json`. Always pass `--post-id` to avoid duplicates. If writing directly to JSONL, check the seen-posts file first.
+
+**Log ALL opportunities**, not just high-scoring ones. Low-score entries are valuable for keyword performance analysis.
 
 ## Telegram Digest (every 4 hours, 8AM-8PM CT)
 
