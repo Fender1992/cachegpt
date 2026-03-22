@@ -127,14 +127,81 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # ============================================================
+  # CacheGPT Draft Alert Agent
+  # Watches for new drafted responses from the growth agent
+  # and sends instant Telegram alerts for review.
+  #
+  # Shares the growth agent's log volume (read-only) to detect
+  # new drafts. Uses Haiku for minimal cost.
+  #
+  # Network egress whitelist:
+  #   - api.telegram.org (alerts)
+  #   - api.anthropic.com (LLM provider)
+  # ============================================================
+  draft-alert-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.openclaw
+    container_name: openclaw-draft-alerts
+    hostname: openclaw-draft-alerts
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:18791:18791"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - OPENCLAW_GATEWAY_PASSWORD=${OPENCLAW_GATEWAY_PASSWORD}
+      - OPENCLAW_PORT=18791
+      - TZ=${TZ:-America/Chicago}
+    volumes:
+      - draft-alert-config:/home/openclaw/.openclaw
+      - draft-alert-workspace:/home/openclaw/workspace
+      - ./configs/draft-alert-agent:/home/openclaw/agent-config:ro
+      - ./logs/growth:/var/log/openclaw:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=64M,mode=1777
+      - /run:size=16M,mode=755
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.25"
+        reservations:
+          memory: 64M
+          cpus: "0.05"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:18791/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    networks:
+      - alert-net
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+
 volumes:
   monitoring-config:
   monitoring-workspace:
   growth-config:
   growth-workspace:
+  draft-alert-config:
+  draft-alert-workspace:
 
 networks:
   monitoring-net:
     driver: bridge
   growth-net:
+    driver: bridge
+  alert-net:
     driver: bridge

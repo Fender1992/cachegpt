@@ -1,0 +1,45 @@
+{
+  "name": "cachegpt-draft-alerts",
+  "description": "Watch for new drafted responses from the growth agent and send instant Telegram alerts",
+  "model": "claude-haiku-4-5-20251001",
+  "channels": {
+    "telegram": {
+      "enabled": true,
+      "bot_token_env": "TELEGRAM_BOT_TOKEN",
+      "chat_id_env": "TELEGRAM_CHAT_ID"
+    }
+  },
+  "sandbox": {
+    "enabled": true,
+    "mode": "docker",
+    "network": {
+      "allowed_hosts": [
+        "api.telegram.org",
+        "api.anthropic.com"
+      ]
+    }
+  },
+  "memory": {
+    "enabled": true,
+    "persist": true,
+    "path": "~/.openclaw/memory"
+  },
+  "cron": {
+    "enabled": true,
+    "timezone": "America/Chicago",
+    "jobs": [
+      {
+        "id": "check-new-drafts",
+        "schedule": "*/2 * * * *",
+        "skill": "draft-watcher",
+        "action": "check",
+        "description": "Check for new drafted responses every 2 minutes"
+      }
+    ]
+  },
+  "gateway": {
+    "port": 18791,
+    "password_env": "OPENCLAW_GATEWAY_PASSWORD"
+  },
+  "skills_path": "./skills"
+}
