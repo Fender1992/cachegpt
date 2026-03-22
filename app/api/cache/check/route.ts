@@ -12,7 +12,7 @@ const supabase = createClient(
  * POST /api/cache/check
  *
  * Check the semantic cache for a matching response.
- * Uses OpenAI embeddings + pgvector cosine similarity via find_similar_cached_response RPC.
+ * Uses OpenAI embeddings + direct pgvector cosine distance query.
  */
 export async function POST(request: NextRequest) {
   const startTime = Date.now()
@@ -48,7 +48,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required field: model' }, { status: 400 })
     }
 
-    const provider = inferProvider(model)
     const threshold = typeof similarity_threshold === 'number'
       ? Math.min(Math.max(similarity_threshold, 0), 1)
       : 0.85
@@ -57,20 +56,18 @@ export async function POST(request: NextRequest) {
     const embedding = await generateEmbedding(prompt)
     const embeddingStr = '[' + embedding.join(',') + ']'
 
-    // Use pgvector RPC for cosine similarity search
-    const { data, error } = await supabase.rpc('find_similar_cached_response', {
-      query_embedding: embeddingStr,
-      similarity_threshold: threshold,
-      result_limit: 1,
-      provider_filter: null,
-      model_filter: null,
-    })
+    // Direct pgvector cosine similarity query (bypasses RPC type mismatch)
+    const { data, error } = await supabase
+      .from('cached_responses')
+      .select('id, query, response, model, provider, access_count, created_at, tier, embedding')
+      .eq('is_archived', false)
+      .not('embedding', 'is', null)
+      .limit(50)
 
     const latencyMs = Date.now() - startTime
 
     if (error) {
-      console.error('[CACHE-CHECK] RPC error:', JSON.stringify(error))
-      // Return error details for debugging
+      console.error('[CACHE-CHECK] Query error:', error)
       return NextResponse.json({
         hit: false,
         response: null,
@@ -79,39 +76,71 @@ export async function POST(request: NextRequest) {
         tier: null,
         metadata: null,
         latency_ms: latencyMs,
-        _debug: { rpc_error: error.message, code: error.code },
       })
     }
 
-    if (data && data.length > 0) {
-      const hit = data[0]
-      const cacheAgeSeconds = hit.created_at
-        ? Math.floor((Date.now() - new Date(hit.created_at).getTime()) / 1000)
+    // Calculate cosine similarity in-app for matching candidates
+    let bestMatch: any = null
+    let bestSimilarity = 0
+
+    if (data) {
+      for (const row of data) {
+        if (!row.embedding) continue
+
+        // Parse the pgvector string to array
+        let candidateEmbedding: number[]
+        try {
+          if (typeof row.embedding === 'string') {
+            candidateEmbedding = JSON.parse(row.embedding)
+          } else if (Array.isArray(row.embedding)) {
+            candidateEmbedding = row.embedding
+          } else {
+            continue
+          }
+        } catch {
+          continue
+        }
+
+        // Skip dimension mismatch
+        if (candidateEmbedding.length !== embedding.length) continue
+
+        const similarity = cosineSimilarity(embedding, candidateEmbedding)
+
+        if (similarity >= threshold && similarity > bestSimilarity) {
+          bestMatch = row
+          bestSimilarity = similarity
+        }
+      }
+    }
+
+    if (bestMatch) {
+      const cacheAgeSeconds = bestMatch.created_at
+        ? Math.floor((Date.now() - new Date(bestMatch.created_at).getTime()) / 1000)
         : 0
 
       // Update access count asynchronously
       supabase
         .from('cached_responses')
         .update({
-          access_count: (hit.access_count || 0) + 1,
+          access_count: (bestMatch.access_count || 0) + 1,
           last_accessed: new Date().toISOString(),
         })
-        .eq('id', hit.id)
+        .eq('id', bestMatch.id)
         .then(() => {}, err => console.error('[CACHE-CHECK] Access update error:', err))
 
       return NextResponse.json({
         hit: true,
-        response: hit.response,
-        similarity_score: Math.round(hit.similarity * 1000) / 1000,
+        response: bestMatch.response,
+        similarity_score: Math.round(bestSimilarity * 1000) / 1000,
         cache_age_seconds: cacheAgeSeconds,
-        tier: hit.tier || null,
+        tier: bestMatch.tier || null,
         metadata: {
-          id: hit.id,
-          accessCount: hit.access_count,
-          model: hit.model,
-          provider: hit.provider,
+          id: bestMatch.id,
+          accessCount: bestMatch.access_count,
+          model: bestMatch.model,
+          provider: bestMatch.provider,
         },
-        latency_ms: latencyMs,
+        latency_ms: Date.now() - startTime,
       })
     }
 
@@ -123,7 +152,7 @@ export async function POST(request: NextRequest) {
       cache_age_seconds: null,
       tier: null,
       metadata: null,
-      latency_ms: latencyMs,
+      latency_ms: Date.now() - startTime,
     })
 
   } catch (error) {
@@ -133,6 +162,19 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+function cosineSimilarity(a: number[], b: number[]): number {
+  let dotProduct = 0
+  let normA = 0
+  let normB = 0
+  for (let i = 0; i < a.length; i++) {
+    dotProduct += a[i] * b[i]
+    normA += a[i] * a[i]
+    normB += b[i] * b[i]
+  }
+  if (normA === 0 || normB === 0) return 0
+  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB))
 }
 
 function inferProvider(model: string): string {
