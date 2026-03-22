@@ -1,0 +1,579 @@
+name: CacheGPT Auto-Improve
+
+on:
+  push:
+    branches: [specs]
+    paths:
+      - 'specs/weekly-*.md'
+  workflow_dispatch:
+    inputs:
+      spec_file:
+        description: 'Path to spec file'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  # Step 0: Check kill switch
+  check-enabled:
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - id: check
+        run: |
+          ENABLED=$(jq -r '.enabled' auto-pipeline-config.json)
+          echo "enabled=$ENABLED" >> $GITHUB_OUTPUT
+          if [ "$ENABLED" != "true" ]; then
+            echo "⏸️ Auto-pipeline is paused."
+          fi
+
+  # Step 1: Claude Code implements the spec
+  implement:
+    needs: check-enabled
+    if: needs.check-enabled.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      branch_name: ${{ steps.branch.outputs.branch }}
+      files_changed: ${{ steps.validate.outputs.files_changed }}
+      lines_changed: ${{ steps.validate.outputs.lines_changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Determine spec file
+        id: spec
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "spec_file=${{ github.event.inputs.spec_file }}" >> $GITHUB_OUTPUT
+          else
+            SPEC=$(git diff --name-only HEAD~1 | grep 'specs/weekly-' | head -1)
+            echo "spec_file=$SPEC" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Read spec
+        id: read_spec
+        run: |
+          SPEC_CONTENT=$(cat "${{ steps.spec.outputs.spec_file }}")
+          echo "spec<<EOF" >> $GITHUB_OUTPUT
+          echo "$SPEC_CONTENT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Check daily commit cap
+        run: |
+          TODAY=$(date +%Y-%m-%d)
+          COUNT_FILE=".auto-commit-count"
+
+          if [ -f "$COUNT_FILE" ]; then
+            LAST_DATE=$(jq -r '.date' "$COUNT_FILE")
+            COUNT=$(jq -r '.count' "$COUNT_FILE")
+
+            if [ "$LAST_DATE" == "$TODAY" ] && [ "$COUNT" -ge 3 ]; then
+              echo "❌ Daily commit cap reached (3/3). Queuing for tomorrow."
+              exit 1
+            fi
+          fi
+
+      - name: Create implementation branch
+        id: branch
+        run: |
+          BRANCH="auto/improvement-$(date +%Y-%m-%d)-${{ github.run_number }}"
+          git checkout -b $BRANCH
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+
+      - name: Claude Code Implement
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: claude-sonnet-4-6
+          prompt: |
+            You are implementing an autonomous improvement to CacheGPT based on the following spec.
+
+            SPEC:
+            ${{ steps.read_spec.outputs.spec }}
+
+            CRITICAL RULES:
+            1. You MUST NOT modify any protected files:
+               - lib/supabase/auth*, app/api/auth/**, middleware.ts
+               - lib/stripe/**, app/api/stripe/**, app/api/donate/**, app/api/webhook/**
+               - supabase/migrations/**, *.sql
+               - .env*, vercel.json
+               - .github/workflows/**
+               - auto-pipeline-config.json
+               - lib/cache/semantic-cache.ts, lib/cache/embeddings.ts
+
+            2. If the spec requires changes to protected files, create a file called NEEDS_HUMAN.md explaining what's needed and exit.
+
+            3. Maximum 10 files changed, 300 lines changed total. If the spec is larger, implement ONLY the highest priority item that fits within these limits.
+
+            4. EVERY new provider must include:
+               - API route: app/api/[provider]/route.ts
+               - Provider class: lib/providers/[provider].ts
+               - At least one test file: __tests__/providers/[provider].test.ts
+               - Update to the model selector component to include the new provider
+
+            5. EVERY change must include or update tests. Do not reduce test coverage.
+
+            6. After implementing, run: yarn lint && yarn build
+               If any fail, fix them before committing.
+
+            7. Write a clear commit message following: feat(auto): [description of change]
+
+            8. Do NOT commit node_modules, .env files, or build artifacts.
+
+            9. Use yarn for all package management, never npm.
+          allowed_tools: "Bash(git:*), Bash(yarn:*), Bash(npx:*), View, GlobTool, GrepTool, Edit, Write"
+
+      - name: Check for human-needed flag
+        id: check_human
+        run: |
+          if [ -f "NEEDS_HUMAN.md" ]; then
+            echo "needs_human=true" >> $GITHUB_OUTPUT
+          else
+            echo "needs_human=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Validate blast radius
+        id: validate
+        run: |
+          FILES=$(git diff --name-only origin/main | wc -l)
+          INSERTIONS=$(git diff --stat origin/main | tail -1 | grep -oP '\d+ insertion' | grep -oP '\d+' || echo "0")
+          DELETIONS=$(git diff --stat origin/main | tail -1 | grep -oP '\d+ deletion' | grep -oP '\d+' || echo "0")
+          LINES=$((INSERTIONS + DELETIONS))
+
+          echo "files_changed=$FILES" >> $GITHUB_OUTPUT
+          echo "lines_changed=$LINES" >> $GITHUB_OUTPUT
+
+          if [ "$FILES" -gt 10 ]; then
+            echo "❌ Too many files changed: $FILES (max 10)"
+            exit 1
+          fi
+
+          if [ "$LINES" -gt 300 ]; then
+            echo "❌ Too many lines changed: $LINES (max 300)"
+            exit 1
+          fi
+
+          # Check no protected files were touched
+          PROTECTED=$(git diff --name-only origin/main | grep -E "(supabase/migrations|lib/stripe|app/api/auth|middleware\.ts|\.env|vercel\.json|\.github/workflows|auto-pipeline-config|lib/cache/semantic-cache|lib/cache/embeddings)" || true)
+          if [ -n "$PROTECTED" ]; then
+            echo "❌ Protected files modified: $PROTECTED"
+            exit 1
+          fi
+
+      - name: Push branch
+        if: steps.check_human.outputs.needs_human == 'false'
+        run: |
+          git push origin ${{ steps.branch.outputs.branch }}
+
+      - name: Create PR to staging
+        if: steps.check_human.outputs.needs_human == 'false'
+        id: create_pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[AUTO] Autonomous improvement from spec`,
+              body: `## Autonomous Improvement\n\nGenerated from spec: \`${{ steps.spec.outputs.spec_file }}\`\n\nFiles changed: ${{ steps.validate.outputs.files_changed }}\nLines changed: ${{ steps.validate.outputs.lines_changed }}\n\n⏳ Awaiting independent AI code review before merge.`,
+              head: '${{ steps.branch.outputs.branch }}',
+              base: 'staging'
+            });
+            core.setOutput('pr_number', pr.data.number);
+
+      - name: Create human-review PR
+        if: steps.check_human.outputs.needs_human == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[NEEDS REVIEW] Improvement requiring human review`,
+              body: `## Human Review Required\n\nThis improvement spec requires changes to protected files. See NEEDS_HUMAN.md for details.`,
+              head: '${{ steps.branch.outputs.branch }}',
+              base: 'main'
+            });
+            // Label must be added separately
+            const prs = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              head: `${context.repo.owner}:${{ steps.branch.outputs.branch }}`
+            });
+            if (prs.data.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prs.data[0].number,
+                labels: ['needs-human-review']
+              });
+            }
+
+      - name: Update daily commit counter
+        if: steps.check_human.outputs.needs_human == 'false'
+        run: |
+          TODAY=$(date +%Y-%m-%d)
+          COUNT_FILE=".auto-commit-count"
+          if [ -f "$COUNT_FILE" ]; then
+            LAST_DATE=$(jq -r '.date' "$COUNT_FILE")
+            COUNT=$(jq -r '.count' "$COUNT_FILE")
+            if [ "$LAST_DATE" == "$TODAY" ]; then
+              NEW_COUNT=$((COUNT + 1))
+            else
+              NEW_COUNT=1
+            fi
+          else
+            NEW_COUNT=1
+          fi
+          echo "{\"date\": \"$TODAY\", \"count\": $NEW_COUNT}" > "$COUNT_FILE"
+
+  # Step 1.5: Independent Code Review
+  code-review:
+    needs: implement
+    if: needs.implement.outputs.files_changed != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      approved: ${{ steps.review_decision.outputs.approved }}
+      blockers: ${{ steps.review_decision.outputs.blockers }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.implement.outputs.branch_name }}
+          fetch-depth: 0
+
+      - name: Get diff
+        id: diff
+        run: |
+          git diff origin/main > /tmp/pr-diff.patch
+          STAT=$(git diff origin/main --stat)
+          echo "stat<<EOF" >> $GITHUB_OUTPUT
+          echo "$STAT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Independent Claude Code Review
+        id: review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: claude-sonnet-4-6
+          prompt: |
+            You are an INDEPENDENT code reviewer for CacheGPT. You did NOT write this code.
+            Your job is to find reasons to BLOCK this deployment, not approve it.
+
+            This code was generated autonomously by an AI agent and will be deployed
+            to production (cachegpt.app) WITHOUT human review if you approve it.
+            YOU are the last line of defense. Be paranoid.
+
+            Review the changes on this branch against main.
+
+            AUTOMATIC BLOCKERS (any = reject):
+
+            1. SECURITY:
+               - Hardcoded secrets, API keys, tokens, or credentials
+               - New fetch/HTTP calls to domains not already in the codebase
+               - eval(), Function(), or dynamic code execution
+               - Changes to auth or authorization logic
+               - Changes to CORS, CSP, or security headers
+               - New dependencies with known vulnerabilities
+               - File reads/writes outside expected project directories
+
+            2. DATA SAFETY:
+               - Raw SQL queries (must use Supabase client or parameterized queries)
+               - DELETE or DROP statements
+               - Changes to database schema or migrations
+               - Changes to the caching pipeline
+               - User data modification without proper auth checks
+
+            3. STABILITY:
+               - Removed or weakened error handling
+               - Infinite loops or unbounded recursion
+               - API routes missing input validation
+               - Async operations without proper await or error handling
+               - Memory leaks (event listeners not cleaned up)
+               - console.log in production code
+
+            4. INTEGRATION:
+               - New provider doesn't follow existing patterns
+               - Missing TypeScript types or 'any' used where specific types exist
+               - Tests missing for new functionality
+               - Tests that always pass (no real assertions)
+
+            5. DEPLOYMENT:
+               - Changes that break Vercel serverless deployment
+               - New env vars referenced but not documented
+               - Import paths that break in production vs development
+               - Files larger than 1MB added
+
+            OUTPUT FORMAT (use this EXACT format):
+
+            ---REVIEW_START---
+            DECISION: APPROVE | BLOCK | REQUEST_CHANGES
+
+            BLOCKERS:
+            - [list each blocker with file:line and explanation, or "none"]
+
+            WARNINGS:
+            - [list each warning]
+
+            SUMMARY:
+            [2-3 sentence assessment]
+            ---REVIEW_END---
+          allowed_tools: "View, GlobTool, GrepTool, Bash(git:*), Bash(yarn:audit)"
+
+      - name: Parse review decision
+        id: review_decision
+        run: |
+          REVIEW_OUTPUT="${{ steps.review.outputs.result }}"
+
+          if echo "$REVIEW_OUTPUT" | grep -q "DECISION: BLOCK"; then
+            echo "approved=false" >> $GITHUB_OUTPUT
+            BLOCKERS=$(echo "$REVIEW_OUTPUT" | sed -n '/BLOCKERS:/,/WARNINGS:/p' | head -n -1)
+            echo "blockers<<EOF" >> $GITHUB_OUTPUT
+            echo "$BLOCKERS" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          elif echo "$REVIEW_OUTPUT" | grep -q "DECISION: REQUEST_CHANGES"; then
+            echo "approved=false" >> $GITHUB_OUTPUT
+            BLOCKERS=$(echo "$REVIEW_OUTPUT" | sed -n '/BLOCKERS:/,/WARNINGS:/p' | head -n -1)
+            echo "blockers<<EOF" >> $GITHUB_OUTPUT
+            echo "$BLOCKERS" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          elif echo "$REVIEW_OUTPUT" | grep -q "DECISION: APPROVE"; then
+            echo "approved=true" >> $GITHUB_OUTPUT
+            echo "blockers=none" >> $GITHUB_OUTPUT
+          else
+            echo "approved=false" >> $GITHUB_OUTPUT
+            echo "blockers=Review output malformed — defaulting to block for safety" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Post review to PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const approved = '${{ steps.review_decision.outputs.approved }}' === 'true';
+            const blockers = `${{ steps.review_decision.outputs.blockers }}`;
+
+            const prs = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              base: 'staging',
+              head: `${context.repo.owner}:${{ needs.implement.outputs.branch_name }}`
+            });
+
+            if (prs.data.length > 0) {
+              const prNumber = prs.data[0].number;
+
+              if (approved) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: prNumber,
+                  body: `## ✅ Independent AI Code Review: APPROVED\n\nNo blockers found. This PR is cleared for auto-merge to staging.\n\n_Reviewed by a separate Claude Code instance that did not generate this code._`
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: prNumber,
+                  body: `## 🔴 Independent AI Code Review: BLOCKED\n\n**This PR will NOT be auto-merged.**\n\n### Blockers:\n${blockers}\n\n_Reviewed by a separate Claude Code instance._\n\n@Fender1992 — manual review required.`
+                });
+
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: prNumber,
+                  labels: ['review-blocked']
+                });
+              }
+            }
+
+      - name: Alert on block
+        if: steps.review_decision.outputs.approved == 'false'
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "{\"chat_id\": \"${{ secrets.TELEGRAM_CHAT_ID }}\", \"text\": \"🔴 CacheGPT Auto-Improvement BLOCKED by Code Review\n\nBranch: ${{ needs.implement.outputs.branch_name }}\nBlockers: ${{ steps.review_decision.outputs.blockers }}\n\nPR needs manual review.\"}"
+
+  # Step 2: Auto-merge to staging (only if review approved)
+  auto-merge-staging:
+    needs: [implement, code-review]
+    if: needs.code-review.outputs.approved == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for CI
+        run: sleep 120
+
+      - name: Merge PR to staging
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prs = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              base: 'staging',
+              head: `${context.repo.owner}:${{ needs.implement.outputs.branch_name }}`
+            });
+
+            if (prs.data.length > 0) {
+              await github.rest.pulls.merge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prs.data[0].number,
+                merge_method: 'squash'
+              });
+            }
+
+  # Step 3: Smoke test preview deployment
+  smoke-test-preview:
+    needs: [implement, auto-merge-staging]
+    runs-on: ubuntu-latest
+    outputs:
+      passed: ${{ steps.smoke.outputs.passed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: staging
+
+      - name: Wait for Vercel preview deploy
+        run: sleep 90
+
+      - name: Run smoke tests
+        id: smoke
+        run: |
+          PREVIEW_URL="https://cachegpt-staging.vercel.app"
+
+          echo "Testing homepage..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$PREVIEW_URL")
+          if [ "$STATUS" != "200" ]; then
+            echo "❌ Homepage returned $STATUS"
+            echo "passed=false" >> $GITHUB_OUTPUT
+            echo "failed_test=homepage (expected 200, got $STATUS)" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          echo "Testing API health..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$PREVIEW_URL/api/health")
+          if [ "$STATUS" != "200" ]; then
+            echo "❌ API health returned $STATUS"
+            echo "passed=false" >> $GITHUB_OUTPUT
+            echo "failed_test=api_health (expected 200, got $STATUS)" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          echo "Testing auth gate..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$PREVIEW_URL/api/chat")
+          if [ "$STATUS" != "401" ]; then
+            echo "❌ Chat endpoint should return 401 without auth, got $STATUS"
+            echo "passed=false" >> $GITHUB_OUTPUT
+            echo "failed_test=chat_requires_auth (expected 401, got $STATUS)" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          echo "Testing login page..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$PREVIEW_URL/login")
+          if [ "$STATUS" != "200" ]; then
+            echo "❌ Login page returned $STATUS"
+            echo "passed=false" >> $GITHUB_OUTPUT
+            echo "failed_test=login_page (expected 200, got $STATUS)" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          echo "✅ All smoke tests passed"
+          echo "passed=true" >> $GITHUB_OUTPUT
+
+      - name: Alert on smoke test failure
+        if: failure()
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "{\"chat_id\": \"${{ secrets.TELEGRAM_CHAT_ID }}\", \"text\": \"⚠️ CacheGPT Auto-Deploy BLOCKED\n\nSmoke tests failed on preview.\nBranch: staging\nFailed: ${{ steps.smoke.outputs.failed_test }}\n\nChanges will NOT reach production.\"}"
+
+  # Step 4: Promote staging → main
+  promote-to-production:
+    needs: [implement, smoke-test-preview]
+    if: needs.smoke-test-preview.outputs.passed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "CacheGPT Auto-Pipeline"
+          git config user.email "auto@cachegpt.app"
+
+      - name: Merge staging into main
+        run: |
+          git fetch origin staging
+          git merge origin/staging --no-edit
+          git push origin main
+
+      - name: Wait for production deploy
+        run: sleep 90
+
+      - name: Production health check
+        id: prod_health
+        run: |
+          echo "Checking production..."
+
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://cachegpt.app")
+          if [ "$STATUS" != "200" ]; then
+            echo "❌ Homepage returned $STATUS"
+            echo "passed=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://cachegpt.app/api/health")
+          if [ "$STATUS" != "200" ]; then
+            echo "❌ API health returned $STATUS"
+            echo "passed=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "passed=true" >> $GITHUB_OUTPUT
+          echo "✅ Production is healthy"
+
+      - name: Auto-revert on failure
+        if: steps.prod_health.outputs.passed == 'false'
+        run: |
+          git revert HEAD --no-edit
+          git push origin main
+
+      - name: Critical alert on revert
+        if: steps.prod_health.outputs.passed == 'false'
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "{\"chat_id\": \"${{ secrets.TELEGRAM_CHAT_ID }}\", \"text\": \"🔴 PRODUCTION REVERT — CacheGPT\n\nAuto-deployed change caused health check failure.\nChange has been automatically reverted.\nProduction should recover within 60 seconds.\n\nManual investigation required.\"}"
+
+      - name: Success notification
+        if: steps.prod_health.outputs.passed == 'true'
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "{\"chat_id\": \"${{ secrets.TELEGRAM_CHAT_ID }}\", \"text\": \"✅ CacheGPT Auto-Improvement Deployed\n\nChanges are live on cachegpt.app.\nFiles changed: ${{ needs.implement.outputs.files_changed }}\nLines changed: ${{ needs.implement.outputs.lines_changed }}\"}"
