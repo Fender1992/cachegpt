@@ -1,0 +1,60 @@
+{
+  "name": "cachegpt-monitoring",
+  "description": "24/7 health monitoring for cachegpt.app with Telegram alerting",
+  "model": "claude-sonnet-4-20250514",
+  "channels": {
+    "telegram": {
+      "enabled": true,
+      "bot_token_env": "TELEGRAM_BOT_TOKEN",
+      "chat_id_env": "TELEGRAM_CHAT_ID"
+    }
+  },
+  "sandbox": {
+    "enabled": true,
+    "mode": "docker",
+    "network": {
+      "allowed_hosts": [
+        "cachegpt.app",
+        "api.telegram.org",
+        "api.anthropic.com"
+      ]
+    }
+  },
+  "memory": {
+    "enabled": true,
+    "persist": true,
+    "path": "~/.openclaw/memory"
+  },
+  "cron": {
+    "enabled": true,
+    "timezone": "America/Chicago",
+    "jobs": [
+      {
+        "id": "health-check",
+        "schedule": "*/5 * * * *",
+        "skill": "cachegpt-monitor",
+        "action": "health_check",
+        "description": "Health check every 5 minutes"
+      },
+      {
+        "id": "synthetic-cache-test",
+        "schedule": "*/30 * * * *",
+        "skill": "cachegpt-monitor",
+        "action": "synthetic_test",
+        "description": "Synthetic cache test every 30 minutes"
+      },
+      {
+        "id": "daily-summary",
+        "schedule": "0 8 * * *",
+        "skill": "cachegpt-monitor",
+        "action": "daily_summary",
+        "description": "Daily summary at 8:00 AM CT"
+      }
+    ]
+  },
+  "gateway": {
+    "port": 18789,
+    "password_env": "OPENCLAW_GATEWAY_PASSWORD"
+  },
+  "skills_path": "./skills"
+}

@@ -1,0 +1,140 @@
+version: "3.8"
+
+services:
+  # ============================================================
+  # CacheGPT Monitoring Agent
+  # Monitors cachegpt.app health, runs synthetic cache tests,
+  # sends Telegram alerts on failures.
+  #
+  # Network egress whitelist (enforce via host firewall/iptables):
+  #   - cachegpt.app (health checks)
+  #   - api.telegram.org (alerting)
+  #   - api.anthropic.com (LLM provider for agent reasoning)
+  # ============================================================
+  monitoring-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.openclaw
+    container_name: openclaw-monitoring
+    hostname: openclaw-monitoring
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:18789:18789"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - CACHEGPT_API_URL=${CACHEGPT_API_URL}
+      - CACHEGPT_API_KEY=${CACHEGPT_API_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - OPENCLAW_GATEWAY_PASSWORD=${OPENCLAW_GATEWAY_PASSWORD}
+      - OPENCLAW_PORT=18789
+      - TZ=${TZ:-America/Chicago}
+    volumes:
+      - monitoring-config:/home/openclaw/.openclaw
+      - monitoring-workspace:/home/openclaw/workspace
+      - ./configs/monitoring-agent:/home/openclaw/agent-config:ro
+      - ./logs/monitoring:/var/log/openclaw
+    read_only: true
+    tmpfs:
+      - /tmp:size=64M,mode=1777
+      - /run:size=16M,mode=755
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
+          cpus: "0.1"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:18789/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    networks:
+      - monitoring-net
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================================
+  # CacheGPT Growth Agent
+  # Monitors Reddit for LLM cost conversations, drafts responses,
+  # sends opportunity digests via Telegram.
+  #
+  # Network egress whitelist (enforce via host firewall/iptables):
+  #   - reddit.com, old.reddit.com (monitoring)
+  #   - api.telegram.org (digests)
+  #   - api.anthropic.com (LLM provider for agent reasoning)
+  # ============================================================
+  growth-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.openclaw
+    container_name: openclaw-growth
+    hostname: openclaw-growth
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:18790:18790"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - CACHEGPT_API_URL=${CACHEGPT_API_URL}
+      - CACHEGPT_API_KEY=${CACHEGPT_API_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - OPENCLAW_GATEWAY_PASSWORD=${OPENCLAW_GATEWAY_PASSWORD}
+      - OPENCLAW_PORT=18790
+      - TZ=${TZ:-America/Chicago}
+    volumes:
+      - growth-config:/home/openclaw/.openclaw
+      - growth-workspace:/home/openclaw/workspace
+      - ./configs/growth-agent:/home/openclaw/agent-config:ro
+      - ./logs/growth:/var/log/openclaw
+    read_only: true
+    tmpfs:
+      - /tmp:size=64M,mode=1777
+      - /run:size=16M,mode=755
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
+          cpus: "0.1"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:18790/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    networks:
+      - growth-net
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  monitoring-config:
+  monitoring-workspace:
+  growth-config:
+  growth-workspace:
+
+networks:
+  monitoring-net:
+    driver: bridge
+  growth-net:
+    driver: bridge

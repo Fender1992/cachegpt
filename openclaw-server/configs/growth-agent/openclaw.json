@@ -1,0 +1,77 @@
+{
+  "name": "cachegpt-growth",
+  "description": "Monitor online conversations for organic CacheGPT promotion opportunities",
+  "model": "claude-sonnet-4-20250514",
+  "channels": {
+    "telegram": {
+      "enabled": true,
+      "bot_token_env": "TELEGRAM_BOT_TOKEN",
+      "chat_id_env": "TELEGRAM_CHAT_ID"
+    }
+  },
+  "sandbox": {
+    "enabled": true,
+    "mode": "docker",
+    "network": {
+      "allowed_hosts": [
+        "reddit.com",
+        "old.reddit.com",
+        "www.reddit.com",
+        "oauth.reddit.com",
+        "api.telegram.org",
+        "api.anthropic.com"
+      ]
+    }
+  },
+  "memory": {
+    "enabled": true,
+    "persist": true,
+    "path": "~/.openclaw/memory"
+  },
+  "cron": {
+    "enabled": true,
+    "timezone": "America/Chicago",
+    "jobs": [
+      {
+        "id": "social-scan",
+        "schedule": "*/15 * * * *",
+        "skill": "cachegpt-growth",
+        "action": "scan",
+        "description": "Scan Reddit for LLM cost conversations every 15 minutes"
+      },
+      {
+        "id": "opportunity-digest-morning",
+        "schedule": "0 8 * * *",
+        "skill": "cachegpt-growth",
+        "action": "digest",
+        "description": "Morning opportunity digest at 8 AM CT"
+      },
+      {
+        "id": "opportunity-digest-noon",
+        "schedule": "0 12 * * *",
+        "skill": "cachegpt-growth",
+        "action": "digest",
+        "description": "Noon opportunity digest"
+      },
+      {
+        "id": "opportunity-digest-afternoon",
+        "schedule": "0 16 * * *",
+        "skill": "cachegpt-growth",
+        "action": "digest",
+        "description": "Afternoon opportunity digest at 4 PM CT"
+      },
+      {
+        "id": "opportunity-digest-evening",
+        "schedule": "0 20 * * *",
+        "skill": "cachegpt-growth",
+        "action": "digest",
+        "description": "Evening opportunity digest at 8 PM CT"
+      }
+    ]
+  },
+  "gateway": {
+    "port": 18790,
+    "password_env": "OPENCLAW_GATEWAY_PASSWORD"
+  },
+  "skills_path": "./skills"
+}

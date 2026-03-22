@@ -1,0 +1,16 @@
+{
+  "cachegpt_api_url": "https://cachegpt.app/api/v1",
+  "cachegpt_api_key": "YOUR_API_KEY_HERE",
+  "similarity_threshold": 0.85,
+  "default_ttl_seconds": 3600,
+  "timeout_ms": 2000,
+  "fallback_on_error": true,
+  "log_file": "~/.openclaw/logs/cachegpt.log",
+  "show_savings_in_chat": true,
+  "analytics": {
+    "track_hits": true,
+    "track_misses": true,
+    "track_cost_savings": true,
+    "daily_summary": true
+  }
+}
