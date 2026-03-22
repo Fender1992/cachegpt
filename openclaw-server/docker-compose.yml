@@ -70,7 +70,13 @@ services:
   # sends opportunity digests via Telegram.
   #
   # Network egress whitelist (enforce via host firewall/iptables):
-  #   - reddit.com, old.reddit.com (monitoring)
+  #   - reddit.com, old.reddit.com (Reddit scanning)
+  #   - hn.algolia.com (Hacker News search API)
+  #   - dev.to (Dev.to articles API)
+  #   - api.stackexchange.com (Stack Overflow search)
+  #   - api.github.com (GitHub Discussions search)
+  #   - api.twitter.com (X/Twitter — optional)
+  #   - www.indiehackers.com (Indie Hackers search)
   #   - api.telegram.org (digests)
   #   - api.anthropic.com (LLM provider for agent reasoning)
   # ============================================================
@@ -91,6 +97,7 @@ services:
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
       - OPENCLAW_GATEWAY_PASSWORD=${OPENCLAW_GATEWAY_PASSWORD}
       - OPENCLAW_PORT=18790
+      - X_BEARER_TOKEN=${X_BEARER_TOKEN:-}
       - TZ=${TZ:-America/Chicago}
     volumes:
       - growth-config:/home/openclaw/.openclaw

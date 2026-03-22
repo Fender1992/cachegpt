@@ -136,9 +136,50 @@ def print_summary(entries):
         print(f"  {BOLD}Date range:{NC}            {oldest.strftime('%Y-%m-%d')} to {newest.strftime('%Y-%m-%d')}")
 
 
+def print_platform_breakdown(entries):
+    """Print stats by platform."""
+    print_header("Platform Breakdown")
+
+    platform_map = {
+        'HackerNews': '🟠 Hacker News',
+        'Dev.to': '🟢 Dev.to',
+        'StackOverflow': '🟡 Stack Overflow',
+        'X/Twitter': '🐦 X/Twitter',
+        'IndieHackers': '🟣 Indie Hackers',
+    }
+
+    by_platform = defaultdict(lambda: {'total': 0, 'drafted': 0, 'scores': []})
+
+    for e in entries:
+        source = e.get('subreddit', 'unknown')
+        if source.startswith('r/'):
+            platform = '🔵 Reddit'
+        elif source.startswith('GitHub/'):
+            platform = '⚫ GitHub'
+        else:
+            platform = platform_map.get(source, f'❓ {source}')
+
+        by_platform[platform]['total'] += 1
+        by_platform[platform]['scores'].append(e.get('score', 0))
+        if e.get('drafted_response'):
+            by_platform[platform]['drafted'] += 1
+
+    sorted_platforms = sorted(by_platform.items(), key=lambda x: x[1]['total'], reverse=True)
+
+    print(f"  {'Platform':<25} {'Total':>6} {'Drafts':>7} {'Avg Score':>10}")
+    print(f"  {'─' * 25} {'─' * 6} {'─' * 7} {'─' * 10}")
+
+    for platform, stats in sorted_platforms:
+        avg = sum(stats['scores']) / len(stats['scores']) if stats['scores'] else 0
+        color = GREEN if avg >= 7 else YELLOW if avg >= 5 else DIM
+        print(f"  {color}{platform:<25}{NC} {stats['total']:>6} {stats['drafted']:>7} {avg:>9.1f}")
+
+    print()
+
+
 def print_subreddit_breakdown(entries):
-    """Print stats by subreddit."""
-    print_header("Subreddit Breakdown")
+    """Print stats by source (subreddit/platform)."""
+    print_header("Source Breakdown")
 
     by_sub = defaultdict(lambda: {'total': 0, 'drafted': 0, 'scores': [], 'keywords': set()})
 
@@ -345,6 +386,7 @@ def main():
 
     print_summary(entries)
     print_daily_trend(entries)
+    print_platform_breakdown(entries)
     print_subreddit_breakdown(entries)
     print_keyword_performance(entries)
 
