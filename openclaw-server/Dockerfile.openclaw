@@ -22,7 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Install OpenClaw globally
-RUN npm install -g @anthropic-ai/openclaw && npm cache clean --force
+RUN npm install -g openclaw@latest && npm cache clean --force
 
 # Install Python dependencies for CacheGPT proxy
 RUN python3 -m pip install --no-cache-dir --break-system-packages \
