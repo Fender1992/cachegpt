@@ -143,8 +143,7 @@ export async function POST(request: NextRequest) {
     // Create adapter for the selected provider
     const adapter = createAdapter(providerResolution.provider)
 
-    // Call LLM provider
-    const response = await adapter.chat({
+    const chatParams = {
       messages: messages.map((m: any) => ({
         role: m.role,
         content: m.content,
@@ -153,9 +152,77 @@ export async function POST(request: NextRequest) {
       maxTokens: max_tokens,
       systemPrompt: system,
       temperature,
-    })
+    }
 
-    // Format response in Anthropic-compatible format
+    // Streaming response (Anthropic SSE format)
+    if (body.stream && adapter.chatStream) {
+      const encoder = new TextEncoder()
+      const msgId = `msg_${requestId}`
+
+      const readableStream = new ReadableStream({
+        async start(controller) {
+          try {
+            // message_start
+            controller.enqueue(encoder.encode(`event: message_start\ndata: ${JSON.stringify({
+              type: 'message_start',
+              message: { id: msgId, type: 'message', role: 'assistant', content: [], model, stop_reason: null, stop_sequence: null, usage: { input_tokens: 0, output_tokens: 0 } }
+            })}\n\n`))
+
+            // content_block_start
+            controller.enqueue(encoder.encode(`event: content_block_start\ndata: ${JSON.stringify({
+              type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' }
+            })}\n\n`))
+
+            let outputTokens = 0
+            let inputTokens = 0
+
+            for await (const chunk of adapter.chatStream!(chatParams)) {
+              if (chunk.done) {
+                if (chunk.usage) {
+                  outputTokens = chunk.usage.completionTokens || 0
+                  inputTokens = chunk.usage.promptTokens || 0
+                }
+              } else if (chunk.content) {
+                controller.enqueue(encoder.encode(`event: content_block_delta\ndata: ${JSON.stringify({
+                  type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: chunk.content }
+                })}\n\n`))
+              }
+            }
+
+            // content_block_stop
+            controller.enqueue(encoder.encode(`event: content_block_stop\ndata: ${JSON.stringify({
+              type: 'content_block_stop', index: 0
+            })}\n\n`))
+
+            // message_delta
+            controller.enqueue(encoder.encode(`event: message_delta\ndata: ${JSON.stringify({
+              type: 'message_delta', delta: { stop_reason: 'end_turn', stop_sequence: null }, usage: { output_tokens: outputTokens }
+            })}\n\n`))
+
+            // message_stop
+            controller.enqueue(encoder.encode(`event: message_stop\ndata: ${JSON.stringify({ type: 'message_stop' })}\n\n`))
+          } catch (err) {
+            const errorMsg = err instanceof Error ? err.message : 'Stream error'
+            controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ type: 'error', error: { type: 'server_error', message: errorMsg } })}\n\n`))
+          } finally {
+            controller.close()
+          }
+        },
+      })
+
+      return new Response(readableStream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+          'x-request-id': requestId,
+        },
+      })
+    }
+
+    // Non-streaming response
+    const response = await adapter.chat(chatParams)
+
     const anthropicResponse = {
       id: `msg_${requestId}`,
       type: 'message',
