@@ -2,7 +2,7 @@
  * OpenAI-compatible Chat Completions endpoint
  *
  * Accepts OpenAI format, routes through CacheGPT's provider system,
- * returns OpenAI-compatible response format.
+ * returns OpenAI-compatible response format. Supports streaming (SSE).
  *
  * Auth: Bearer token or x-api-key with cgpt_sk_ prefix
  */
@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createHash } from 'crypto'
-import { resolveProvider, ProviderResolutionError, createProviderErrorResponse } from '@/services/llm/providerResolver'
+import { resolveProvider, ProviderResolutionError } from '@/services/llm/providerResolver'
 import { createAdapter } from '@/services/llm/adapters'
 import { generateRequestId } from '@/config/llmConfig'
 
@@ -24,12 +24,10 @@ function hashApiKey(apiKey: string): string {
 }
 
 function getApiKey(request: NextRequest): string | null {
-  // Support both x-api-key and Authorization: Bearer
   const xApiKey = request.headers.get('x-api-key')
   if (xApiKey?.startsWith('cgpt_sk_')) return xApiKey
 
   const auth = request.headers.get('authorization')
-  if (auth?.startsWith('Bearer cgpt_sk_')) return auth.slice(7)
   if (auth?.startsWith('Bearer ')) {
     const token = auth.slice(7)
     if (token.startsWith('cgpt_sk_')) return token
@@ -62,7 +60,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const userId = keyData[0].user_id
     supabase.rpc('increment_api_key_usage', { api_key_hash: keyHash })
 
     const body = await request.json()
@@ -75,7 +72,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Extract system message from OpenAI format (role: "system")
     let systemPrompt: string | undefined
     const chatMessages = messages.filter((m: any) => {
       if (m.role === 'system') {
@@ -103,8 +99,7 @@ export async function POST(request: NextRequest) {
     }
 
     const adapter = createAdapter(providerResolution.provider)
-
-    const response = await adapter.chat({
+    const chatParams = {
       messages: chatMessages.map((m: any) => ({
         role: m.role,
         content: typeof m.content === 'string' ? m.content : m.content?.[0]?.text || '',
@@ -113,9 +108,69 @@ export async function POST(request: NextRequest) {
       maxTokens: max_tokens || 4096,
       systemPrompt,
       temperature,
-    })
+    }
 
-    // Format as OpenAI chat completions response
+    // Streaming response
+    if (stream && adapter.chatStream) {
+      const encoder = new TextEncoder()
+      const streamId = `chatcmpl-${requestId}`
+      const created = Math.floor(Date.now() / 1000)
+
+      const readableStream = new ReadableStream({
+        async start(controller) {
+          try {
+            for await (const chunk of adapter.chatStream!(chatParams)) {
+              if (chunk.type === 'text') {
+                const sseData = {
+                  id: streamId,
+                  object: 'chat.completion.chunk',
+                  created,
+                  model: model,
+                  choices: [{
+                    index: 0,
+                    delta: { content: chunk.text },
+                    finish_reason: null,
+                  }],
+                }
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify(sseData)}\n\n`))
+              } else if (chunk.type === 'done') {
+                const sseData = {
+                  id: streamId,
+                  object: 'chat.completion.chunk',
+                  created,
+                  model: model,
+                  choices: [{
+                    index: 0,
+                    delta: {},
+                    finish_reason: 'stop',
+                  }],
+                }
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify(sseData)}\n\n`))
+                controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+              }
+            }
+          } catch (err) {
+            const errorMsg = err instanceof Error ? err.message : 'Stream error'
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: { message: errorMsg } })}\n\n`))
+          } finally {
+            controller.close()
+          }
+        },
+      })
+
+      return new Response(readableStream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+          'x-request-id': requestId,
+        },
+      })
+    }
+
+    // Non-streaming response
+    const response = await adapter.chat(chatParams)
+
     const completionResponse = {
       id: `chatcmpl-${requestId}`,
       object: 'chat.completion',
