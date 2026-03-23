@@ -154,63 +154,33 @@ export async function POST(request: NextRequest) {
       temperature,
     }
 
-    // Streaming response (Anthropic SSE format)
-    if (body.stream && adapter.chatStream) {
-      const encoder = new TextEncoder()
-      const msgId = `msg_${requestId}`
+    // Streaming: proxy directly to Anthropic for full tool_use support
+    if (body.stream && providerResolution.provider === 'anthropic') {
+      const anthropicKey = process.env.ANTHROPIC_API_KEY
+      if (!anthropicKey) {
+        return NextResponse.json({ error: 'Anthropic API key not configured' }, { status: 500 })
+      }
 
-      const readableStream = new ReadableStream({
-        async start(controller) {
-          try {
-            // message_start
-            controller.enqueue(encoder.encode(`event: message_start\ndata: ${JSON.stringify({
-              type: 'message_start',
-              message: { id: msgId, type: 'message', role: 'assistant', content: [], model, stop_reason: null, stop_sequence: null, usage: { input_tokens: 0, output_tokens: 0 } }
-            })}\n\n`))
+      const proxyBody = { ...body }
+      delete proxyBody.stream
+      proxyBody.stream = true
 
-            // content_block_start
-            controller.enqueue(encoder.encode(`event: content_block_start\ndata: ${JSON.stringify({
-              type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' }
-            })}\n\n`))
-
-            let outputTokens = 0
-            let inputTokens = 0
-
-            for await (const chunk of adapter.chatStream!(chatParams)) {
-              if (chunk.done) {
-                if (chunk.usage) {
-                  outputTokens = chunk.usage.completionTokens || 0
-                  inputTokens = chunk.usage.promptTokens || 0
-                }
-              } else if (chunk.content) {
-                controller.enqueue(encoder.encode(`event: content_block_delta\ndata: ${JSON.stringify({
-                  type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: chunk.content }
-                })}\n\n`))
-              }
-            }
-
-            // content_block_stop
-            controller.enqueue(encoder.encode(`event: content_block_stop\ndata: ${JSON.stringify({
-              type: 'content_block_stop', index: 0
-            })}\n\n`))
-
-            // message_delta
-            controller.enqueue(encoder.encode(`event: message_delta\ndata: ${JSON.stringify({
-              type: 'message_delta', delta: { stop_reason: 'end_turn', stop_sequence: null }, usage: { output_tokens: outputTokens }
-            })}\n\n`))
-
-            // message_stop
-            controller.enqueue(encoder.encode(`event: message_stop\ndata: ${JSON.stringify({ type: 'message_stop' })}\n\n`))
-          } catch (err) {
-            const errorMsg = err instanceof Error ? err.message : 'Stream error'
-            controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ type: 'error', error: { type: 'server_error', message: errorMsg } })}\n\n`))
-          } finally {
-            controller.close()
-          }
+      const upstreamRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': anthropicKey,
+          'anthropic-version': '2023-06-01',
         },
+        body: JSON.stringify(proxyBody),
       })
 
-      return new Response(readableStream, {
+      if (!upstreamRes.ok || !upstreamRes.body) {
+        const errText = await upstreamRes.text().catch(() => 'Unknown error')
+        return new Response(errText, { status: upstreamRes.status, headers: { 'Content-Type': 'application/json' } })
+      }
+
+      return new Response(upstreamRes.body, {
         headers: {
           'Content-Type': 'text/event-stream',
           'Cache-Control': 'no-cache',
