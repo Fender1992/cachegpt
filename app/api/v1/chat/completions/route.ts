@@ -120,20 +120,7 @@ export async function POST(request: NextRequest) {
         async start(controller) {
           try {
             for await (const chunk of adapter.chatStream!(chatParams)) {
-              if (chunk.type === 'text') {
-                const sseData = {
-                  id: streamId,
-                  object: 'chat.completion.chunk',
-                  created,
-                  model: model,
-                  choices: [{
-                    index: 0,
-                    delta: { content: chunk.text },
-                    finish_reason: null,
-                  }],
-                }
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify(sseData)}\n\n`))
-              } else if (chunk.type === 'done') {
+              if (chunk.done) {
                 const sseData = {
                   id: streamId,
                   object: 'chat.completion.chunk',
@@ -147,6 +134,19 @@ export async function POST(request: NextRequest) {
                 }
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify(sseData)}\n\n`))
                 controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+              } else if (chunk.content) {
+                const sseData = {
+                  id: streamId,
+                  object: 'chat.completion.chunk',
+                  created,
+                  model: model,
+                  choices: [{
+                    index: 0,
+                    delta: { content: chunk.content },
+                    finish_reason: null,
+                  }],
+                }
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify(sseData)}\n\n`))
               }
             }
           } catch (err) {
