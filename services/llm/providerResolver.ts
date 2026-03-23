@@ -20,6 +20,7 @@ export interface ProviderResolutionRequest {
   headers?: Headers;
   requestId?: string;
   endpoint?: string;
+  model?: string; // Requested model name — used to route to correct provider
   userApiKey?: string | null; // If user has their own provider key stored
   userProvider?: string | null; // Which provider the user key is for
 }
@@ -106,6 +107,29 @@ export async function resolveProvider(request: ProviderResolutionRequest): Promi
       requestId,
       useUserKey: true,
     };
+  }
+
+  // Step 2.5: Model-aware routing — if the requested model belongs to a premium
+  // provider and that provider is configured, route directly to it.
+  // This ensures "claude-sonnet-4-6" → anthropic, "gpt-4o" → openai, etc.
+  if (request.model) {
+    const modelProvider = inferProviderFromModel(request.model);
+    if (modelProvider && await validateProviderIntent(modelProvider)) {
+      logProviderDecision({
+        requestId,
+        endpoint,
+        intent: null,
+        selected: modelProvider,
+        reason: `Model "${request.model}" mapped to provider "${modelProvider}"`,
+      });
+
+      return {
+        provider: modelProvider,
+        reason: `Model-aware routing: ${request.model} → ${modelProvider}`,
+        requestId,
+        useUserKey: false,
+      };
+    }
   }
 
   // Step 3: Try internal LLM (if enabled)
@@ -264,6 +288,31 @@ function mapUserProviderToProviderName(userProvider: string): ProviderName {
   };
 
   return mapping[userProvider] || 'anthropic'; // Default fallback
+}
+
+/**
+ * Infer the correct provider from a model name.
+ * Returns null if the model doesn't map to a known premium provider.
+ */
+function inferProviderFromModel(model: string): ProviderName | null {
+  const m = model.toLowerCase();
+
+  // Anthropic models
+  if (m.startsWith('claude-') || m.includes('claude')) return 'anthropic';
+
+  // OpenAI models
+  if (m.startsWith('gpt-') || m.startsWith('o1') || m.startsWith('o3') || m.startsWith('o4')) return 'openai';
+
+  // Google models
+  if (m.startsWith('gemini-')) return 'google';
+
+  // Perplexity models
+  if (m.startsWith('pplx-') || m.startsWith('sonar')) return 'perplexity';
+
+  // Groq models (route to free)
+  if (m.startsWith('llama-') || m.includes('groq')) return 'free';
+
+  return null;
 }
 
 /**

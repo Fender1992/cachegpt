@@ -90,6 +90,7 @@ export async function POST(request: NextRequest) {
         headers: request.headers,
         requestId,
         endpoint: '/api/v1/chat/completions',
+        model,
       })
     } catch (error) {
       if (error instanceof ProviderResolutionError) {

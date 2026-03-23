@@ -115,12 +115,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Resolve which provider to use
+    // Resolve which provider to use (model-aware routing)
     try {
       providerResolution = await resolveProvider({
         headers: request.headers,
         requestId,
         endpoint: '/api/v1/messages',
+        model,
       })
     } catch (error) {
       if (error instanceof ProviderResolutionError) {
