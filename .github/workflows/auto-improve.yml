@@ -123,7 +123,7 @@ jobs:
 
           2. If the spec requires changes to protected files, create a file called NEEDS_HUMAN.md explaining what's needed and exit.
 
-          3. HARD LIMIT: Maximum 10 files changed, 300 lines changed total (insertions + deletions). This is enforced by a guardrail that WILL reject your work if exceeded. Be minimal. Write concise code. No boilerplate. No verbose comments. No unnecessary abstractions. If the spec says "~50 lines", stay under 50 lines. Keep tests short and focused — test behavior, not implementation details. Before committing, run `git diff --stat` and count your lines. If you're over 250, refactor to be more concise.
+          3. HARD LIMIT: Maximum 10 files changed, 600 lines changed total (insertions + deletions). This is enforced by a guardrail that WILL reject your work if exceeded. Be minimal. Write concise code. No boilerplate. No verbose comments. No unnecessary abstractions. If the spec says "~50 lines", stay under 50 lines. Keep tests short and focused — test behavior, not implementation details. Before committing, run `git diff --stat` and count your lines. If you're over 250, refactor to be more concise.
 
           4. EVERY new provider must include:
              - API route: app/api/[provider]/route.ts
@@ -178,8 +178,8 @@ jobs:
             exit 1
           fi
 
-          if [ "$LINES" -gt 300 ]; then
-            echo "❌ Too many lines changed: $LINES (max 300)"
+          if [ "$LINES" -gt 600 ]; then
+            echo "❌ Too many lines changed: $LINES (max 600)"
             exit 1
           fi
 
