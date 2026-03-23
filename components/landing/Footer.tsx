@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import CacheGPTLogo from '@/components/CacheGPTLogo';
+import { StatusBadge } from '@/components/status-badge';
 
 const navigation = {
   product: [
@@ -139,6 +140,8 @@ export default function Footer() {
             <p className="text-gray-400 text-sm">
               © {new Date().getFullYear()} CacheGPT. All rights reserved.
             </p>
+
+            <StatusBadge />
 
             <div className="flex items-center gap-6">
               <a
