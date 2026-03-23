@@ -330,9 +330,9 @@ jobs:
 
       - name: Parse review decision
         id: review_decision
+        env:
+          REVIEW_OUTPUT: ${{ steps.review.outputs.review_output }}
         run: |
-          REVIEW_OUTPUT="${{ steps.review.outputs.review_output }}"
-
           if echo "$REVIEW_OUTPUT" | grep -q "DECISION: BLOCK"; then
             echo "approved=false" >> $GITHUB_OUTPUT
             BLOCKERS=$(echo "$REVIEW_OUTPUT" | sed -n '/BLOCKERS:/,/WARNINGS:/p' | head -n -1)
@@ -355,10 +355,13 @@ jobs:
 
       - name: Post review to PR
         uses: actions/github-script@v7
+        env:
+          REVIEW_APPROVED: ${{ steps.review_decision.outputs.approved }}
+          REVIEW_BLOCKERS: ${{ steps.review_decision.outputs.blockers }}
         with:
           script: |
-            const approved = '${{ steps.review_decision.outputs.approved }}' === 'true';
-            const blockers = `${{ steps.review_decision.outputs.blockers }}`;
+            const approved = process.env.REVIEW_APPROVED === 'true';
+            const blockers = process.env.REVIEW_BLOCKERS;
 
             const prs = await github.rest.pulls.list({
               owner: context.repo.owner,
