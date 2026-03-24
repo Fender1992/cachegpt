@@ -229,9 +229,10 @@ export class FreeProvidersAdapter implements LLMAdapter {
 
     // Priority guide (lower = tried first):
     // 1 = Cerebras (Qwen 3 235B — largest free model, ultra-fast)
+    // 2 = Google AI Studio (Gemini 2.0 Flash — 1M context, 1000 req/day free)
     // 2 = Groq (Llama 3.3 70B — fast inference, reliable)
     // 3 = SambaNova (Llama 3.3 70B — custom hardware, fast)
-    // 4 = OpenRouter (Llama 4 Maverick — good free model)
+    // 4 = OpenRouter (Nemotron 3 Super, DeepSeek R1, Gemma 3, Mistral — many free models)
     // 5 = HuggingFace (variable reliability, good diversity)
 
     if (LLM_CONFIG.free.cerebras?.enabled) {
@@ -274,6 +275,16 @@ export class FreeProvidersAdapter implements LLMAdapter {
       });
     }
 
+    if (LLM_CONFIG.free.googleAiStudio?.enabled) {
+      providers.push({
+        name: 'google-ai-studio',
+        apiKey: LLM_CONFIG.free.googleAiStudio.apiKey,
+        endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+        model: getDefaultModelId('google-ai-studio'),
+        priority: 2, // High quality, 1M context, 1000 req/day free
+      });
+    }
+
     if (LLM_CONFIG.free.huggingface.enabled) {
       const hfModels = LLM_CONFIG.free.huggingface.models || [getDefaultModelId('huggingface')];
       hfModels.forEach((model, index) => {
@@ -295,10 +306,10 @@ export class FreeProvidersAdapter implements LLMAdapter {
   }
 
   private selectDiverseProviders(providers: ProviderConfig[], count: number): ProviderConfig[] {
-    // Pick the best model (Cerebras 235B), a strong 70B, and a different architecture
+    // Pick the best model (Cerebras 235B), a strong mid-tier, and a different architecture
     const huge = providers.find(p => p.name === 'cerebras');
-    const large = providers.find(p => (p.model.includes('70') || p.name === 'groq') && p.name !== 'cerebras');
-    const other = providers.find(p => p.name === 'openrouter') || providers.find(p => p.model.includes('7B') || p.model.includes('8B'));
+    const large = providers.find(p => p.name === 'google-ai-studio') || providers.find(p => (p.model.includes('70') || p.name === 'groq') && p.name !== 'cerebras');
+    const other = providers.find(p => p.name === 'openrouter') || providers.find(p => p.name === 'groq');
 
     const selected: ProviderConfig[] = [];
     if (huge) selected.push(huge);

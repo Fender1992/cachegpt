@@ -45,6 +45,10 @@ export interface FreeProvidersConfig {
     enabled: boolean;
     apiKey: string;
   };
+  googleAiStudio: {
+    enabled: boolean;
+    apiKey: string;
+  };
 }
 
 export interface PremiumProviderConfig {
@@ -132,10 +136,10 @@ export const LLM_CONFIG: LLMConfigType = {
       apiKey: process.env.HUGGINGFACE_API_KEY || '',
       // Multiple models for diversity and load balancing
       models: [
-        'meta-llama/Llama-3.3-70B-Instruct',      // High quality - 70B parameters
-        'meta-llama/Llama-3.1-8B-Instruct',       // Fast & efficient - 8B parameters
-        'Qwen/Qwen2.5-7B-Instruct',               // Excellent for coding - 7B parameters
-        'mistralai/Mistral-7B-Instruct-v0.3',     // Good general purpose - 7B parameters
+        'meta-llama/Llama-3.3-70B-Instruct',              // High quality - 70B parameters
+        'Qwen/Qwen3-32B',                                  // Strong reasoning & coding - 32B
+        'mistralai/Mistral-Small-24B-Instruct-2501',       // Fast, strong for coding - 24B
+        'google/gemma-3-27b-it',                            // Multimodal capable - 27B
       ],
     },
     cerebras: {
@@ -145,6 +149,10 @@ export const LLM_CONFIG: LLMConfigType = {
     sambanova: {
       enabled: !!process.env.SAMBANOVA_API_KEY,
       apiKey: process.env.SAMBANOVA_API_KEY || '',
+    },
+    googleAiStudio: {
+      enabled: !!process.env.GOOGLE_AI_STUDIO_API_KEY,
+      apiKey: process.env.GOOGLE_AI_STUDIO_API_KEY || '',
     },
   },
 

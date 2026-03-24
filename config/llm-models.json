@@ -101,13 +101,49 @@
       ]
     },
     "openrouter": {
-      "name": "OpenRouter",
+      "name": "OpenRouter (Free)",
       "models": [
+        {
+          "id": "nvidia/nemotron-3-super:free",
+          "name": "Nemotron 3 Super (Free)",
+          "default": true,
+          "maxTokens": 262000
+        },
         {
           "id": "meta-llama/llama-4-maverick:free",
           "name": "Llama 4 Maverick (Free)",
-          "default": true,
           "maxTokens": 128000
+        },
+        {
+          "id": "deepseek/deepseek-r1:free",
+          "name": "DeepSeek R1 (Free)",
+          "maxTokens": 128000
+        },
+        {
+          "id": "google/gemma-3-27b-it:free",
+          "name": "Gemma 3 27B (Free)",
+          "maxTokens": 96000
+        },
+        {
+          "id": "mistralai/mistral-small-3.1-24b-instruct:free",
+          "name": "Mistral Small 3.1 24B (Free)",
+          "maxTokens": 96000
+        }
+      ]
+    },
+    "google-ai-studio": {
+      "name": "Google AI Studio (Free)",
+      "models": [
+        {
+          "id": "gemini-2.0-flash",
+          "name": "Gemini 2.0 Flash (Free)",
+          "default": true,
+          "maxTokens": 1000000
+        },
+        {
+          "id": "gemini-2.0-flash-lite",
+          "name": "Gemini 2.0 Flash Lite (Free)",
+          "maxTokens": 1000000
         }
       ]
     },
@@ -117,6 +153,48 @@
         {
           "id": "meta-llama/Llama-3.3-70B-Instruct",
           "name": "Llama 3.3 70B Instruct",
+          "default": true,
+          "maxTokens": 128000
+        },
+        {
+          "id": "Qwen/Qwen3-32B",
+          "name": "Qwen 3 32B",
+          "maxTokens": 128000
+        },
+        {
+          "id": "mistralai/Mistral-Small-24B-Instruct-2501",
+          "name": "Mistral Small 24B",
+          "maxTokens": 96000
+        },
+        {
+          "id": "google/gemma-3-27b-it",
+          "name": "Gemma 3 27B",
+          "maxTokens": 96000
+        }
+      ]
+    },
+    "cerebras": {
+      "name": "Cerebras",
+      "models": [
+        {
+          "id": "qwen-3-235b-a22b-instruct-2507",
+          "name": "Qwen 3 235B Instruct",
+          "default": true,
+          "maxTokens": 128000
+        },
+        {
+          "id": "llama3.1-8b",
+          "name": "Llama 3.1 8B (Cerebras)",
+          "maxTokens": 128000
+        }
+      ]
+    },
+    "sambanova": {
+      "name": "SambaNova",
+      "models": [
+        {
+          "id": "Meta-Llama-3.3-70B-Instruct",
+          "name": "Llama 3.3 70B (SambaNova)",
           "default": true,
           "maxTokens": 128000
         }
@@ -134,8 +212,8 @@
       ]
     }
   },
-  "lastUpdated": "2025-09-25",
-  "version": "5.0-current",
+  "lastUpdated": "2026-03-24",
+  "version": "6.0-free-upgrade",
   "note": "Matches lib/models/registry.ts defaults — kept in sync for LLMConfig backward compat",
   "updateUrl": "https://cachegpt.app/api/model-updates"
 }
